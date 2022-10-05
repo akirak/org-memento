@@ -56,10 +56,51 @@ than `org-clock-idle-time'."
   ""
   :type 'string)
 
+(define-widget 'org-memento-category-spec-type 'lazy
+  ""
+  :tag "Category spec"
+  :type '(plist :options
+                (((const :tag "Template" :template)
+                  (choice (string :tag "Literal string")
+                          (list (const file)
+                                (string :tag "File name"))
+                          (function :tag "Function that takes no argument")))
+                 ((const :tag "Default duration" :duration)
+                  (string :tag "H:MM"))
+                 ((const :tag "Days of week" :dows)
+                  (set (const :tag "Sunday" 0)
+                       (const :tag "Monday" 1)
+                       (const :tag "Tuesday" 2)
+                       (const :tag "Wednesday" 3)
+                       (const :tag "Thursday" 4)
+                       (const :tag "Friday" 5)
+                       (const :tag "Saturday" 6)))
+                 ((const :tag "Time of day" :time)
+                  (choice (list :tag "Relative time from check in"
+                                (const relative)
+                                (string :tag "H:MM"))
+                          (list :tag "Absolute"
+                                (const absolute)
+                                (string :tag "H:MM(-H:MM)"))))
+                 ((const :tag "User-defined properties" :x)
+                  (choice plist sexp)))))
+
+(defcustom org-memento-category-alist
+  nil
+  ""
+  :type '(alist :key-type (string :tag "Category name")
+                :value-type org-memento-category-spec-type))
+
+(defcustom org-memento-template-directory nil
+  ""
+  :type 'directory)
+
 ;;;; Variables
 
 (defvar org-memento-current-block nil
   "Headline of the current block.")
+
+(defvar org-memento-current-category nil)
 
 (defvar org-memento-current-time nil
   "When non-nil, use this as the current time for testing.")
@@ -78,7 +119,7 @@ Intended for internal use.")
 ;;;; Structs
 
 (cl-defstruct org-memento-block
-  title closed checkin duration active-ts)
+  title closed checkin duration active-ts category)
 
 (cl-defstruct org-memento-org-event
   marker start-time start-time-with-margin margin-secs)
@@ -188,6 +229,9 @@ Intended for internal use.")
   (setq org-memento-current-block title)
   (let* ((block (org-memento-current-block-status))
          (remaining-secs (plist-get block :remaining-secs)))
+    (setq org-memento-current-category
+          (or (org-memento-block-category block)
+              (car (assoc title org-memento-category-alist))))
     (when (and remaining-secs (< remaining-secs 0))
       (error "Already timeout"))
     (org-memento--cancel-block-timer)
@@ -309,6 +353,14 @@ point to the heading.
   (interactive "sDuration (H:MM): ")
   (org-entry-put nil "memento_duration" duration))
 
+(defun org-memento-set-category (category)
+  "Set the category of the block at point."
+  (interactive (list (completing-read "Category: "
+                                      org-memento-category-alist
+                                      nil nil nil nil
+                                      (org-entry-get nil "memento_category"))))
+  (org-entry-put nil "memento_category" category))
+
 (defun org-memento--maybe-check-in ()
   (unless (org-entry-get nil "memento_checkin_time")
     (org-entry-put nil "memento_checkin_time" (org-memento--inactive-ts-string
@@ -368,7 +420,8 @@ point to the heading.
      :checkin (when-let (str (org-element-property :MEMENTO_CHECKIN_TIME headline))
                 (org-timestamp-from-string str))
      :duration (org-element-property :MEMENTO_DURATION headline)
-     :active-ts active-ts)))
+     :active-ts active-ts
+     :category (org-element-property :MEMENTO_CATEGORY headline))))
 
 ;;;;; Selecting blocks or finding a block
 
