@@ -43,6 +43,19 @@
   "File that keeps the journal."
   :type 'file)
 
+(defcustom org-memento-idle-time 30
+  "Duration in minutes until idle tasks are performed.
+
+Also see `org-clock-idle-time'. If `org-clock-idle-time' is
+non-nil, the value of `org-memento-idle-time' should be larger
+than `org-clock-idle-time'."
+  :type '(choice (number :tag "Duration in minutes")
+                 (const nil)))
+
+(defcustom org-memento-idle-heading "Idle"
+  ""
+  :type 'string)
+
 ;;;; Variables
 
 (defvar org-memento-current-block nil
@@ -59,6 +72,8 @@ Intended for internal use.")
 (defvar org-memento-block-timer nil)
 
 (defvar org-memento-daily-timer nil)
+
+(defvar org-memento-idle-timer nil)
 
 ;;;; Structs
 
@@ -104,9 +119,37 @@ Intended for internal use.")
 
 ;;;; Global mode
 
-(defun org-memento--add-to-agenda ()
-  (when (file-readable-p org-memento-file)
-    (add-to-list 'org-agenda-files org-memento-file)))
+(define-minor-mode org-memento-mode
+  "Global mode that handle idles."
+  :lighter " OrgMemento"
+  :global t
+  (when org-memento-idle-timer
+    (cancel-timer org-memento-idle-timer)
+    (setq org-memento-idle-timer nil))
+  (when (bound-and-true-p org-memento-mode)
+    (when org-memento-idle-time
+      (setq org-memento-idle-timer
+            (run-with-idle-timer (* 60 org-memento-idle-time)
+                                 nil
+                                 #'org-memento-idle)))
+    (message "Org-Memento mode started.")))
+
+(defun org-memento-idle ()
+  (let ((time-user-left (time-subtract (org-memento--current-time)
+                                       (* 60 org-memento-idle-time))))
+    (org-memento-with-today-entry
+     (org-narrow-to-subtree)
+     (unless (re-search-forward (format org-complex-heading-regexp-format
+                                        org-memento-idle-heading)
+                                nil t)
+       (goto-char (point-max))
+       (insert "\n** " org-memento-idle-heading "\n"))
+     (org-clock-in nil time-user-left)
+     (add-hook 'pre-command-hook #'org-memento-unidle))))
+
+(defun org-memento-unidle ()
+  (remove-hook 'pre-command-hook #'org-memento-unidle)
+  (org-clock-out))
 
 ;;;; Commands
 
@@ -305,7 +348,10 @@ point to the heading.
    (org-map-entries #'org-memento-block-entry
                     nil nil
                     (lambda ()
-                      (when (< 2 (org-outline-level))
+                      (when (and (looking-at org-complex-heading-regexp)
+                                 (or (< 2 (length (match-string 1)))
+                                     (equal (match-string 4)
+                                            org-memento-idle-heading)))
                         (re-search-forward (rx bol "** ")))))))
 
 (defun org-memento-block-entry ()
