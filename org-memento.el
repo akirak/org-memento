@@ -904,7 +904,6 @@ FROM-DATE and TO-DATE must be given as decoded times.
 The returned value will be a list of (START . END) where START
 and END are float times."
   (let* ((events (org-memento--agenda-events from-date to-date))
-         (event (pop events))
          result)
     (dolist (date (org-memento--date-list from-date to-date))
       (catch 'day-end
@@ -919,35 +918,49 @@ and END are float times."
                                                                   (mod checkin-minutes 60)
                                                                   0))))
                  (day-end (+ time (* 60 duration-minutes))))
-            (while (< time day-end)
-              (cond
-               ;; No event remaining, so the entire day will be available
-               ((null event)
-                (push (cons time day-end)
-                      result)
-                (throw 'day-end t))
-               ((< day-end (org-memento-org-event-start-time event))
-                (push (cons time day-end)
-                      result)
-                (throw 'day-end t))
-               ((< time (org-memento-org-event-start-time event))
-                (push (cons time (org-memento-org-event-start-time event))
-                      result)
-                (if (< (org-memento-org-event-end-time event) day-end)
-                    (progn
-                      (setq time (org-memento-org-event-end-time event))
-                      (setq event (pop events)))
-                  (throw 'day-end t)))
-               ((> time (org-memento-org-event-start-time event))
-                (cond
-                 ((> time (org-memento-org-event-end-time event))
-                  (setq event (pop events)))
-                 ((< (org-memento-org-event-end-time event) day-end)
-                  (setq time (org-memento-org-event-end-time event))
-                  (setq event (pop events)))
-                 (t
-                  (throw 'day-end t))))))))))
-    (nreverse result)))
+            (pcase (org-memento--search-empty-slots-1 time day-end events)
+              (`(,part . ,remaining-events)
+               (setq events remaining-events)
+               (setq result (append result part))))))))
+    result))
+
+(defun org-memento--search-empty-slots-1 (initial-time day-end events)
+  (let ((time initial-time)
+        (event (pop events))
+        result)
+    (catch 'day-end
+      (while (< time day-end)
+        (cond
+         ;; No event remaining, so the entire day will be available
+         ((null event)
+          (push (cons time day-end)
+                result)
+          (throw 'day-end t))
+         ((< day-end (org-memento-org-event-start-time event))
+          (push (cons time day-end)
+                result)
+          (throw 'day-end t))
+         ((< time (org-memento-org-event-start-time event))
+          (push (cons time (org-memento-org-event-start-time event))
+                result)
+          (if (< (org-memento-org-event-end-time event) day-end)
+              (progn
+                (setq time (org-memento-org-event-end-time event))
+                (setq event (pop events)))
+            (throw 'day-end t)))
+         ((> time (org-memento-org-event-start-time event))
+          (cond
+           ((> time (org-memento-org-event-end-time event))
+            (setq event (pop events)))
+           ((< (org-memento-org-event-end-time event) day-end)
+            (setq time (org-memento-org-event-end-time event))
+            (setq event (pop events)))
+           (t
+            (throw 'day-end t)))))))
+    (cons (nreverse result)
+          (if event
+              (cons event events)
+            events))))
 
 (defun org-memento-workhour-end ()
   "Return time at which today's work ends."
