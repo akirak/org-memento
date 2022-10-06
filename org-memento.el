@@ -190,6 +190,7 @@ Intended for internal use.")
 
 ;;;; Global mode
 
+;;;###autoload
 (define-minor-mode org-memento-mode
   "Global mode that handle idles."
   :lighter " OrgMemento"
