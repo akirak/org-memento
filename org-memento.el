@@ -56,6 +56,17 @@ than `org-clock-idle-time'."
   ""
   :type 'string)
 
+(define-widget 'org-memento-days-of-week-type 'lazy
+  ""
+  :tag "Days of week"
+  :type '(set (const :tag "Sunday" 0)
+              (const :tag "Monday" 1)
+              (const :tag "Tuesday" 2)
+              (const :tag "Wednesday" 3)
+              (const :tag "Thursday" 4)
+              (const :tag "Friday" 5)
+              (const :tag "Saturday" 6)))
+
 (define-widget 'org-memento-category-spec-type 'lazy
   ""
   :tag "Category spec"
@@ -68,13 +79,7 @@ than `org-clock-idle-time'."
                  ((const :tag "Default duration" :duration)
                   (string :tag "H:MM"))
                  ((const :tag "Days of week" :dows)
-                  (set (const :tag "Sunday" 0)
-                       (const :tag "Monday" 1)
-                       (const :tag "Tuesday" 2)
-                       (const :tag "Wednesday" 3)
-                       (const :tag "Thursday" 4)
-                       (const :tag "Friday" 5)
-                       (const :tag "Saturday" 6)))
+                  org-memento-days-of-week-type)
                  ((const :tag "Time of day" :time)
                   (choice (list :tag "Relative time from check in"
                                 (const relative)
@@ -107,6 +112,18 @@ than `org-clock-idle-time'."
   '(" [" org-memento-current-block "]")
   "Mode line format for `global-mode-string'."
   :type 'sexp)
+
+(defcustom org-memento-workhour-alist
+  '(((1 2 3 4 5)
+     :standard-checkin "9:30"
+     :standard-duration "8:00"))
+  ""
+  :type '(alist :key-type org-memento-days-of-week-type
+                :value-type (plist :options
+                                   (((const :standard-checkin)
+                                     string)
+                                    ((const :standard-duration)
+                                     string)))))
 
 ;;;; Variables
 
