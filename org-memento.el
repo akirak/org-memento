@@ -152,7 +152,7 @@ Intended for internal use.")
   title closed checkin duration active-ts category)
 
 (cl-defstruct org-memento-org-event
-  marker start-time start-time-with-margin margin-secs)
+  marker start-time start-time-with-margin margin-secs end-time)
 
 ;;;; Substs
 
@@ -321,6 +321,27 @@ point to the heading.
                 (re-search-forward (rx bol "*" (+ blank)) initial-pos t))
         (goto-char initial-pos)))
     (pop-to-buffer (current-buffer))))
+
+;;;###autoload
+(defun org-memento-display-empty-slots (from-date to-date &optional duration-minutes)
+  "Display a list of empty slots during a period."
+  (interactive (append (org-memento--read-date-range)
+                       (when (equal current-prefix-arg '(4))
+                         (list (org-duration-to-minutes
+                                (read-string "Duration [H:MM]: "))))))
+  (let ((duration-secs (when duration-minutes (* 60 duration-minutes))))
+    (with-current-buffer (get-buffer-create "*Memento Slots*")
+      (let ((inhibit-read-only t))
+        (erase-buffer)
+        (pcase-dolist (`(,start . ,end)
+                       (org-memento--search-empty-slots from-date to-date))
+          (when (or (null duration-secs)
+                    (> (- end start) duration-secs))
+            (insert (org-memento--format-active-range start end)
+                    "\n")))
+        (org-mode))
+      (read-only-mode t)
+      (display-buffer (current-buffer)))))
 
 ;;;; Timers and notifications
 
@@ -576,11 +597,7 @@ the daily entry."
       (let ((start-time (plist-get plist :start-time))
             (end-time (plist-get plist :end-time)))
         (when start-time
-          (insert (format (org-format-time-string "<%Y-%m-%d %a %%s%%s>" start-time)
-                          (org-format-time-string "%H:%M" start-time)
-                          (if end-time
-                              (org-format-time-string "-%H:%M" end-time)
-                            ""))
+          (insert (org-memento--format-active-range start-time end-time)
                   "\n")))
       (when-let (template (plist-get plist :template))
         (pcase template
@@ -817,6 +834,102 @@ marker to the time stamp, and the margin in seconds."
                              :margin-secs margin))))))))
     result))
 
+(defun org-memento--agenda-events (from-date to-date)
+  "Scan all entries with an active time stamp between a range."
+  (let ((ts-regexp (org-memento--make-ts-regexp
+                    (encode-time (org-memento--fill-decoded-time from-date))
+                    (encode-time (org-memento--fill-decoded-time to-date))))
+        ;; TODO
+        (default-duration (* 30 60))
+        result)
+    (dolist (file (org-agenda-files))
+      (with-current-buffer (or (find-buffer-visiting file)
+                               (find-file-noselect file))
+        (org-with-wide-buffer
+         (goto-char (point-min))
+         (while (re-search-forward ts-regexp nil t)
+           (let* ((ts (org-timestamp-from-string (match-string 0)))
+                  (start-time (float-time (org-timestamp-to-time ts)))
+                  (end-ts (org-timestamp-split-range ts 'end)))
+             (push (cons start-time
+                         (make-org-memento-org-event
+                          :marker (point-marker)
+                          :start-time start-time
+                          :end-time (if (not (eq (org-element-property :hour-start ts)
+                                                 (org-element-property :hour-start end-ts)))
+                                        (float-time (org-timestamp-to-time end-ts))
+                                      (if-let (effort (org-entry-get nil "EFFORT"))
+                                          (+ start-time
+                                             (* 60 (org-duration-to-minutes effort)))
+                                        (+ start-time default-duration)))))
+                   result)
+             (goto-char (org-entry-end-position)))))))
+    (thread-last
+      (org-memento--sort-by-car result)
+      (mapcar #'cdr))))
+
+(defun org-memento--standard-workhour (decoded-time)
+  "Return a plist which specifies the work hour for the day."
+  (let ((dow (nth 6 decoded-time)))
+    (seq-some `(lambda (cell)
+                 (when (memq ,dow (car cell))
+                   (cdr cell)))
+              org-memento-workhour-alist)))
+
+(defun org-memento--search-empty-slots (from-date to-date)
+  "Return a list of available time ranges during a period.
+
+FROM-DATE and TO-DATE must be given as decoded times.
+
+The returned value will be a list of (START . END) where START
+and END are float times."
+  (let* ((events (org-memento--agenda-events from-date to-date))
+         (event (pop events))
+         (margin (* 60 5))
+         result)
+    (dolist (date (org-memento--date-list from-date to-date))
+      (catch 'day-end
+        (when-let* ((workhour (org-memento--standard-workhour date))
+                    (checkin (plist-get workhour :standard-checkin))
+                    (duration (plist-get workhour :standard-duration)))
+          (let* ((checkin-minutes (floor (org-duration-to-minutes checkin)))
+                 (duration-minutes (org-duration-to-minutes duration))
+                 (time (float-time (encode-time
+                                    (org-memento--set-time-of-day date
+                                                                  (floor (/ checkin-minutes 60))
+                                                                  (mod checkin-minutes 60)
+                                                                  0))))
+                 (day-end (+ time (* 60 duration-minutes))))
+            (while (< time day-end)
+              (cond
+               ;; No event remaining, so the entire day will be available
+               ((null event)
+                (push (cons time day-end)
+                      result)
+                (throw 'day-end t))
+               ((< day-end (org-memento-org-event-start-time event))
+                (push (cons time day-end)
+                      result)
+                (throw 'day-end t))
+               ((< time (org-memento-org-event-start-time event))
+                (push (cons time (org-memento-org-event-start-time event))
+                      result)
+                (if (< (org-memento-org-event-end-time event) day-end)
+                    (progn
+                      (setq time (min (+ margin (org-memento-org-event-end-time event))))
+                      (setq event (pop events)))
+                  (throw 'day-end t)))
+               ((> time (org-memento-org-event-start-time event))
+                (cond
+                 ((> time (org-memento-org-event-end-time event))
+                  (setq event (pop events)))
+                 ((< (org-memento-org-event-end-time event) day-end)
+                  (setq time (min (+ margin (org-memento-org-event-end-time event))))
+                  (setq event (pop events)))
+                 (t
+                  (throw 'day-end t))))))))))
+    (nreverse result)))
+
 ;;;; Utility functions for time representations and Org timestamps
 
 (defsubst org-memento--set-time-of-day (decoded-time hour minute sec)
@@ -922,6 +1035,36 @@ nil. If one of them is nil, the other one is returned."
           time1
         time2)
     (or time1 time2)))
+
+(defun org-memento--date-list (from-date to-date)
+  "Return a date range in a list of decoded times."
+  (let ((day (make-decoded-time :day 1))
+        (date (org-memento--set-time-of-day from-date 0 0 0))
+        (end-time (encode-time (org-memento--set-time-of-day to-date 23 59 0)))
+        result)
+    (while (time-less-p (encode-time date) end-time)
+      (push date result)
+      (setq date (decoded-time-add date day)))
+    (nreverse result)))
+
+(defun org-memento--read-date-range ()
+  "Return a date range in a list of decoded times."
+  (let ((org-extend-today-until 0)
+        result)
+    (with-temp-buffer
+      (dotimes (i 2)
+        (org-time-stamp nil)
+        (goto-char (point-min))
+        (looking-at org-ts-regexp)
+        (push (parse-time-string (match-string 1)) result)))
+    (nreverse result)))
+
+(defun org-memento--format-active-range (start-time end-time)
+  (format (org-format-time-string "<%Y-%m-%d %a %%s%%s>" start-time)
+          (org-format-time-string "%H:%M" start-time)
+          (if end-time
+              (org-format-time-string "-%H:%M" end-time)
+            "")))
 
 (provide 'org-memento)
 ;;; org-memento.el ends here
