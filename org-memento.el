@@ -950,6 +950,18 @@ and END are float times."
                   (throw 'day-end t))))))))))
     (nreverse result)))
 
+(defun org-memento-workhour-end ()
+  "Return time at which today's work ends."
+  (when-let* ((time (org-memento--current-time))
+              (decoded-time (decode-time time))
+              (plist (org-memento--standard-workhour
+                      (org-memento--start-of-day decoded-time)))
+              (duration (plist-get plist :standard-duration))
+              (checkin-time (org-memento-with-today-entry
+                             (org-memento--checkin-time))))
+    (time-add checkin-time
+              (* 60 (org-duration-to-minutes duration)))))
+
 ;;;; Utility functions for time representations and Org timestamps
 
 (defsubst org-memento--set-time-of-day (decoded-time hour minute sec)
