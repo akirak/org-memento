@@ -436,9 +436,11 @@ point to the heading.
   (with-current-buffer (org-memento--buffer)
     (org-with-wide-buffer
      (goto-char (point-min))
-     (let ((regexp (concat (rx bol "*" (+ blank))
-                           (org-memento--make-past-date-regexp
-                            (decode-time (org-memento--current-time)))))
+     (let ((regexp (rx-to-string
+                    `(and bol "*" (+ blank)
+                          (?  (regexp ,org-todo-regexp) (+ blank))
+                          (regexp ,(org-memento--make-past-date-regexp
+                                    (decode-time (org-memento--current-time)))))))
            result)
        (while (re-search-forward regexp nil t)
          (save-excursion
