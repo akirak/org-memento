@@ -249,10 +249,10 @@ Intended for internal use.")
   (org-memento-with-block-title title
     (org-memento--maybe-check-in))
   (setq org-memento-current-block title)
-  (let* ((block (org-memento-current-block-status))
-         (remaining-secs (plist-get block :remaining-secs)))
+  (let* ((plist (org-memento-current-block-status))
+         (remaining-secs (plist-get plist :remaining-secs)))
     (setq org-memento-current-category
-          (or (org-memento-block-category block)
+          (or (org-memento-block-category (plist-get plist :block))
               (car (assoc title org-memento-category-alist))))
     (when (and remaining-secs (< remaining-secs 0))
       (error "Already timeout"))
@@ -689,9 +689,9 @@ the daily entry."
 (defun org-memento-current-block-status ()
   "Return information on the current block."
   (when org-memento-current-block
-    (let* ((end-time-1 (org-memento--expected-end-time
-                        (org-memento-with-current-block
-                          (org-memento-block-entry))))
+    (let* ((block (org-memento-with-current-block
+                    (org-memento-block-entry)))
+           (end-time-1 (org-memento--expected-end-time block))
            (next-event (org-memento--next-agenda-event end-time-1))
            (next-event-time (when next-event
                               (org-memento-org-event-start-time-with-margin next-event)))
@@ -704,7 +704,8 @@ the daily entry."
             :remaining-secs (unless (or must-quit timeout)
                               (- (org-memento--time-min next-event-time end-time)
                                  now))
-            :next-event next-event))))
+            :next-event next-event
+            :block block))))
 
 (defun org-memento--calculated-end-time (block)
   "Return an end time calculated from the duration."
