@@ -437,7 +437,7 @@ point to the heading.
 (defun org-memento-set-duration (duration)
   "Set the duration of the block at point."
   (interactive "sDuration (H:MM): ")
-  (org-entry-put nil "memento_duration" duration))
+  (org-entry-put nil "Effort" duration))
 
 (defun org-memento-set-category (category)
   "Set the category of the block at point."
@@ -505,7 +505,7 @@ point to the heading.
      :closed (org-element-property :closed headline)
      :checkin (when-let (str (org-element-property :MEMENTO_CHECKIN_TIME headline))
                 (org-timestamp-from-string str))
-     :duration (org-element-property :MEMENTO_DURATION headline)
+     :duration (org-element-property :EFFORT headline)
      :active-ts active-ts
      :category (org-element-property :MEMENTO_CATEGORY headline))))
 
@@ -592,7 +592,7 @@ the daily entry."
       (insert "** " (plist-get plist :name) "\n")
       (beginning-of-line 0)
       (when-let (duration (plist-get plist :duration))
-        (org-entry-put nil "memento_duration" duration))
+        (org-entry-put nil "Effort" duration))
       (org-end-of-meta-data t)
       (let ((start-time (plist-get plist :start-time))
             (end-time (plist-get plist :end-time)))
