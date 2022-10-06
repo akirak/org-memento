@@ -628,7 +628,7 @@ the daily entry."
                         (save-current-buffer
                           (org-with-point-at (org-memento-org-event-marker next-event)
                             (org-get-heading nil nil nil nil)))
-                        (format-time "%R" (org-memento-org-event-start-time next-event)))))
+                        (format-time-string "%R" (org-memento-org-event-start-time next-event)))))
              ((plist-get status-plist :timeout-secs)
               (format "Time out by %d minutes. "
                       (round (/ (plist-get status-plist :timeout) 60)))))
@@ -641,7 +641,7 @@ the daily entry."
           (save-current-buffer
             (org-with-point-at (org-memento-org-event-marker event)
               (org-get-heading nil nil nil nil)))
-          (format-time "%R" (org-memento-org-event-start-time event))))
+          (format-time-string "%R" (org-memento-org-event-start-time event))))
 
 ;;;; Completion
 
