@@ -394,6 +394,22 @@ point to the heading.
   (when-let (string (org-entry-get nil "memento_checkin_time"))
     (org-timestamp-to-time (org-timestamp-from-string string))))
 
+(defun org-memento-map-past-days (func)
+  (with-current-buffer (org-memento--buffer)
+    (org-with-wide-buffer
+     (goto-char (point-min))
+     (let ((regexp (concat (rx bol "*" (+ blank))
+                           (org-memento--make-past-date-regexp
+                            (decode-time (org-memento--current-time)))))
+           result)
+       (while (re-search-forward regexp nil t)
+         (save-excursion
+           (beginning-of-line 1)
+           (org-narrow-to-subtree)
+           (push (funcall func) result)
+           (widen)))
+       (nreverse result)))))
+
 ;;;;; Updating properties
 
 (defun org-memento-set-duration (duration)
@@ -629,6 +645,20 @@ the daily entry."
                      a))
            :key #'car))
 
+;;;; Reporting
+
+;;;;; Check-in time
+
+(defun org-memento-average-checkin-time ()
+  "Return the average check-in time of past days."
+  (let* ((entries (thread-last
+                    (org-memento-map-past-days #'org-memento--checkin-time)
+                    (delq nil)
+                    (mapcar #'org-memento--seconds-since-midnight)))
+         (seconds (/ (cl-reduce #'+ entries :initial-value 0)
+                     (length entries))))
+    (org-duration-from-minutes (/ seconds 60))))
+
 ;;;; Formatting status
 
 (defun org-memento--format-block-status ()
@@ -840,6 +870,46 @@ further checks against your desired time range."
                      (mapcar (lambda (float)
                                (format-time-string "%F" float))))))
     (format "<%s>" (rx-to-string `(and (or ,@date-strs) blank (+? anything))))))
+
+(defun org-memento--make-past-date-regexp (today)
+  (cl-flet
+      ((year-string (d)
+         (format "%04d" d))
+       (month-string (d)
+         (format "%02d" d))
+       (day-string (d)
+         (format "%02d" d)))
+    (let* ((this-year (nth 5 today))
+           (this-month (nth 4 today))
+           (this-day (nth 3 today))
+           (previous-year-strings (thread-last
+                                    (number-sequence 2000 (1- this-year))
+                                    (mapcar #'year-string)))
+           (previous-month-strings (thread-last
+                                     (number-sequence 1 (1- this-month))
+                                     (mapcar #'month-string)))
+           (previous-day-strings (thread-last
+                                   (number-sequence 1 (1- this-day))
+                                   (mapcar #'day-string)))
+           (all-month-strings (thread-last
+                                (number-sequence 1 12)
+                                (mapcar #'month-string)))
+           (all-day-strings (thread-last
+                              (number-sequence 1 31)
+                              (mapcar #'day-string))))
+      (rx-to-string `(or (and (or ,@previous-year-strings)
+                              "-" (or ,@all-month-strings)
+                              "-" (or ,@all-day-strings))
+                         (and ,(number-to-string this-year)
+                              "-"
+                              (or (and (or ,@previous-month-strings)
+                                       "-" (or ,@all-day-strings))
+                                  (and ,(number-to-string this-month)
+                                       "-" (or ,@previous-day-strings)))))))))
+
+(defun org-memento--seconds-since-midnight (time)
+  (- (float-time time)
+     (float-time (encode-time (org-memento--set-time-of-day (decode-time time) 0 0 0)))))
 
 (defun org-memento--time-min (time1 time2)
   "Return an earlier time of the two.
