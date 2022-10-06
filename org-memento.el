@@ -95,6 +95,10 @@ than `org-clock-idle-time'."
   ""
   :type 'directory)
 
+(defcustom org-memento-block-start-hook nil
+  "Hook run after starting a block."
+  :type 'hook)
+
 ;;;; Variables
 
 (defvar org-memento-current-block nil
@@ -238,7 +242,8 @@ Intended for internal use.")
     (setq org-memento-block-timer
           (run-with-timer remaining-secs nil
                           #'org-memento-block-timeout))
-    (org-memento-setup-daily-timer)))
+    (org-memento-setup-daily-timer)
+    (run-hooks 'org-memento-block-start-hook)))
 
 (defun org-memento-finish-block ()
   "Mark the current block as done."
