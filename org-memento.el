@@ -108,6 +108,10 @@ than `org-clock-idle-time'."
   "Hook run after finishing or stopping a block."
   :type 'hook)
 
+(defcustom org-memento-day-end-hook nil
+  "Hook run when `org-memento-end-day' command is run."
+  :type 'hook)
+
 (defcustom org-memento-mode-line-format
   '(" [" org-memento-current-block "]")
   "Mode line format for `global-mode-string'."
@@ -145,6 +149,9 @@ Intended for internal use.")
 (defvar org-memento-daily-timer nil)
 
 (defvar org-memento-idle-timer nil)
+
+(defvar org-memento-block-idle-logging nil
+  "Prevent from idle logging till next check-in.")
 
 ;;;; Structs
 
@@ -216,17 +223,18 @@ Intended for internal use.")
             global-mode-string))))
 
 (defun org-memento-idle ()
-  (let ((time-user-left (time-subtract (org-memento--current-time)
-                                       (* 60 org-memento-idle-time))))
-    (org-memento-with-today-entry
-     (org-narrow-to-subtree)
-     (unless (re-search-forward (format org-complex-heading-regexp-format
-                                        org-memento-idle-heading)
-                                nil t)
-       (goto-char (point-max))
-       (insert "\n** " org-memento-idle-heading "\n"))
-     (org-clock-in nil time-user-left)
-     (add-hook 'pre-command-hook #'org-memento-unidle))))
+  (unless org-memento-block-idle-logging
+    (let ((time-user-left (time-subtract (org-memento--current-time)
+                                         (* 60 org-memento-idle-time))))
+      (org-memento-with-today-entry
+       (org-narrow-to-subtree)
+       (unless (re-search-forward (format org-complex-heading-regexp-format
+                                          org-memento-idle-heading)
+                                  nil t)
+         (goto-char (point-max))
+         (insert "\n** " org-memento-idle-heading "\n"))
+       (org-clock-in nil time-user-left)
+       (add-hook 'pre-command-hook #'org-memento-unidle)))))
 
 (defun org-memento-unidle ()
   (remove-hook 'pre-command-hook #'org-memento-unidle)
@@ -313,7 +321,7 @@ point to the heading.
     (let ((initial-pos (point)))
       (widen)
       (org-memento--find-today)
-      (org-memento--maybe-check-in)
+      (org-memento--daily-check-in)
       (org-back-to-heading)
       (org-narrow-to-subtree)
       (org-memento--maybe-generate-day)
@@ -321,6 +329,14 @@ point to the heading.
                 (re-search-forward (rx bol "*" (+ blank)) initial-pos t))
         (goto-char initial-pos)))
     (pop-to-buffer (current-buffer))))
+
+(defun org-memento-end-day ()
+  "Run this command when you finish all your work on the day."
+  (interactive)
+  (org-memento-with-today-entry
+   (org-todo 'done)
+   (setq org-memento-block-idle-logging t)
+   (run-hooks 'org-memento-day-end-hook)))
 
 ;;;###autoload
 (defun org-memento-display-empty-slots (from-date to-date &optional duration-minutes)
@@ -451,6 +467,10 @@ point to the heading.
   (unless (org-entry-get nil "memento_checkin_time")
     (org-entry-put nil "memento_checkin_time" (org-memento--inactive-ts-string
                                                (org-memento--current-time)))))
+
+(defun org-memento--daily-check-in ()
+  (setq org-memento-block-idle-logging nil)
+  (org-memento--maybe-check-in))
 
 (defun org-memento--set-closing-time ()
   (let* ((value (org-entry-get nil "memento_closing_time"))
