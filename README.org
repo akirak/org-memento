@@ -1,0 +1,4 @@
+* org-memento
+Org Memento is an Org-based framework for time management.
+It is intended be an alternative to =timeclock.el= and supports time blocking.
+It is highly opinionated and may not suit your workflow.
