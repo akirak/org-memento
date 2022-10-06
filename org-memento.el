@@ -905,7 +905,6 @@ The returned value will be a list of (START . END) where START
 and END are float times."
   (let* ((events (org-memento--agenda-events from-date to-date))
          (event (pop events))
-         (margin (* 60 5))
          result)
     (dolist (date (org-memento--date-list from-date to-date))
       (catch 'day-end
@@ -936,7 +935,7 @@ and END are float times."
                       result)
                 (if (< (org-memento-org-event-end-time event) day-end)
                     (progn
-                      (setq time (min (+ margin (org-memento-org-event-end-time event))))
+                      (setq time (org-memento-org-event-end-time event))
                       (setq event (pop events)))
                   (throw 'day-end t)))
                ((> time (org-memento-org-event-start-time event))
@@ -944,7 +943,7 @@ and END are float times."
                  ((> time (org-memento-org-event-end-time event))
                   (setq event (pop events)))
                  ((< (org-memento-org-event-end-time event) day-end)
-                  (setq time (min (+ margin (org-memento-org-event-end-time event))))
+                  (setq time (org-memento-org-event-end-time event))
                   (setq event (pop events)))
                  (t
                   (throw 'day-end t))))))))))
