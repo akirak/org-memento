@@ -99,6 +99,10 @@ than `org-clock-idle-time'."
   "Hook run after starting a block."
   :type 'hook)
 
+(defcustom org-memento-post-block-exit-hook nil
+  "Hook run after finishing or stopping a block."
+  :type 'hook)
+
 ;;;; Variables
 
 (defvar org-memento-current-block nil
@@ -252,14 +256,16 @@ Intended for internal use.")
     (org-memento-with-current-block
       (org-todo 'done))
     (setq org-memento-current-block nil)
-    (org-memento--cancel-block-timer)))
+    (org-memento--cancel-block-timer)
+    (run-hooks 'org-memento-post-block-exit-hook)))
 
 (defun org-memento-stop-block ()
   "Stop the current block without marking it as done."
   (interactive)
   (when org-memento-current-block
     (setq org-memento-current-block nil)
-    (org-memento--cancel-block-timer)))
+    (org-memento--cancel-block-timer)
+    (run-hooks 'org-memento-post-block-exit-hook)))
 
 ;;;###autoload
 (defun org-memento-open-today ()
