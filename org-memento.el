@@ -103,6 +103,11 @@ than `org-clock-idle-time'."
   "Hook run after finishing or stopping a block."
   :type 'hook)
 
+(defcustom org-memento-mode-line-format
+  '(" [" org-memento-current-block "]")
+  "Mode line format for `global-mode-string'."
+  :type 'sexp)
+
 ;;;; Variables
 
 (defvar org-memento-current-block nil
@@ -175,13 +180,22 @@ Intended for internal use.")
   (when org-memento-idle-timer
     (cancel-timer org-memento-idle-timer)
     (setq org-memento-idle-timer nil))
-  (when (bound-and-true-p org-memento-mode)
+  (cond
+   ((bound-and-true-p org-memento-mode)
+    (add-to-list 'global-mode-string
+                 '(org-memento-current-block
+                   org-memento-mode-line-format)
+                 t)
     (when org-memento-idle-time
       (setq org-memento-idle-timer
             (run-with-idle-timer (* 60 org-memento-idle-time)
                                  nil
                                  #'org-memento-idle)))
-    (message "Org-Memento mode started.")))
+    (message "Org-Memento mode started."))
+   (t
+    (delete '(org-memento-current-block
+              org-memento-mode-line-format)
+            global-mode-string))))
 
 (defun org-memento-idle ()
   (let ((time-user-left (time-subtract (org-memento--current-time)
