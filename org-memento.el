@@ -273,6 +273,7 @@ point to the heading.
       (org-memento--maybe-check-in)
       (org-back-to-heading)
       (org-narrow-to-subtree)
+      (org-memento--maybe-generate-day)
       (unless (save-excursion
                 (re-search-forward (rx bol "*" (+ blank)) initial-pos t))
         (goto-char initial-pos)))
@@ -345,6 +346,11 @@ point to the heading.
                 (insert "\n* " today "\n")
                 (throw 'found-today nil)))))
           (insert "\n* " today "\n")))))
+
+(defun org-memento--checkin-time ()
+  "Return the check-in time of the entry as an internal time."
+  (when-let (string (org-entry-get nil "memento_checkin_time"))
+    (org-timestamp-to-time (org-timestamp-from-string string))))
 
 ;;;;; Updating properties
 
@@ -472,7 +478,114 @@ point to the heading.
 
 ;;;; Generating blocks
 
+(defun org-memento--maybe-generate-day ()
+  "If the daily entry has no blocks, generate blocks.
 
+This function insert blocks into the current entry according to
+definitions in `org-memento-category-alist'.
+
+The buffer must be narrowed to the day, and the point must be on
+the daily entry."
+  (catch 'existing
+    (save-excursion
+      (while (re-search-forward org-complex-heading-regexp nil t)
+        (when (and (equal (match-string 1) "**")
+                   (not (equal (match-string 4) org-memento-idle-heading)))
+          (throw 'existing t))))
+    (if-let (checkin-time (org-memento--checkin-time))
+        (org-memento--insert-blocks
+         (org-memento--generated-categories checkin-time))
+      (user-error "First check in to the entry."))))
+
+(defun org-memento--insert-blocks (plists)
+  "Insert blocks into the current entry.
+
+Use `org-memento--generated-categories' to generate PLISTS.
+
+The buffer must be narrowed to the day, and the point must be on
+the daily entry."
+  (save-excursion
+    (goto-char (org-entry-end-position))
+    (dolist (plist plists)
+      (unless (bolp)
+        (insert "\n"))
+      (insert "** " (plist-get plist :name) "\n")
+      (beginning-of-line 0)
+      (when-let (duration (plist-get plist :duration))
+        (org-entry-put nil "memento_duration" duration))
+      (org-end-of-meta-data t)
+      (let ((start-time (plist-get plist :start-time))
+            (end-time (plist-get plist :end-time)))
+        (when start-time
+          (insert (format (org-format-time-string "<%Y-%m-%d %a %%s%%s>" start-time)
+                          (org-format-time-string "%H:%M" start-time)
+                          (if end-time
+                              (org-format-time-string "-%H:%M" end-time)
+                            ""))
+                  "\n")))
+      (when-let (template (plist-get plist :template))
+        (pcase template
+          (`(file ,filename)
+           (insert-file-contents (expand-file-name filename org-memento-template-directory)))
+          ((pred functionp)
+           (insert (funcall template)))
+          ((pred stringp)
+           (insert template)))
+        (unless (eolp)
+          (insert "\n"))))))
+
+(defun org-memento--generated-categories (time)
+  "Return plists of categories for the day starting at TIME."
+  (let* ((decoded-time (decode-time time))
+         (day-start-decoded (org-memento--start-of-day decoded-time))
+         (this-dow (nth 6 day-start-decoded)))
+    (thread-last
+      org-memento-category-alist
+      (seq-filter `(lambda (cell)
+                     (memq ,this-dow
+                           (plist-get (cdr cell) :dows))))
+      (mapcar `(lambda (cell)
+                 (let ((plist (cdr cell)))
+                   (append (pcase (plist-get plist :time)
+                             (`(relative ,string)
+                              (let ((start-time (time-add ',time
+                                                          (* 60 (org-duration-to-minutes
+                                                                 string)))))
+                                (list (float-time start-time)
+                                      :start-time start-time)))
+                             (`(absolute ,string)
+                              (let* ((range (org-memento--parse-time-range string))
+                                     (start-time-minutes (car range))
+                                     (start-time (encode-time
+                                                  (org-memento--set-time-of-day
+                                                   ',day-start-decoded
+                                                   (floor (/ start-time-minutes 60))
+                                                   (mod start-time-minutes 60)
+                                                   0)))
+                                     (end-time-minutes (cdr range))
+                                     (end-time (when end-time-minutes
+                                                 (encode-time
+                                                  (org-memento--set-time-of-day
+                                                   ',day-start-decoded
+                                                   (floor (/ end-time-minutes 60))
+                                                   (mod end-time-minutes 60)
+                                                   0)))))
+                                (list (float-time start-time)
+                                      :start-time start-time
+                                      :end-time end-time)))
+                             (_
+                              (list nil)))
+                           (list :name (car cell))
+                           plist))))
+      (org-memento--sort-by-car)
+      (mapcar #'cdr))))
+
+(defun org-memento--sort-by-car (alist)
+  (cl-sort alist (lambda (a b)
+                   (if (and a b)
+                       (< a b)
+                     a))
+           :key #'car))
 
 ;;;; Formatting status
 
@@ -649,6 +762,16 @@ Return a copy of the list."
 (defun org-memento--inactive-ts-string (time)
   "Return a string for an inactive timestamp at TIME."
   (org-format-time-string (org-time-stamp-format t t) time))
+
+(defun org-memento--parse-time-range (string)
+  "Return a cons cell of minutes from a string time spec."
+  (when (string-match (rx bol (group (+ digit) ":" (+ digit))
+                          (?  "-" (group (group (+ digit) ":" (+ digit))))
+                          eol)
+                      string)
+    (cons (floor (org-duration-to-minutes (match-string 1 string)))
+          (when (> (length (match-data)) 4)
+            (floor (org-duration-to-minutes (match-string 2 string)))))))
 
 (defun org-memento--start-of-day (decoded-time)
   "Return the start of the day given as DECODED-TIME.
