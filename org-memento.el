@@ -162,18 +162,88 @@ Intended for internal use.")
 (defvar org-memento-block-idle-logging nil
   "Prevent from idle logging till next check-in.")
 
-;;;; Structs
-
-(cl-defstruct org-memento-block
-  title closed checkin duration active-ts category)
-
-(cl-defstruct org-memento-org-event
-  marker start-time start-time-with-margin margin-secs end-time)
-
 ;;;; Substs
 
 (defsubst org-memento--current-time ()
   (or org-memento-current-time (current-time)))
+
+(defsubst org-memento-seconds-from-now (float-time)
+  (- float-time (float-time (org-memento--current-time))))
+
+;;;; Generics and structs
+
+(cl-defgeneric org-memento-headline-element (x)
+  "Return the headline element of X.")
+
+(cl-defgeneric org-memento-active-ts (x)
+  "Return an active timestamp of X, if any.")
+
+(cl-defgeneric org-memento-title (x)
+  "Return the headline text of X."
+  (org-element-property :raw-value (org-memento-headline-element x)))
+
+(cl-defgeneric org-memento-started-time (x)
+  "Return the actual start time of X in float.")
+
+(cl-defgeneric org-memento-starting-time (x)
+  "Return the expected start time of X in float.")
+
+(cl-defgeneric org-memento-ended-time (x)
+  "Return the actual start time of X in float."
+  (when-let (ts (org-element-property :closed (org-memento-headline-element x)))
+    (float-time (org-timestamp-to-time ts))))
+
+(cl-defgeneric org-memento-ending-time (x)
+  "Return the expected end time of X in float.")
+
+(cl-defgeneric org-memento-duration (x)
+  "Return the expected duration in minutes of X."
+  (when-let (effort (org-element-property :EFFORT (org-memento-headline-element x)))
+    (org-duration-to-minutes effort)))
+
+;;;;; org-memento-block
+
+(cl-defstruct org-memento-block
+  "Object representing a day or a block in a journal file."
+  headline active-ts)
+
+(cl-defmethod org-memento-headline-element ((x org-element-block))
+  (org-memento-block-headline x))
+
+(cl-defmethod org-memento-active-ts ((x org-element-block))
+  (org-memento-block-active-ts x))
+
+(defun org-memento-block-category (x)
+  (org-element-property :MEMENTO_CATEGORY (org-memento-block-headline x)))
+
+(cl-defmethod org-memento-started-time ((x org-memento-block))
+  (when-let (str (org-element-property :MEMENTO_CHECKIN_TIME (org-memento-headline-element x)))
+    (float-time (org-timestamp-to-time str))))
+
+(cl-defmethod org-memento-starting-time ((x org-memento-block))
+  (when-let (ts (org-memento-active-ts x))
+    (float-time (org-timestamp-to-time ts))))
+
+(cl-defmethod org-memento-ending-time ((x org-memento-block))
+  (if-let (ts (org-memento-block-active-ts x))
+      (float-time (org-timestamp-to-time ts))
+    (when-let* ((duration (org-memento-duration x))
+                (start (or (org-memento-started-time x)
+                           (org-memento-starting-time x))))
+      (+ start (* 60 duration)))))
+
+;;;;; org-memento-org-event
+
+(cl-defstruct org-memento-org-event
+  "Object representing an Org entry with an active timestamp."
+  marker start-time start-time-with-margin margin-secs end-time)
+
+(cl-defmethod org-memento-starting-time ((x org-memento-org-event))
+  (or (org-memento-org-event-start-time-with-margin x)
+      (org-memento-org-event-start-time x)))
+
+(cl-defmethod org-memento-ending-time ((x org-memento-org-event))
+  (org-memento-org-event-end-time x))
 
 ;;;; Macros
 
@@ -526,19 +596,12 @@ point to the heading.
 (defun org-memento-block-entry ()
   "Return information on the block at point."
   (org-back-to-heading)
-  (let* ((headline (org-element-headline-parser))
-         (active-ts (when (re-search-forward org-ts-regexp
-                                             (org-entry-end-position)
-                                             t)
-                      (org-timestamp-from-string (match-string 0)))))
-    (make-org-memento-block
-     :title (org-element-property :raw-value headline)
-     :closed (org-element-property :closed headline)
-     :checkin (when-let (str (org-element-property :MEMENTO_CHECKIN_TIME headline))
-                (org-timestamp-from-string str))
-     :duration (org-element-property :EFFORT headline)
-     :active-ts active-ts
-     :category (org-element-property :MEMENTO_CATEGORY headline))))
+  (make-org-memento-block
+   :headline (org-element-headline-parser)
+   :active-ts (when (re-search-forward org-ts-regexp
+                                       (org-entry-end-position)
+                                       t)
+                (org-timestamp-from-string (match-string 0)))))
 
 ;;;;; Selecting blocks or finding a block
 
