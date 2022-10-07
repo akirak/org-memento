@@ -32,6 +32,9 @@
 ;;; Code:
 
 (require 'org)
+(require 'org-element)
+
+(declare-function org-element-headline-parser "org-element")
 
 (defgroup org-memento nil
   "Time blocking with Org mode."
@@ -279,7 +282,7 @@ Return a copy of the list."
 ;;;; Predicates on blocks
 
 (defsubst org-memento-block-not-closed-p (block)
-  (not (org-memento-block-closed block)))
+  (not (org-memento-ended-time block)))
 
 ;;;; Global mode
 
@@ -357,7 +360,7 @@ Return a copy of the list."
                                         nil t
                                         nil nil
                                         (when-let (block (org-memento-next-scheduled-block))
-                                          (org-memento-block-title block))))))
+                                          (org-memento-title block))))))
   (org-memento-with-block-title title
     (org-memento--maybe-check-in))
   (setq org-memento-current-block title)
@@ -457,7 +460,11 @@ point to the heading.
 
 (defun org-memento-setup-daily-timer ()
   (unless org-memento-daily-timer
-    (let ((time (org-memento--end-of-day)))
+    (let ((time (encode-time
+                 (decoded-time-add (org-memento--start-of-day
+                                    (decode-time
+                                     (org-memento--current-time)))
+                                   (make-decoded-time :hour 23 :minute 59)))))
       (setq org-memento-daily-timer
             (run-with-timer (- (float-time time)
                                (float-time (org-memento--current-time)))
@@ -482,7 +489,7 @@ point to the heading.
 
 (defun org-memento--find-today ()
   "Move the point to the today's entry or insert the entry."
-  (let ((today (org-memento--today-string)))
+  (let ((today (org-memento--today-string (decode-time (org-memento--current-time)))))
     (or (re-search-backward (format org-complex-heading-regexp-format
                                     (regexp-quote today))
                             nil t)
@@ -621,7 +628,7 @@ point to the heading.
 (defun org-memento--open-blocks ()
   (thread-last
     (org-memento--blocks)
-    (seq-filter #'org-memento-block-checkin)
+    (seq-filter #'org-memento-started-time)
     (seq-filter #'org-memento-block-not-closed-p)))
 
 (defun org-memento--current-block ()
@@ -629,7 +636,7 @@ point to the heading.
     (thread-last
       (org-memento--blocks)
       (seq-find (lambda (block)
-                  (equal (org-memento-block-title block)
+                  (equal (org-memento-title block)
                          org-memento-current-block))))))
 
 (defun org-memento--free-blocks ()
@@ -637,7 +644,7 @@ point to the heading.
     (org-memento--blocks)
     (seq-filter (lambda (x)
                   (and (org-memento-block-not-closed-p x)
-                       (or (org-memento-block-checkin x)
+                       (or (org-memento-started-time x)
                            (not (org-memento-block-active-ts x))))))))
 
 (defun org-memento--sort-blocks-by-ts (block-plists)
@@ -807,12 +814,12 @@ the daily entry."
       (setq org-memento-block-cache
             (make-hash-table :test #'equal :size (length items))))
     (dolist (block items)
-      (puthash (org-memento-block-title block) block org-memento-block-cache))
+      (puthash (org-memento-title block) block org-memento-block-cache))
     `(lambda (string pred action)
        (if (eq action 'metadata)
            '(metadata . ((category . org-memento-block)
                          (annotation-function . org-memento-block-annotator)))
-         (complete-with-action action ',(mapcar #'org-memento-block-title items)
+         (complete-with-action action ',(mapcar #'org-memento-title items)
                                string pred)))))
 
 (defun org-memento-block-annotator (title)
@@ -826,10 +833,10 @@ the daily entry."
                                                 time (org-memento--current-time)))
                                               60)))
                             'face 'font-lock-warning-face))
-              (when-let (duration (org-memento-block-duration block))
+              (when-let (duration (org-memento-duration block))
                 (propertize (format " (%s)" duration)
                             'face 'font-lock-doc-face))
-              (when-let (checkin (org-memento-block-checkin block))
+              (when-let (checkin (org-memento-started-time block))
                 (propertize (format-time-string " already checked in at %R"
                                                 (org-timestamp-to-time checkin))
                             'face 'font-lock-comment-face)))
@@ -860,8 +867,8 @@ the daily entry."
 
 (defun org-memento--calculated-end-time (block)
   "Return an end time calculated from the duration."
-  (when-let ((checkin (org-memento-block-checkin block))
-             (duration (org-memento-block-duration block)))
+  (when-let ((checkin (org-memento-started-time block))
+             (duration (org-memento-duration block)))
     (time-add (org-timestamp-to-time checkin)
               (* 60 (org-duration-to-minutes duration)))))
 
@@ -1063,17 +1070,23 @@ and END are float times."
           (when (> (length (match-data)) 4)
             (floor (org-duration-to-minutes (match-string 2 string)))))))
 
+(defun org-memento--today-string (decoded-time)
+  (format-time-string "%F" (org-memento--maybe-decrement-date decoded-time)))
+
 (defun org-memento--start-of-day (decoded-time)
   "Return the start of the day given as DECODED-TIME.
 
 This respects `org-extend-today-until'."
-  (org-memento--set-time-of-day (if (and org-extend-today-until
-                                         (< (nth 2 decoded-time) org-extend-today-until))
-                                    (decoded-time-add decoded-time (make-decoded-time :day -1))
-                                  decoded-time)
+  (org-memento--set-time-of-day (org-memento--maybe-decrement-date decoded-time)
                                 (or org-extend-today-until 0)
                                 0
                                 0))
+
+(defun org-memento--maybe-decrement-date (decoded-time)
+  (if (and org-extend-today-until
+           (< (nth 2 decoded-time) org-extend-today-until))
+      (decoded-time-add decoded-time (make-decoded-time :day -1))
+    decoded-time))
 
 (defun org-memento--make-ts-regexp (from to)
   "Return a regexp that matches active timestamps in a range.
