@@ -1,0 +1,27 @@
+{
+  "nodes": {
+    "org-memento": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1665121795,
+        "narHash": "sha256-kps0Gbl9a0VicPufnq36xcf7MkDDrsymWMTkNuBqckE=",
+        "owner": "~akirak",
+        "repo": "org-memento",
+        "rev": "c3d5b9730673d7dcc4791e6e9b2c7f9a6866f4dc",
+        "type": "sourcehut"
+      },
+      "original": {
+        "owner": "~akirak",
+        "repo": "org-memento",
+        "type": "sourcehut"
+      }
+    },
+    "root": {
+      "inputs": {
+        "org-memento": "org-memento"
+      }
+    }
+  },
+  "root": "root",
+  "version": 7
+}
