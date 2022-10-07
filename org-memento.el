@@ -132,11 +132,15 @@ than `org-clock-idle-time'."
      org-memento-current-block)
     (org-memento-current-category
      (" (" org-memento-current-category ")"))
+    (t
+     org-memento-title-string)
     " >")
   ""
   :type 'sexp)
 
 ;;;; Variables
+
+(defvar org-memento-status-data nil)
 
 (defvar org-memento-current-block nil
   "Headline of the current block.")
@@ -146,10 +150,7 @@ than `org-clock-idle-time'."
 (defvar org-memento-current-time nil
   "When non-nil, use this as the current time for testing.")
 
-(defvar org-memento-status-data nil
-  "Store the daily entry and blocks.
-
-Intended for internal use.")
+(defvar org-memento-next-event-hd-marker nil)
 
 (defvar org-memento-block-timer nil)
 
@@ -160,13 +161,16 @@ Intended for internal use.")
 (defvar org-memento-block-idle-logging nil
   "Prevent from idle logging till next check-in.")
 
+(defvar org-memento-title-string nil)
+
 ;;;; Substs
 
 (defsubst org-memento--current-time ()
   (or org-memento-current-time (current-time)))
 
-(defsubst org-memento-seconds-from-now (float-time)
-  (- float-time (float-time (org-memento--current-time))))
+(defsubst org-memento-minutes-from-now (float-time)
+  (round (* (- float-time (float-time (org-memento--current-time)))
+            60)))
 
 (defsubst org-memento--set-time-of-day (decoded-time hour minute sec)
   "Set the time of day of a decoded time.
@@ -201,6 +205,11 @@ Return a copy of the list."
 (cl-defgeneric org-memento-ending-time (x)
   "Return the expected end time of X in float.")
 
+(cl-defgeneric org-memento-ending-time-default (x)
+  "Return the expected end time of X in float."
+  (or (org-memento-ending-time x)
+      (+ (org-memento-starting-time x) (* 30 60))))
+
 (cl-defgeneric org-memento-duration (x)
   "Return the expected duration in minutes of X."
   (when-let (effort (org-element-property :EFFORT (org-memento-headline-element x)))
@@ -210,16 +219,16 @@ Return a copy of the list."
 
 (cl-defstruct org-memento-block
   "Object representing a day or a block in a journal file."
-  headline active-ts)
+  headline active-ts hd-marker)
 
-(cl-defmethod org-memento-headline-element ((x org-element-block))
+(cl-defmethod org-memento-headline-element ((x org-memento-block))
   (org-memento-block-headline x))
 
-(cl-defmethod org-memento-active-ts ((x org-element-block))
+(cl-defmethod org-memento-active-ts ((x org-memento-block))
   (org-memento-block-active-ts x))
 
 (defun org-memento-block-category (x)
-  (org-element-property :MEMENTO_CATEGORY (org-memento-block-headline x)))
+  (org-element-property :MEMENTO_CATEGORY (org-memento-headline-element x)))
 
 (cl-defmethod org-memento-started-time ((x org-memento-block))
   (when-let (str (org-element-property :MEMENTO_CHECKIN_TIME (org-memento-headline-element x)))
@@ -241,14 +250,47 @@ Return a copy of the list."
 
 (cl-defstruct org-memento-org-event
   "Object representing an Org entry with an active timestamp."
-  marker start-time start-time-with-margin margin-secs end-time)
+  marker active-ts ending-time got-ending-time margin-secs)
+
+(cl-defmethod org-memento-active-ts ((x org-memento-org-event))
+  (org-memento-org-event-active-ts x))
 
 (cl-defmethod org-memento-starting-time ((x org-memento-org-event))
-  (or (org-memento-org-event-start-time-with-margin x)
-      (org-memento-org-event-start-time x)))
+  (let ((time (float-time (org-timestamp-to-time (org-memento-active-ts x)))))
+    (if-let (margin (org-memento-org-event-margin-secs x))
+        (- time margin)
+      time)))
+
+(cl-defmethod org-memento-duration ((x org-memento-org-event))
+  (when-let (effort (save-current-buffer
+                      (org-with-point-at (org-memento-org-event-marker x)
+                        (org-entry-get nil "EFFORT"))))
+    (org-duration-to-minutes effort)))
 
 (cl-defmethod org-memento-ending-time ((x org-memento-org-event))
-  (org-memento-org-event-end-time x))
+  (if (org-memento-org-event-got-ending-time x)
+      (org-memento-org-event-ending-time x)
+    (let* ((ts (org-memento-active-ts x))
+           (starting-time (float-time (org-timestamp-to-time ts)))
+           (end-ts (org-timestamp-split-range ts 'end)))
+      (prog1 (setf (org-memento-org-event-ending-time x)
+                   (if (not (eq (org-element-property :hour-start ts)
+                                (org-element-property :hour-start end-ts)))
+                       (float-time (org-timestamp-to-time end-ts))
+                     (when-let (duration (org-memento-duration x))
+                       (+ starting-time (* 60 duration)))))
+        (setf (org-memento-org-event-got-ending-time x) t)))))
+
+(cl-defmethod org-memento-ended-time ((x org-memento-org-event))
+  (when-let (ts (save-current-buffer
+                      (org-with-point-at (org-memento-org-event-marker x)
+                        (org-back-to-heading)
+                        (save-match-data
+                          (when (re-search-forward org-closed-time-regexp
+                                                   (org-entry-end-position)
+                                                   t)
+                            (org-timestamp-from-string (match-string 1)))))))
+    (float-time (org-timestamp-to-time ts))))
 
 ;;;; Macros
 
@@ -350,17 +392,31 @@ Return a copy of the list."
   (org-memento-with-block-title title
     (org-memento--maybe-check-in))
   (setq org-memento-current-block title)
-  (let* ((plist (org-memento-current-block-status))
-         (remaining-secs (plist-get plist :remaining-secs)))
+  (let* ((block (org-memento-with-current-block
+                  (org-memento-block-entry)))
+         (ending-time (org-memento-ending-time block))
+         (next-event (org-memento--next-agenda-event
+                      (org-memento-block-hd-marker block)))
+         (ending-time-2 (cond
+                         ((and next-event ending-time)
+                          (min ending-time (org-memento-ending-time-default next-event)))
+                         (next-event
+                          (org-memento-ending-time-default next-event))
+                         (t
+                          ending-time))))
     (setq org-memento-current-category
-          (or (org-memento-block-category (plist-get plist :block))
-              (car (assoc title org-memento-category-alist))))
-    (when (and remaining-secs (< remaining-secs 0))
-      (error "Already timeout"))
+          (or (org-memento-block-category block)
+              (car (assoc title org-memento-category-alist)))
+          org-memento-next-event-hd-marker
+          (when next-event (org-memento-org-event-marker next-event)))
+    (setq org-memento-title-string (when ending-time-2
+                                     (format-time-string " (until %R)" ending-time-2)))
     (org-memento--cancel-block-timer)
     (setq org-memento-block-timer
-          (run-with-timer remaining-secs nil
-                          #'org-memento-block-timeout))
+          (when ending-time-2
+            (run-with-timer (- ending-time-2 (float-time))
+                            nil
+                            #'org-memento-block-timeout)))
     (org-memento-setup-daily-timer)
     (run-hooks 'org-memento-block-start-hook)))
 
@@ -587,6 +643,7 @@ point to the heading.
   "Return information on the block at point."
   (org-back-to-heading)
   (make-org-memento-block
+   :hd-marker (point-marker)
    :headline (org-element-headline-parser)
    :active-ts (when (re-search-forward org-ts-regexp
                                        (org-entry-end-position)
@@ -785,7 +842,7 @@ the daily entry."
           (save-current-buffer
             (org-with-point-at (org-memento-org-event-marker event)
               (org-get-heading nil nil nil nil)))
-          (format-time-string "%R" (org-memento-org-event-start-time event))))
+          (format-time-string "%R" (org-memento-starting-time event))))
 
 ;;;; Completion
 
@@ -810,46 +867,20 @@ the daily entry."
 
 (defun org-memento-block-annotator (title)
   (if-let (block (gethash title org-memento-block-cache))
-      (concat (when-let* ((ts (org-memento-block-active-ts block))
-                          (time (org-timestamp-to-time ts)))
+      (concat (when-let (time (org-memento-starting-time block))
                 (propertize (format " %s, in %d minutes"
                                     (format-time-string "%R" time)
-                                    (floor (/ (float-time
-                                               (time-subtract
-                                                time (org-memento--current-time)))
-                                              60)))
+                                    (org-memento-minutes-from-now time))
                             'face 'font-lock-warning-face))
               (when-let (duration (org-memento-duration block))
-                (propertize (format " (%s)" duration)
+                (propertize (format " (%s)" (org-duration-from-minutes duration))
                             'face 'font-lock-doc-face))
-              (when-let (checkin (org-memento-started-time block))
-                (propertize (format-time-string " already checked in at %R"
-                                                (org-timestamp-to-time checkin))
+              (when-let (time (org-memento-started-time block))
+                (propertize (format-time-string " already checked in at %R" time)
                             'face 'font-lock-comment-face)))
     ""))
 
 ;;;; Retrieving timing information
-
-(defun org-memento-current-block-status ()
-  "Return information on the current block."
-  (when org-memento-current-block
-    (let* ((block (org-memento-with-current-block
-                    (org-memento-block-entry)))
-           (end-time-1 (org-memento--expected-end-time block))
-           (next-event (org-memento--next-agenda-event end-time-1))
-           (next-event-time (when next-event
-                              (org-memento-org-event-start-time-with-margin next-event)))
-           (end-time (floor (float-time end-time-1)))
-           (now (floor (float-time (org-memento--current-time))))
-           (timeout (when (> now end-time) (- now end-time)))
-           (must-quit (when next-event (< next-event-time now))))
-      (list :timeout-secs timeout
-            :must-quit must-quit
-            :remaining-secs (unless (or must-quit timeout)
-                              (- (org-memento--time-min next-event-time end-time)
-                                 now))
-            :next-event next-event
-            :block block))))
 
 (defun org-memento--calculated-end-time (block)
   "Return an end time calculated from the duration."
@@ -869,7 +900,7 @@ the daily entry."
   (or (org-memento--designated-end-time block)
       (org-memento--calculated-end-time block)))
 
-(defun org-memento--next-agenda-event (&optional bound-time)
+(defun org-memento--next-agenda-event (&optional hd-marker bound-time)
   "Return an Org entry that has the earliest time stamp.
 
 If BOUND-TIME is an internal time, time stamps later than the
@@ -903,14 +934,19 @@ marker to the time stamp, and the margin in seconds."
                        ;; task/event type.
                        (margin 600)
                        (mtime (- time margin)))
-             (when (or (not min-time)
-                       (< mtime min-time))
-               (setq min-time mtime)
-               (setq result (make-org-memento-org-event
-                             :marker (point-marker)
-                             :start-time time
-                             :start-time-with-margin mtime
-                             :margin-secs margin))))))))
+             (when (and (or (not min-time)
+                            (< mtime min-time))
+                        (not (org-entry-is-done-p)))
+               (let ((marker (save-excursion
+                               (org-back-to-heading)
+                               (point-marker))))
+                 (unless (and hd-marker
+                              (equal marker hd-marker))
+                   (setq min-time mtime)
+                   (setq result (make-org-memento-org-event
+                                 :marker marker
+                                 :active-ts ts
+                                 :margin-secs margin))))))))))
     result))
 
 (defun org-memento--agenda-events (from-date to-date)
@@ -918,8 +954,6 @@ marker to the time stamp, and the margin in seconds."
   (let ((ts-regexp (org-memento--make-ts-regexp
                     (encode-time (org-memento--fill-decoded-time from-date))
                     (encode-time (org-memento--fill-decoded-time to-date))))
-        ;; TODO
-        (default-duration (* 30 60))
         result)
     (dolist (file (org-agenda-files))
       (with-current-buffer (or (find-buffer-visiting file)
@@ -927,20 +961,11 @@ marker to the time stamp, and the margin in seconds."
         (org-with-wide-buffer
          (goto-char (point-min))
          (while (re-search-forward ts-regexp nil t)
-           (let* ((ts (org-timestamp-from-string (match-string 0)))
-                  (start-time (float-time (org-timestamp-to-time ts)))
-                  (end-ts (org-timestamp-split-range ts 'end)))
-             (push (cons start-time
-                         (make-org-memento-org-event
-                          :marker (point-marker)
-                          :start-time start-time
-                          :end-time (if (not (eq (org-element-property :hour-start ts)
-                                                 (org-element-property :hour-start end-ts)))
-                                        (float-time (org-timestamp-to-time end-ts))
-                                      (if-let (effort (org-entry-get nil "EFFORT"))
-                                          (+ start-time
-                                             (* 60 (org-duration-to-minutes effort)))
-                                        (+ start-time default-duration)))))
+           (let ((obj (make-org-memento-org-event
+                       :marker (point-marker)
+                       :active-ts (org-timestamp-from-string (match-string 0)))))
+             (push (cons (org-memento-starting-time obj)
+                         obj)
                    result)
              (goto-char (org-entry-end-position)))))))
     (thread-last
@@ -995,24 +1020,24 @@ and END are float times."
           (push (cons time day-end)
                 result)
           (throw 'day-end t))
-         ((< day-end (org-memento-org-event-start-time event))
+         ((< day-end (org-memento-starting-time event))
           (push (cons time day-end)
                 result)
           (throw 'day-end t))
-         ((< time (org-memento-org-event-start-time event))
-          (push (cons time (org-memento-org-event-start-time event))
+         ((< time (org-memento-starting-time event))
+          (push (cons time (org-memento-starting-time event))
                 result)
-          (if (< (org-memento-org-event-end-time event) day-end)
+          (if (< (org-memento-ending-time-default event) day-end)
               (progn
-                (setq time (org-memento-org-event-end-time event))
+                (setq time (org-memento-ending-time-default event))
                 (setq event (pop events)))
             (throw 'day-end t)))
-         ((> time (org-memento-org-event-start-time event))
+         ((> time (org-memento-starting-time event))
           (cond
-           ((> time (org-memento-org-event-end-time event))
+           ((> time (org-memento-ending-time-default event))
             (setq event (pop events)))
-           ((< (org-memento-org-event-end-time event) day-end)
-            (setq time (org-memento-org-event-end-time event))
+           ((< (org-memento-ending-time-default event) day-end)
+            (setq time (org-memento-ending-time-default event))
             (setq event (pop events)))
            (t
             (throw 'day-end t)))))))
@@ -1057,7 +1082,9 @@ and END are float times."
             (floor (org-duration-to-minutes (match-string 2 string)))))))
 
 (defun org-memento--today-string (decoded-time)
-  (format-time-string "%F" (org-memento--maybe-decrement-date decoded-time)))
+  (format-time-string "%F"
+                      (encode-time
+                       (org-memento--maybe-decrement-date decoded-time))))
 
 (defun org-memento--start-of-day (decoded-time)
   "Return the start of the day given as DECODED-TIME.
