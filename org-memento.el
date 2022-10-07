@@ -150,7 +150,7 @@ than `org-clock-idle-time'."
 (defvar org-memento-current-time nil
   "When non-nil, use this as the current time for testing.")
 
-(defvar org-memento-next-event-hd-marker nil)
+(defvar org-memento-next-event nil)
 
 (defvar org-memento-block-timer nil)
 
@@ -407,8 +407,7 @@ Return a copy of the list."
     (setq org-memento-current-category
           (or (org-memento-block-category block)
               (car (assoc title org-memento-category-alist)))
-          org-memento-next-event-hd-marker
-          (when next-event (org-memento-org-event-marker next-event)))
+          org-memento-next-event next-event)
     (setq org-memento-title-string (when ending-time-2
                                      (format-time-string " (until %R)" ending-time-2)))
     (org-memento--cancel-block-timer)
@@ -612,17 +611,14 @@ point to the heading.
 ;;;;; Scanning
 
 (defun org-memento-status (&optional check-in)
-  "Update the status. Interactively, print the status."
+  "Update the status."
   (interactive)
   (setq org-memento-status-data (org-memento--block-data
                                  (or check-in
                                      (called-interactively-p t))))
-  (when (called-interactively-p t)
-    (if org-memento-current-block
-        (message (org-memento--format-block-status))
-      (if-let (event (org-memento--next-agenda-event))
-          (message (org-memento--format-org-event-status event))
-        (message "No scheduled event remaining on today")))))
+  (when-let (event (org-memento--next-agenda-event
+                    (car org-memento-status-data)))
+    (setq org-memento-next-event event)))
 
 (defun org-memento--block-data (&optional check-in)
   ;; The first item will always be the day itself.
@@ -821,21 +817,27 @@ the daily entry."
 ;;;; Formatting status
 
 (defun org-memento--format-block-status ()
-  (let ((status-plist (org-memento-current-block-status)))
-    (format "You are currently working on \"%s\".\n%s%s"
-            org-memento-current-block
-            (cond
-             ((plist-get status-plist :remaining-secs)
-              (format "%d minutes remaining. "
-                      (round (/ (plist-get status-plist :remaining-secs) 60))))
-             ((plist-get status-plist :must-quit)
-              "You must quit right now. ")
-             ((plist-get status-plist :timeout-secs)
-              (format "Time out by %d minutes. "
-                      (round (/ (plist-get status-plist :timeout) 60)))))
-            (if-let (next-event (plist-get status-plist :next-event))
-                (org-memento--format-org-event-status next-event)
-              ""))))
+  (let* ((block (org-memento-with-current-block
+                  (org-memento-block-entry)))
+         (ending-time (org-memento-ending-time block)))
+    (concat "Current: " org-memento-current-block " "
+            (if ending-time
+                (let ((minutes (org-memento-minutes-from-now ending-time)))
+                  (format " (ending at %s, %s)"
+                          (format-time-string "%R" ending-time)
+                          (if (> minutes 0)
+                              (format "in %d minutes" minutes)
+                            "overdue")))
+              "")
+            "\nNext event: "
+            (if org-memento-next-event
+                (format "%s (starting at %s)"
+                        (save-current-buffer
+                          (org-with-point-at (org-memento-org-event-marker
+                                              org-memento-next-event)
+                            (org-get-heading t t t t)))
+                        (org-memento-starting-time org-memento-next-event))
+              "None"))))
 
 (defun org-memento--format-org-event-status (event)
   (format "\"%s\" starts at %s."
