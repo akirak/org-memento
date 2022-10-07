@@ -129,6 +129,15 @@ than `org-clock-idle-time'."
                                     ((const :standard-duration)
                                      string)))))
 
+(defcustom org-memento-frame-title-format
+  '((t
+     org-memento-current-block)
+    (org-memento-current-category
+     (" (" org-memento-current-category ")"))
+    " >")
+  ""
+  :type 'sexp)
+
 ;;;; Variables
 
 (defvar org-memento-current-block nil
