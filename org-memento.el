@@ -170,6 +170,13 @@ Intended for internal use.")
 (defsubst org-memento-seconds-from-now (float-time)
   (- float-time (float-time (org-memento--current-time))))
 
+(defsubst org-memento--set-time-of-day (decoded-time hour minute sec)
+  "Set the time of day of a decoded time.
+
+Return a copy of the list."
+  (append (list sec minute hour)
+          (cdddr decoded-time)))
+
 ;;;; Generics and structs
 
 (cl-defgeneric org-memento-headline-element (x)
@@ -473,16 +480,6 @@ point to the heading.
       (let ((auto-insert-mode nil))
         (find-file-noselect org-memento-file))))
 
-(defun org-memento--today-string ()
-  "Return the today's date in ISO-8601 format."
-  (require 'org)
-  (let ((decoded (decode-time (org-memento--current-time))))
-    (format-time-string "%F"
-                        (encode-time
-                         (if (< (nth 2 decoded) org-extend-today-until)
-                             (decoded-time-add decoded (make-decoded-time :day -1))
-                           decoded)))))
-
 (defun org-memento--find-today ()
   "Move the point to the today's entry or insert the entry."
   (let ((today (org-memento--today-string)))
@@ -570,8 +567,8 @@ point to the heading.
   (interactive)
   (setq org-memento-status-data (org-memento--block-data
                                  (or check-in
-                                     (called-interactively-p))))
-  (when (called-interactively-p)
+                                     (called-interactively-p t))))
+  (when (called-interactively-p t)
     (if org-memento-current-block
         (message (org-memento--format-block-status))
       (if-let (event (org-memento--next-agenda-event))
@@ -782,12 +779,7 @@ the daily entry."
               (format "%d minutes remaining. "
                       (round (/ (plist-get status-plist :remaining-secs) 60))))
              ((plist-get status-plist :must-quit)
-              (let ((next-event (plist-get status-plist :next-event)))
-                (format "You must quit right now. "
-                        (save-current-buffer
-                          (org-with-point-at (org-memento-org-event-marker next-event)
-                            (org-get-heading nil nil nil nil)))
-                        (format-time-string "%R" (org-memento-org-event-start-time next-event)))))
+              "You must quit right now. ")
              ((plist-get status-plist :timeout-secs)
               (format "Time out by %d minutes. "
                       (round (/ (plist-get status-plist :timeout) 60)))))
@@ -1050,13 +1042,6 @@ and END are float times."
 
 ;;;; Utility functions for time representations and Org timestamps
 
-(defsubst org-memento--set-time-of-day (decoded-time hour minute sec)
-  "Set the time of day of a decoded time.
-
-Return a copy of the list."
-  (append (list sec minute hour)
-          (seq-drop decoded-time 3)))
-
 (defun org-memento--fill-decoded-time (decoded-time)
   "Fill time fields of DECODED-TIME."
   (dolist (i (number-sequence 0 2))
@@ -1170,7 +1155,7 @@ nil. If one of them is nil, the other one is returned."
   (let ((org-extend-today-until 0)
         result)
     (with-temp-buffer
-      (dotimes (i 2)
+      (dotimes (_ 2)
         (org-time-stamp nil)
         (goto-char (point-min))
         (looking-at org-ts-regexp)
