@@ -38,5 +38,18 @@
       localPackages = [
         "org-memento"
       ];
+
+      scripts = {
+        test = {
+          description = "Run buttercup tests";
+          compile = true;
+          extraPackages = [
+            "buttercup"
+          ];
+          text = ''
+            emacs -batch -l buttercup -f buttercup-run-discover "$PWD"
+          '';
+        };
+      };
     };
 }
