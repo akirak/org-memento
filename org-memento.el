@@ -115,11 +115,6 @@ than `org-clock-idle-time'."
   "Hook run when `org-memento-end-day' command is run."
   :type 'hook)
 
-(defcustom org-memento-mode-line-format
-  '(" [" org-memento-current-block "]")
-  "Mode line format for `global-mode-string'."
-  :type 'sexp)
-
 (defcustom org-memento-workhour-alist
   '(((1 2 3 4 5)
      :standard-checkin "9:30"
@@ -294,22 +289,13 @@ Return a copy of the list."
   (when org-memento-idle-timer
     (cancel-timer org-memento-idle-timer)
     (setq org-memento-idle-timer nil))
-  (cond
-   ((bound-and-true-p org-memento-mode)
-    (add-to-list 'global-mode-string
-                 '(org-memento-current-block
-                   org-memento-mode-line-format)
-                 t)
+  (when (bound-and-true-p org-memento-mode)
     (when org-memento-idle-time
       (setq org-memento-idle-timer
             (run-with-idle-timer (* 60 org-memento-idle-time)
                                  nil
                                  #'org-memento-idle)))
-    (message "Org-Memento mode started."))
-   (t
-    (delete '(org-memento-current-block
-              org-memento-mode-line-format)
-            global-mode-string))))
+    (message "Org-Memento mode started.")))
 
 (defun org-memento-idle ()
   (unless org-memento-block-idle-logging
