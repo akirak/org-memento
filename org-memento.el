@@ -232,7 +232,7 @@ Return a copy of the list."
 
 (cl-defmethod org-memento-started-time ((x org-memento-block))
   (when-let (str (org-element-property :MEMENTO_CHECKIN_TIME (org-memento-headline-element x)))
-    (float-time (org-timestamp-to-time str))))
+    (float-time (org-timestamp-to-time (org-timestamp-from-string str)))))
 
 (cl-defmethod org-memento-starting-time ((x org-memento-block))
   (when-let (ts (org-memento-active-ts x))
