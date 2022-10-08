@@ -3,9 +3,6 @@
 (require 'buttercup)
 (require 'org-memento)
 
-(defconst org-memento-test-time-1
-  (parse-time-string "2023-10-04 12:00"))
-
 (defmacro org-memento-with-test-context (file time-string &rest progn)
   (declare (indent 2))
   `(let ((org-memento-current-time (encode-time
