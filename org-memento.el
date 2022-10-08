@@ -283,13 +283,13 @@ Return a copy of the list."
 
 (cl-defmethod org-memento-ended-time ((x org-memento-org-event))
   (when-let (ts (save-current-buffer
-                      (org-with-point-at (org-memento-org-event-marker x)
-                        (org-back-to-heading)
-                        (save-match-data
-                          (when (re-search-forward org-closed-time-regexp
-                                                   (org-entry-end-position)
-                                                   t)
-                            (org-timestamp-from-string (match-string 1)))))))
+                  (org-with-point-at (org-memento-org-event-marker x)
+                    (org-back-to-heading)
+                    (save-match-data
+                      (when (re-search-forward org-closed-time-regexp
+                                               (org-entry-end-position)
+                                               t)
+                        (org-timestamp-from-string (match-string 1)))))))
     (float-time (org-timestamp-to-time ts))))
 
 ;;;; Macros
