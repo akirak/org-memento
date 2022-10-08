@@ -654,7 +654,7 @@ This function is primarily intended for use in
                                        t)
                 (org-timestamp-from-string (match-string 0)))))
 
-;;;;; Selecting blocks or finding a block
+;;;;; Selecting blocks or finding a block from the status
 
 ;; To use these functions, first you have to call `org-memento-status' to update
 ;; the data.
