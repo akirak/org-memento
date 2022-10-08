@@ -1242,8 +1242,9 @@ Note that this functionality uses `org-ql-block', so you have to
 install org-ql package to use it.
 
 A recommended way to use this function is to define an
-interactive command that wraps `org-agenda' function, so the
-variable is updated every day."
+interactive command that wraps `org-agenda' function. Otherwise,
+you would have to update the value of
+`org-agenda-custom-commands' every day before you get to work."
   (require 'org-ql-search)
   `(org-ql-block '(and (level 2)
                        (parent (heading ,(org-memento--today-string
