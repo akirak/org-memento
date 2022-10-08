@@ -197,4 +197,15 @@
   (it "If the initial point is on a future date, moves the point")
   (it "If the initial point is inside the date subtree, don't move the point"))
 
+;;;; Other functions
+
+(describe "org-memento-goto-today"
+  (it "goes to the start of the current date"
+    (expect (org-memento-with-test-context "memento1.org" "2020-01-01 12:00:00"
+              (save-window-excursion
+                (save-current-buffer
+                  (org-memento-goto-today)
+                  (buffer-substring (point) (pos-eol)))))
+            :to-equal "* 2020-01-01")))
+
 (provide 'org-memento-test)
