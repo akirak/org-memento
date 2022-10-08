@@ -117,14 +117,14 @@ than `org-clock-idle-time'."
 
 (defcustom org-memento-workhour-alist
   '(((1 2 3 4 5)
-     :standard-checkin "9:30"
-     :standard-duration "8:00"))
+     :normal-checkin "9:30"
+     :normal-duration "8:00"))
   ""
   :type '(alist :key-type org-memento-days-of-week-type
                 :value-type (plist :options
-                                   (((const :standard-checkin)
+                                   (((const :normal-checkin)
                                      string)
-                                    ((const :standard-duration)
+                                    ((const :normal-duration)
                                      string)))))
 
 (defcustom org-memento-frame-title-format
@@ -1007,8 +1007,8 @@ and END are float times."
     (dolist (date (org-memento--date-list from-date to-date))
       (catch 'day-end
         (when-let* ((workhour (org-memento--standard-workhour date))
-                    (checkin (plist-get workhour :standard-checkin))
-                    (duration (plist-get workhour :standard-duration)))
+                    (checkin (plist-get workhour :normal-checkin))
+                    (duration (plist-get workhour :normal-duration)))
           (let* ((checkin-minutes (floor (org-duration-to-minutes checkin)))
                  (duration-minutes (org-duration-to-minutes duration))
                  (time (float-time (encode-time
@@ -1067,7 +1067,7 @@ and END are float times."
               (decoded-time (decode-time time))
               (plist (org-memento--standard-workhour
                       (org-memento--start-of-day decoded-time)))
-              (duration (plist-get plist :standard-duration))
+              (duration (plist-get plist :normal-duration))
               (checkin-time (org-memento-with-today-entry
                              (org-memento--checkin-time))))
     (time-add checkin-time
