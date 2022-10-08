@@ -112,10 +112,9 @@
 
 (describe "org-memento--seconds-since-midnight"
   (it "returns the number of seconds"
-    (expect (floor
-             (org-memento--seconds-since-midnight
-              (encode-time (parse-time-string "2020-01-01 09:00:00"))))
-            :to-be 32400)))
+    (expect (org-memento--seconds-since-midnight
+             (encode-time (parse-time-string "2020-01-01 09:00:00")))
+            :to-be-close-to 32400 1)))
 
 (describe "org-memento--time-min"
   (it "returns a smaller time"
