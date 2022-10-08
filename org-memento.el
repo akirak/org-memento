@@ -659,6 +659,10 @@ This function is primarily intended for use in
 ;; To use these functions, first you have to call `org-memento-status' to update
 ;; the data.
 
+(defun org-memento-today-as-block ()
+  "Return information on the current date as a block."
+  (car org-memento-status-data))
+
 (defun org-memento--blocks ()
   "Return blocks on today."
   (cdr org-memento-status-data))
