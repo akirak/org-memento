@@ -639,8 +639,9 @@ This function is primarily intended for use in
                     (lambda ()
                       (when (and (looking-at org-complex-heading-regexp)
                                  (or (< 2 (length (match-string 1)))
-                                     (equal (match-string 4)
-                                            org-memento-idle-heading)))
+                                     (let ((headline (match-string 4)))
+                                       (or (equal org-memento-idle-heading headline)
+                                           (string-prefix-p "COMMENT" headline)))))
                         (re-search-forward (rx bol "** ")))))))
 
 (defun org-memento-block-entry ()
