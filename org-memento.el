@@ -1209,5 +1209,71 @@ nil. If one of them is nil, the other one is returned."
               (org-format-time-string "-%H:%M" end-time)
             "")))
 
+(defun org-memento--format-army-time-range (start end)
+  (let ((midnight (thread-first
+                    (org-memento--start-of-day (decode-time start))
+                    (org-memento--set-time-of-day 0 0 0)
+                    (encode-time)
+                    (float-time))))
+    (concat (org-memento--format-army-time start midnight)
+            (unless (time-equal-p start end)
+              (format "-%s" (org-memento--format-army-time end midnight))))))
+
+(defun org-memento--format-army-time (time midnight)
+  (let ((minutes (/ (- (thread-last
+                         (float-time time)
+                         (floor))
+                       midnight)
+                    60)))
+    (format "%02d:%02d"
+            (floor (/ minutes 60))
+            (mod minutes 60))))
+
+;;;; Integrations with third-party packages
+
+;;;;; org-ql
+
+;;;###autoload
+(defun org-memento-make-agenda-block ()
+  "Return an `org-agenda' block for time blocks on today.
+
+Note that this functionality uses `org-ql-block', so you have to
+install org-ql package to use it.
+
+A recommended way to use this function is to define an
+interactive command that wraps `org-agenda' function, so the
+variable is updated every day."
+  (require 'org-ql-search)
+  `(org-ql-block '(and (level 2)
+                       (parent (heading ,(org-memento--today-string
+                                          (decode-time))))
+                       (not (heading-regexp
+                             ,(rx-to-string `(or (and bol "COMMENT")
+                                                 ,org-memento-idle-heading)))))
+                 ((org-ql-block-header "Time blocks")
+                  (org-agenda-files '(,org-memento-file))
+                  (org-super-agenda-properties-inherit nil)
+                  (org-super-agenda-groups
+                   '((:name "Closed" :todo "DONE")
+                     (:name "Working on" :property "memento_checkin_time")
+                     (:auto-map org-memento--super-agenda-ts-map)
+                     (:name "Unscheduled" :anything t))))))
+
+(defun org-memento--super-agenda-ts-map (item)
+  (when-let* ((marker (or (get-text-property 0 'org-marker item)
+                          (get-text-property 0 'org-hd-marker item)))
+              (ts (save-current-buffer
+                    (org-with-point-at marker
+                      (when (re-search-forward (concat "<" org-ts-regexp1 "[^>\n]\\{5,16\\}>")
+                                               (org-entry-end-position) t)
+                        (org-timestamp-from-string (match-string 0)))))))
+    (let ((start (org-timestamp-to-time ts))
+          (end (org-timestamp-to-time ts t)))
+      (concat (org-memento--format-army-time-range start end)
+              (unless (time-equal-p start end)
+                (format " (%.1fh)"
+                        (/ (- (float-time end) (float-time start))
+                           3600)))))))
+
 (provide 'org-memento)
 ;;; org-memento.el ends here
