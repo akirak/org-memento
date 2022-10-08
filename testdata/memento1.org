@@ -1,0 +1,31 @@
+* 2020-01-02
+* 2020-01-01
+:PROPERTIES:
+:memento_checkin_time: [2020-01-01 Wed 09:00]
+:END:
+** DONE org-memento
+CLOSED: [2020-01-01 Wed 09:55]
+:PROPERTIES:
+:memento_checkin_time: [2020-01-01 Wed 09:20]
+:memento_category: Emacs
+:END:
+** Emacs
+** Math
+:PROPERTIES:
+:memento_checkin_time: [2020-01-01 Wed 09:58]
+:END:
+<2020-01-01 Wed 10:00-11:00>
+** Another class
+<2020-01-01 Wed 15:30-17:00>
+** Homework
+<2020-01-01 Wed 18:00>
+** Idle
+:LOGBOOK:
+CLOCK: [2020-01-01 Wed 13:00]--[2020-01-01 Wed 14:00] =>  1:00
+:END:
+* DONE 2019-12-31
+CLOSED: [2019-12-31 Tue 23:00]
+:PROPERTIES:
+:memento_checkin_time: [2019-12-31 Tue 10:00]
+:END:
+* Notes and settings
