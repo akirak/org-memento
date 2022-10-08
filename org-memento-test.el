@@ -17,6 +17,12 @@
                                                       (buffer-file-name)))))))
      ,@progn))
 
+(defun org-memento-test--internal-time (string)
+  (encode-time (parse-time-string string)))
+
+(defun org-memento-test--float-time (string)
+  (float-time (encode-time (parse-time-string string))))
+
 ;;;; Time utilities
 
 ;; Here are too many test cases for private functions, but these functions
@@ -166,7 +172,25 @@
             :to-equal
             "<2020-01-01 Wed 09:00-15:00>")))
 
-;;;;
+;;;; Generics
+
+(describe "org-memento-block"
+  (describe "on the current daily entry"
+    (let ((block (org-memento-with-test-context "memento1.org" "2020-01-01 12:00:00"
+                   (org-memento-with-today-entry
+                    (org-memento-block-entry)))))
+      (it "The started time is the check-in time"
+        (expect (org-memento-started-time block)
+                :to-be-close-to
+                (org-memento-test--float-time "2020-01-01 09:00:00")
+                1))
+      (it "The started time is the scheduled time"
+        (expect (org-memento-starting-time block)
+                :to-be nil))
+      (it "The ended time is the closed time"
+        (expect (org-memento-ended-time block)
+                :to-be nil)))))
+
 
 (describe "org-memento-open-today"
   (it "If the initial point is on a past date, moves the point")
