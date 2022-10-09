@@ -531,7 +531,7 @@ point to the heading.
     (let ((initial-pos (point)))
       (widen)
       (org-memento--find-today)
-      (org-memento--daily-check-in)
+      (org-memento--maybe-checkin-to-day)
       (org-back-to-heading)
       (org-narrow-to-subtree)
       (unless (save-excursion
@@ -688,7 +688,7 @@ The function returns non-nil if the check-in is done."
                                                (org-memento--current-time)))
     t))
 
-(defun org-memento--daily-check-in ()
+(defun org-memento--maybe-checkin-to-day ()
   (setq org-memento-block-idle-logging nil)
   (when (org-memento--maybe-check-in)
     ;; The point should be moved to the heading to call scaffolding
@@ -725,7 +725,7 @@ The function returns non-nil if the check-in is done."
   ;; The first item will always be the day itself.
   (org-memento-with-today-entry
    (when check-in
-     (org-memento--daily-check-in))
+     (org-memento--maybe-checkin-to-day))
    (org-narrow-to-subtree)
    (org-map-entries #'org-memento-block-entry
                     nil nil
