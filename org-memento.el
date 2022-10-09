@@ -70,29 +70,6 @@ than `org-clock-idle-time'."
               (const :tag "Friday" 5)
               (const :tag "Saturday" 6)))
 
-(define-widget 'org-memento-category-spec-type 'lazy
-  ""
-  :tag "Category spec"
-  :type '(plist :options
-                (((const :tag "Template" :template)
-                  (choice (string :tag "Literal string")
-                          (list (const file)
-                                (string :tag "File name"))
-                          (function :tag "Function that takes no argument")))
-                 ((const :tag "Default duration" :duration)
-                  (string :tag "H:MM"))
-                 ((const :tag "Days of week" :dows)
-                  org-memento-days-of-week-type)
-                 ((const :tag "Time of day" :time)
-                  (choice (list :tag "Relative time from check in"
-                                (const relative)
-                                (string :tag "H:MM"))
-                          (list :tag "Absolute"
-                                (const absolute)
-                                (string :tag "H:MM(-H:MM)"))))
-                 ((const :tag "User-defined properties" :x)
-                  (choice plist sexp)))))
-
 (defcustom org-memento-template-sources
   '((file+olp org-memento-file "Notes" "Templates"))
   "Location where you define your templates for time blocks.
