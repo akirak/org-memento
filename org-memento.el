@@ -35,6 +35,7 @@
 (require 'org-element)
 
 (declare-function org-element-headline-parser "org-element")
+(defvar org-capture-entry)
 
 (defgroup org-memento nil
   "Time blocking with Org mode."
@@ -497,9 +498,11 @@ implements methods such as `org-memento-started-time'."
                                        (format-time-string (org-time-stamp-format t t)
                                                            end)
                                        ":PROPERTIES:\n"
-                                       ":memento_checkin_time:"
+                                       ":memento_checkin_time: "
                                        (format-time-string (org-time-stamp-format t t)
-                                                           start) "\n"
+                                                           start)
+                                       "\n"
+                                       ":memento_category: " category
                                        ":END:\n"
                                        "%?"))))
     (org-capture)))
@@ -660,7 +663,7 @@ This function is primarily intended for use in
 (defun org-memento-set-category (category)
   "Set the category of the block at point."
   (interactive (list (completing-read "Category: "
-                                      org-memento-category-alist
+                                      (org-memento--all-categories)
                                       nil nil nil nil
                                       (org-entry-get nil "memento_category"))))
   (org-entry-put nil "memento_category" category))
@@ -1239,7 +1242,8 @@ marker to the time stamp, and the margin in seconds."
                    result)
              (goto-char (org-entry-end-position)))))))
     (thread-last
-      (org-memento--sort-by-car result)
+      result
+      ;; (org-memento--sort-by-car result)
       (mapcar #'cdr))))
 
 (defun org-memento--standard-workhour (decoded-time)
