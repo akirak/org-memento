@@ -91,6 +91,16 @@ temporarily setting this variable."
   "Hook run after finishing or stopping a block."
   :type 'hook)
 
+(defcustom org-memento-checkin-hook nil
+  "Hook run after checking in to a daily entry.
+
+If you run `org-memento-open-today' or one of the other commands
+that perform daily check-in, this hook is called after
+scaffolding is done before the user gets interactivity. The hook
+is first called at the body of the entry, so you can use it to
+insert some contents into the daily entry."
+  :type 'hook)
+
 (defcustom org-memento-day-end-hook nil
   "Hook run when `org-memento-end-day' command is run."
   :type 'hook)
@@ -524,8 +534,6 @@ point to the heading.
       (org-memento--daily-check-in)
       (org-back-to-heading)
       (org-narrow-to-subtree)
-      (atomic-change-group
-        (org-memento--scaffold-day))
       (unless (save-excursion
                 (re-search-forward (rx bol "*" (+ blank)) initial-pos t))
         (goto-char initial-pos)))
@@ -669,13 +677,27 @@ This function is primarily intended for use in
   (org-entry-put nil "memento_category" category))
 
 (defun org-memento--maybe-check-in ()
+  "If the entry has no check-in time, record the current time.
+
+This function can be called both on a daily entry (at level 1)
+and on a time block entry (at level 2).
+
+The function returns non-nil if the check-in is done."
   (unless (org-entry-get nil "memento_checkin_time")
     (org-entry-put nil "memento_checkin_time" (org-memento--inactive-ts-string
-                                               (org-memento--current-time)))))
+                                               (org-memento--current-time)))
+    t))
 
 (defun org-memento--daily-check-in ()
   (setq org-memento-block-idle-logging nil)
-  (org-memento--maybe-check-in))
+  (when (org-memento--maybe-check-in)
+    ;; The point should be moved to the heading to call scaffolding
+    (org-back-to-heading)
+    (save-excursion
+      (atomic-change-group
+        (org-memento--scaffold-day)))
+    (org-end-of-meta-data t)
+    (run-hooks 'org-memento-checkin-hook)))
 
 (defun org-memento--set-closing-time ()
   (let* ((value (org-entry-get nil "memento_closing_time"))
@@ -703,7 +725,7 @@ This function is primarily intended for use in
   ;; The first item will always be the day itself.
   (org-memento-with-today-entry
    (when check-in
-     (org-memento--maybe-check-in))
+     (org-memento--daily-check-in))
    (org-narrow-to-subtree)
    (org-map-entries #'org-memento-block-entry
                     nil nil
