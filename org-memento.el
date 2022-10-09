@@ -1273,7 +1273,11 @@ marker to the time stamp, and the margin in seconds."
 
 (defun org-memento--standard-workhour (decoded-time)
   "Return a plist which specifies the work hour for the day."
-  (let ((dow (nth 6 decoded-time)))
+  (let ((dow (apply #'org-day-of-week
+                    (thread-first
+                      decoded-time
+                      (seq-drop 3)
+                      (seq-take 3)))))
     (seq-some `(lambda (cell)
                  (when (memq ,dow (car cell))
                    (cdr cell)))
