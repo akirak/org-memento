@@ -541,6 +541,7 @@ point to the heading.
         (goto-char initial-pos)))
     (pop-to-buffer (current-buffer))))
 
+;;;###autoload
 (defun org-memento-checkout-from-day ()
   "Run this command when you finish all your work on the day."
   (interactive)
