@@ -696,21 +696,31 @@ The function returns non-nil if the check-in is done."
   (when (org-memento--maybe-check-in)
     ;; The point should be moved to the heading to call scaffolding
     (org-back-to-heading)
+    (org-memento--insert-checking-out-time)
     (save-excursion
       (atomic-change-group
         (org-memento--scaffold-day)))
     (org-end-of-meta-data t)
     (run-hooks 'org-memento-checkin-hook)))
 
-(defun org-memento--set-closing-time ()
-  (let* ((value (org-entry-get nil "memento_closing_time"))
-         (new-value (with-temp-buffer
-                      (when value
-                        (insert value))
-                      (goto-char (point-min))
-                      (org-time-stamp t)
-                      (buffer-string))))
-    (org-entry-put nil "memento_closing_time" new-value)))
+(defun org-memento--insert-checking-out-time ()
+  "Insert the expected checkout time of the day after the metadata.
+
+The point must be at the heading."
+  (save-excursion
+    (if (looking-at org-complex-heading-regexp)
+        (let ((day (parse-time-string (match-string 4)))
+              (now (org-memento--current-time)))
+          (org-end-of-meta-data t)
+          ;; If there is an existing active timestamp, don't insert it.
+          (unless (re-search-forward org-ts-regexp (org-entry-end-position) t)
+            (when-let (duration-string (plist-get (org-memento--standard-workhour day)
+                                                  :normal-duration))
+              (let ((end-time (time-add now (* 60 (org-duration-to-minutes
+                                                   duration-string)))))
+                (insert (org-memento--format-active-range now end-time)
+                        "\n")))))
+      (error "The heading does not match org-complex-heading-regexp"))))
 
 ;;;;; Scanning
 

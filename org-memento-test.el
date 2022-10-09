@@ -198,6 +198,8 @@
       (it "The started time is the scheduled time"
         (expect (org-memento-starting-time block)
                 :to-be nil))
+      (xit "The closing time is calculated")
+
       (it "The ended time is the closed time"
         (expect (org-memento-ended-time block)
                 :to-be nil)))))
