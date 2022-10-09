@@ -5,8 +5,9 @@
 
 (defmacro org-memento-with-test-context (file time-string &rest progn)
   (declare (indent 2))
-  `(let ((org-memento-current-time (encode-time
-                                    (parse-time-string ,time-string)))
+  `(let ((org-memento-current-time ,(when time-string
+                                      `(encode-time
+                                        (parse-time-string ,time-string))))
          (org-memento-file ,(when file
                               `(expand-file-name (concat "testdata/" ,file)
                                                  (file-name-directory
@@ -188,6 +189,96 @@
         (expect (org-memento-ended-time block)
                 :to-be nil)))))
 
+(describe "org-memento-template"
+  (describe "read with org-memento-templates function"
+    (let ((alist (thread-last
+                   (org-memento-with-test-context "memento1.org" nil
+                     (org-memento-templates))
+                   (mapcar (lambda (x)
+                             (cons (org-memento-template-title x)
+                                   x))))))
+
+      (describe "loading"
+        (it "skips archived entries"
+          (expect (assoc "English" alist)
+                  :to-be nil)
+          (expect (assoc "Writing" alist)
+                  :to-be nil)))
+
+      (describe "source"
+        (it "is the spec of its source"
+          (expect (org-memento-template-source (cdr (assoc "Emacs" alist)))
+                  :to-equal
+                  '(file+olp org-memento-file "Notes" "Templates"))))
+
+      (describe "relative-olp"
+        (it "is the olp from the source"
+          (expect (org-memento-template-relative-olp (cdr (assoc "Emacs" alist)))
+                  :to-equal
+                  '("Emacs"))
+          (expect (org-memento-template-relative-olp (cdr (assoc "Coding Exercises" alist)))
+                  :to-equal
+                  '("Programming" "Coding Exercises"))))
+
+      (describe "category"
+        (it "is inherited from the top-level"
+          (expect (org-memento-template-category (cdr (assoc "Emacs" alist)))
+                  :to-equal
+                  "Emacs")
+          (expect (org-memento-template-category (cdr (assoc "Speaking" alist)))
+                  :to-equal
+                  "Spanish"))
+        (it "respects the property"
+          (expect (org-memento-template-category (cdr (assoc "Retrospectives" alist)))
+                  :to-equal
+                  "Work")
+          (expect (org-memento-template-category (cdr (assoc "Weekly Retrospective" alist)))
+                  :to-equal
+                  "Work")))
+
+      (describe "tags"
+        (it "is nil unless specified"
+          (expect (org-memento-template-tags (cdr (assoc "Spanish" alist)))
+                  :to-be nil))
+        (it "is inherited"
+          (expect (org-memento-template-tags (cdr (assoc "Weekly Retrospective" alist)))
+                  :to-equal
+                  '("retrospectives"))))
+
+      (describe "normal-dows"
+        (it "is a list of numbers"
+          (expect (org-memento-template-normal-dows (cdr (assoc "Speaking" alist)))
+                  :to-equal
+                  '(0 1 2 3 4 5 6))))
+
+      (describe "normal-hour"
+        (it "can be relative"
+          (expect (org-memento-template-normal-hour (cdr (assoc "Emacs" alist)))
+                  :to-equal
+                  '(relative 480 nil)))
+
+        (it "can be a relative range"
+          (expect (org-memento-template-normal-hour (cdr (assoc "Daily Review" alist)))
+                  :to-equal
+                  '(relative 420 450)))
+
+        (it "can be absolute"
+          (expect (org-memento-template-normal-hour (cdr (assoc "Weekly Retrospective" alist)))
+                  :to-equal
+                  '(absolute 900 nil)))
+
+        (it "can be an absolute range"
+          (expect (org-memento-template-normal-hour (cdr (assoc "Daily Meeting" alist)))
+                  :to-equal
+                  '(absolute 600 610))))
+
+      (describe "duration"
+        (it "is the number of minutes"
+          (expect (org-memento-template-duration (cdr (assoc "Emacs" alist)))
+                  :to-be 20))
+        (it "is nil if unset"
+          (expect (org-memento-template-duration (cdr (assoc "Retrospectives" alist)))
+                  :to-be nil))))))
 
 (describe "org-memento-open-today"
   (it "If the initial point is on a past date, moves the point")

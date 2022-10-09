@@ -93,15 +93,17 @@ than `org-clock-idle-time'."
                  ((const :tag "User-defined properties" :x)
                   (choice plist sexp)))))
 
-(defcustom org-memento-category-alist
-  nil
-  ""
-  :type '(alist :key-type (string :tag "Category name")
-                :value-type org-memento-category-spec-type))
+(defcustom org-memento-template-sources
+  '((file+olp org-memento-file "Notes" "Templates"))
+  "Location where you define your templates for time blocks.
 
-(defcustom org-memento-template-directory nil
-  ""
-  :type 'directory)
+For simplicity, only a single file is allowed. If you want to
+define categories in multiple files, you should implement it by
+temporarily setting this variable."
+  :type '(repeat (list (const file+olp)
+                       (choice (file :tag "File name")
+                               (symbol :tag "Variable to a file name"))
+                       (repeat :tag "Outline path" :inline t string))))
 
 (defcustom org-memento-block-start-hook nil
   "Hook run after starting a block."
@@ -291,6 +293,12 @@ Return a copy of the list."
                                                t)
                         (org-timestamp-from-string (match-string 1)))))))
     (float-time (org-timestamp-to-time ts))))
+
+;;;;; org-memento-template
+
+(cl-defstruct org-memento-template
+  source relative-olp hd-marker
+  title category tags normal-hour normal-dows duration)
 
 ;;;; Macros
 
@@ -858,6 +866,95 @@ the daily entry."
             (org-with-point-at (org-memento-org-event-marker event)
               (org-get-heading nil nil nil nil)))
           (format-time-string "%R" (org-memento-starting-time event))))
+
+;;;; Manage templates
+
+(defun org-memento-goto-template-parent ()
+  "Return the marker to one of the template roots or its descendant."
+  (let* (alist
+         (_ (org-memento--map-template-entries
+             (lambda (_source)
+               (push (cons (org-format-outline-path
+                            (org-get-outline-path t t)
+                            nil (buffer-name) "/")
+                           (point))
+                     alist))
+             t))
+         (completions-sort nil)
+         (choice (completing-read "Choose a parent: " (nreverse alist))))
+    (cdr (assoc choice alist))))
+
+(defvar org-memento-template-category nil
+  "Name of the category temporarily set during loading.")
+
+(defun org-memento-templates ()
+  "Return a list of template entries loaded from the source files."
+  (let (templates)
+    (org-memento--map-template-entries
+     (lambda (source)
+       (when (pcase source
+               (`(file+olp ,_file . ,olp)
+                (= 1 (- (org-outline-level) (length olp)))))
+         (looking-at org-complex-heading-regexp)
+         (setq org-memento-template-category (match-string 4)))
+       (push (org-memento--parse-template-spec source)
+             templates)))
+    (nreverse templates)))
+
+(defun org-memento--parse-template-spec (source)
+  (make-org-memento-template
+   :source source
+   :relative-olp (pcase source
+                   (`(file+olp ,_file . ,olp)
+                    (seq-drop (org-get-outline-path t t)
+                              (length olp))))
+   :hd-marker (point-marker)
+   :title (org-get-heading t t t t)
+   :category (or (org-entry-get nil "memento_category" t)
+                 org-memento-template-category)
+   :tags (org-get-tags)
+   :normal-hour (when-let (string (org-entry-get nil "memento_normal_hour" t))
+                  (org-memento--parse-normal-hour string))
+   :normal-dows (when-let (string (org-entry-get nil "memento_normal_dows" t))
+                  (org-memento--parse-normal-dows string))
+   :duration (when-let (string (org-entry-get nil "Effort" t))
+               (floor (org-duration-to-minutes string)))))
+
+(defun org-memento--parse-normal-hour (string)
+  (if (string-match (rx (group (or "absolute" "relative"))
+                        (+ blank)
+                        (group (and (+ digit) ":" (+ digit)))
+                        (?  "-" (group (and (+ digit) ":" (+ digit)))))
+                    string)
+      (list (intern (match-string 1 string))
+            (floor (org-duration-to-minutes (match-string 2 string)))
+            (when-let (s (match-string 3 string))
+              (floor (org-duration-to-minutes s))))
+    (error "Failed to match an hour spec against %s" string)))
+
+(defun org-memento--parse-normal-dows (string)
+  (mapcar #'string-to-number (split-string string)))
+
+(defun org-memento--map-template-entries (func &optional include-roots)
+  "Map a function on each entry under the template roots."
+  (dolist (source org-memento-template-sources)
+    (pcase source
+      (`(file+olp ,file . ,olp)
+       (save-current-buffer
+         (org-with-point-at (org-find-olp (cons (cl-etypecase file
+                                                  (symbol (symbol-value file))
+                                                  (string file))
+                                                olp))
+           (org-with-wide-buffer
+            (let ((start (if include-roots
+                             (point)
+                           (org-entry-end-position)))
+                  (end (org-end-of-subtree)))
+              (narrow-to-region start end)
+              (org-map-entries
+               `(lambda ()
+                  (unless (member "ARCHIVE" (org-get-tags))
+                    (funcall ',func ',source))))))))))))
 
 ;;;; Completion
 
