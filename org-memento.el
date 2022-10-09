@@ -87,7 +87,7 @@ temporarily setting this variable."
   "Hook run after starting a block."
   :type 'hook)
 
-(defcustom org-memento-post-block-exit-hook nil
+(defcustom org-memento-block-exit-hook nil
   "Hook run after finishing or stopping a block."
   :type 'hook)
 
@@ -103,8 +103,8 @@ insert some contents into the daily entry.
 Note that this hook is not called on blocks inside a daily entry."
   :type 'hook)
 
-(defcustom org-memento-day-end-hook nil
-  "Hook run when `org-memento-end-day' command is run."
+(defcustom org-memento-checkout-hook nil
+  "Hook run when `org-memento-checkout-from-day' command is run."
   :type 'hook)
 
 (defcustom org-memento-workhour-alist
@@ -487,7 +487,7 @@ implements methods such as `org-memento-started-time'."
       (org-todo 'done))
     (setq org-memento-current-block nil)
     (org-memento--cancel-block-timer)
-    (run-hooks 'org-memento-post-block-exit-hook)))
+    (run-hooks 'org-memento-block-exit-hook)))
 
 (defun org-memento-stop-block ()
   "Stop the current block without marking it as done."
@@ -495,7 +495,7 @@ implements methods such as `org-memento-started-time'."
   (when org-memento-current-block
     (setq org-memento-current-block nil)
     (org-memento--cancel-block-timer)
-    (run-hooks 'org-memento-post-block-exit-hook)))
+    (run-hooks 'org-memento-block-exit-hook)))
 
 ;;;###autoload
 (defun org-memento-log (start end)
@@ -541,13 +541,13 @@ point to the heading.
         (goto-char initial-pos)))
     (pop-to-buffer (current-buffer))))
 
-(defun org-memento-end-day ()
+(defun org-memento-checkout-from-day ()
   "Run this command when you finish all your work on the day."
   (interactive)
   (org-memento-with-today-entry
    (org-todo 'done)
    (setq org-memento-block-idle-logging t)
-   (run-hooks 'org-memento-day-end-hook)))
+   (run-hooks 'org-memento-checkout-hook)))
 
 ;;;###autoload
 (defun org-memento-display-empty-slots (from-date to-date &optional duration-minutes)
