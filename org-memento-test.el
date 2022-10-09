@@ -220,6 +220,18 @@
                   :to-equal
                   '("Programming" "Coding Exercises"))))
 
+      (describe "leaf-p"
+        (it "is t if it has no children"
+          (expect (org-memento-template-leaf-p (cdr (assoc "Emacs" alist)))
+                  :to-be t)
+          (expect (org-memento-template-leaf-p (cdr (assoc "Speaking" alist)))
+                  :to-be t)
+          (expect (org-memento-template-leaf-p (cdr (assoc "Weekly Retrospective" alist)))
+                  :to-be t))
+        (it "is nil if it has children"
+          (expect (org-memento-template-leaf-p (cdr (assoc "Spanish" alist)))
+                  :to-be nil)))
+
       (describe "category"
         (it "is inherited from the top-level"
           (expect (org-memento-template-category (cdr (assoc "Emacs" alist)))

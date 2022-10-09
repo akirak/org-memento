@@ -298,7 +298,7 @@ Return a copy of the list."
 
 (cl-defstruct org-memento-template
   source relative-olp hd-marker
-  title category tags normal-hour normal-dows duration)
+  title category tags normal-hour normal-dows duration leaf-p)
 
 ;;;; Macros
 
@@ -902,23 +902,29 @@ the daily entry."
     (nreverse templates)))
 
 (defun org-memento--parse-template-spec (source)
-  (make-org-memento-template
-   :source source
-   :relative-olp (pcase source
-                   (`(file+olp ,_file . ,olp)
-                    (seq-drop (org-get-outline-path t t)
-                              (length olp))))
-   :hd-marker (point-marker)
-   :title (org-get-heading t t t t)
-   :category (or (org-entry-get nil "memento_category" t)
-                 org-memento-template-category)
-   :tags (org-get-tags)
-   :normal-hour (when-let (string (org-entry-get nil "memento_normal_hour" t))
-                  (org-memento--parse-normal-hour string))
-   :normal-dows (when-let (string (org-entry-get nil "memento_normal_dows" t))
-                  (org-memento--parse-normal-dows string))
-   :duration (when-let (string (org-entry-get nil "Effort" t))
-               (floor (org-duration-to-minutes string)))))
+  (let ((level (org-outline-level)))
+    (make-org-memento-template
+     :source source
+     :relative-olp (pcase source
+                     (`(file+olp ,_file . ,olp)
+                      (seq-drop (org-get-outline-path t t)
+                                (length olp))))
+     :hd-marker (point-marker)
+     :leaf-p (save-excursion
+               (goto-char (org-entry-end-position))
+               (not (looking-at (concat "[[:space:]]*"
+                                        (regexp-quote (make-string (1+ level) ?\*))
+                                        "\\*?[[:blank:]]"))))
+     :title (org-get-heading t t t t)
+     :category (or (org-entry-get nil "memento_category" t)
+                   org-memento-template-category)
+     :tags (org-get-tags)
+     :normal-hour (when-let (string (org-entry-get nil "memento_normal_hour" t))
+                    (org-memento--parse-normal-hour string))
+     :normal-dows (when-let (string (org-entry-get nil "memento_normal_dows" t))
+                    (org-memento--parse-normal-dows string))
+     :duration (when-let (string (org-entry-get nil "Effort" t))
+                 (floor (org-duration-to-minutes string))))))
 
 (defun org-memento--parse-normal-hour (string)
   (if (string-match (rx (group (or "absolute" "relative"))
