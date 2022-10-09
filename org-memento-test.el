@@ -15,6 +15,19 @@
                                                       (buffer-file-name)))))))
      ,@progn))
 
+(defmacro org-memento-revert-modifications (&rest progn)
+  `(let ((handle (prepare-change-group)))
+     (unwind-protect
+         (progn
+           ,@progn)
+       (cancel-change-group handle))))
+
+(defun org-memento-test-find-item-by-title (title items)
+  (seq-find (lambda (block)
+              (equal (org-memento-title block)
+                     title))
+            items))
+
 (defun org-memento-test--internal-time (string)
   (encode-time (parse-time-string string)))
 
@@ -296,6 +309,89 @@
   (it "If the initial point is on a past date, moves the point")
   (it "If the initial point is on a future date, moves the point")
   (it "If the initial point is inside the date subtree, don't move the point"))
+
+;;;; Scaffolding
+
+(describe "Default scaffolding"
+  (let ((blocks (org-memento-with-test-context "memento1.org" "2020-01-02 08:30:00"
+                  (org-memento-with-today-entry
+                   (org-memento-revert-modifications
+                    (org-memento--maybe-check-in)
+                    (org-memento--scaffold-day)
+                    (org-memento-status)
+                    org-memento-status-data)))))
+    (it "loads data"
+      (expect (length blocks)
+              ;; including 1 daily block
+              :to-be 5)
+      (expect (org-memento-test-find-item-by-title "Daily Meeting" blocks)
+              :to-be-truthy)
+      (expect (org-memento-test-find-item-by-title "Daily Review" blocks)
+              :to-be-truthy)
+      (expect (org-memento-test-find-item-by-title "Speaking" blocks)
+              :to-be-truthy)
+      (expect (org-memento-test-find-item-by-title "Vocabulary study" blocks)
+              :to-be-truthy))
+
+    (it "sets tags"
+      (expect (thread-last
+                (org-memento-test-find-item-by-title "Daily Review" blocks)
+                (org-memento-headline-element)
+                (org-element-property :tags))
+              :to-equal '("retrospectives")))
+
+    (it "sets a timestamp"
+      (expect (thread-last
+                (org-memento-test-find-item-by-title "Daily Meeting" blocks)
+                (org-memento-starting-time))
+              :to-be-close-to
+              (org-memento-test--float-time "2020-01-02 10:00:00")
+              1)
+      (expect (thread-last
+                (org-memento-test-find-item-by-title "Daily Meeting" blocks)
+                (org-memento-ending-time))
+              :to-be-close-to
+              (org-memento-test--float-time "2020-01-02 10:10:00")
+              1)
+      (expect (thread-last
+                (org-memento-test-find-item-by-title "Daily Review" blocks)
+                (org-memento-starting-time))
+              :to-be-close-to
+              (org-memento-test--float-time "2020-01-02 15:30:00")
+              1)
+      (expect (thread-last
+                (org-memento-test-find-item-by-title "Daily Review" blocks)
+                (org-memento-ending-time))
+              :to-be-close-to
+              (org-memento-test--float-time "2020-01-02 16:00:00")
+              1))
+
+    (it "inserts Effort property"
+      (expect (thread-last
+                (org-memento-test-find-item-by-title "Speaking" blocks)
+                (org-memento-duration))
+              :to-be-close-to 15.0 1)
+      (expect (thread-last
+                (org-memento-test-find-item-by-title "Vocabulary study" blocks)
+                (org-memento-duration))
+              :to-be-close-to 15.0 1)))
+
+  (it "inserts the body"
+    (expect (org-memento-with-test-context "memento1.org" "2020-01-02 08:30:00"
+              (org-memento-with-today-entry
+               (org-memento-revert-modifications
+                (org-memento--maybe-check-in)
+                (org-memento--scaffold-day)
+                (org-memento-status)
+                (goto-char (thread-last
+                             org-memento-status-data
+                             (org-memento-test-find-item-by-title "Speaking")
+                             (org-memento-block-hd-marker)))
+                (org-end-of-meta-data t)
+                (buffer-substring-no-properties
+                 (point) (org-entry-end-position)))))
+            :to-equal
+            "Here should be an instruction.\n")))
 
 ;;;; Other functions
 

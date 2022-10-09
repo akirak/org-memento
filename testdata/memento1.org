@@ -1,3 +1,5 @@
+* 2020-01-04
+* 2020-01-03
 * 2020-01-02
 * 2020-01-01
 :PROPERTIES:
@@ -50,6 +52,7 @@ CLOSED: [2019-12-31 Tue 23:00]
 :Effort:   0:15
 :memento_normal_dows: 0 1 2 3 4 5 6
 :END:
+Here should be an instruction.
 **** Vocabulary study
 :PROPERTIES:
 :Effort:   0:15
@@ -68,6 +71,7 @@ CLOSED: [2019-12-31 Tue 23:00]
 **** Daily Meeting
 :PROPERTIES:
 :memento_normal_hour: absolute 10:00-10:10
+:memento_normal_dows: 1 2 3 4 5
 :END:
 *** Retrospectives :retrospectives:
 :PROPERTIES:
