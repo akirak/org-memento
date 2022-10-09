@@ -453,6 +453,7 @@ implements methods such as `org-memento-started-time'."
   (org-memento-with-block-title title
     (org-memento--maybe-check-in))
   (setq org-memento-current-block title)
+  ;; This should be moved to `org-memento-status'.
   (let* ((block (org-memento-with-current-block
                   (org-memento-block-entry)))
          (ending-time (org-memento-ending-time block))
