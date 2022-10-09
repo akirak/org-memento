@@ -485,6 +485,26 @@ implements methods such as `org-memento-started-time'."
     (run-hooks 'org-memento-post-block-exit-hook)))
 
 ;;;###autoload
+(defun org-memento-log (start end)
+  "Log a past time block to the today's entry."
+  (interactive (org-memento--read-past-blank-hours))
+  (let* ((title (read-string "Title: "))
+         (category (completing-read "Category: " (org-memento--all-categories)))
+         (org-capture-entry `("" ""
+                              entry #'org-memento-goto-today
+                              ,(concat "* DONE " title "\n"
+                                       org-closed-string " "
+                                       (format-time-string (org-time-stamp-format t t)
+                                                           end)
+                                       ":PROPERTIES:\n"
+                                       ":memento_checkin_time:"
+                                       (format-time-string (org-time-stamp-format t t)
+                                                           start) "\n"
+                                       ":END:\n"
+                                       "%?"))))
+    (org-capture)))
+
+;;;###autoload
 (defun org-memento-open-today ()
   "Open the subtree of today.
 
@@ -1012,6 +1032,16 @@ the daily entry."
 
 ;;;; Completion
 
+(defun org-memento--all-categories ()
+  (cl-remove-duplicates
+   (thread-last
+     (org-memento-templates)
+     (mapcar #'org-memento-template-category)
+     (delq nil)
+     (append (with-current-buffer (org-memento--buffer)
+               (org-property-get-allowed-values nil "memento_category"))))
+   :test #'equal))
+
 (defvar org-memento-block-cache nil)
 
 (defun org-memento-block-completion ()
@@ -1047,6 +1077,80 @@ the daily entry."
     ""))
 
 ;;;; Retrieving timing information
+
+(defun org-memento--read-past-blank-hours ()
+  (let* ((today (car org-memento-status-data))
+         (idle-hours (org-memento--idle-hours))
+         (completions-sort nil)
+         (start-string (thread-last
+                         (cdr org-memento-status-data)
+                         (mapcar #'org-memento-ended-time)
+                         (delq nil)
+                         (append (thread-last
+                                   idle-hours
+                                   (mapcar #'cdr)
+                                   (delq nil)
+                                   (mapcar #'encode-time)))
+                         (mapcar (lambda (time) (format-time-string "%F %R" time)))
+                         (cons (org-memento-started-time today))
+                         (append '("other"))
+                         ;; (seq-sort #'string-lessp)
+                         (completing-read "Start: ")))
+         (start (encode-time
+                 (if (equal start-string "other")
+                     (with-temp-buffer
+                       (org-time-stamp nil)
+                       (goto-char (point-min))
+                       (looking-at org-ts-regexp)
+                       (parse-time-string (match-string 1)))
+                   (parse-time-string start-string))))
+         (end-string (thread-last
+                       (cdr org-memento-status-data)
+                       (mapcar #'org-memento-started-time)
+                       (delq nil)
+                       (append (thread-last
+                                 idle-hours
+                                 (mapcar #'car)
+                                 (delq nil)
+                                 (mapcar #'encode-time)))
+                       (seq-filter `(lambda (time)
+                                      (time-less-p ',start time)))
+                       (cons (current-time))
+                       (mapcar (lambda (time) (format-time-string "%F %R" time)))
+                       (append '("other"))
+                       ;; (seq-sort #'string-less-p)
+                       (completing-read "End: ")))
+         (end (encode-time
+               (if (equal end-string "other")
+                   (with-temp-buffer
+                     (org-time-stamp nil)
+                     (goto-char (point-min))
+                     (looking-at org-ts-regexp)
+                     (parse-time-string (match-string 1)))
+                 (parse-time-string end-string)))))
+    (list start end)))
+
+(defun org-memento--idle-hours ()
+  "Return idle hours on today."
+  (when org-memento-idle-heading
+    (org-memento-with-today-entry
+     (when (re-search-forward (format org-complex-heading-regexp-format
+                                      org-memento-idle-heading)
+                              nil t)
+       (org-memento--clock-ranges)))))
+
+(defun org-memento--clock-ranges ()
+  "Return a list of pairs of decoded times of clocked entries."
+  (let ((bound (org-entry-end-position))
+        result)
+    (while (re-search-forward org-clock-line-re bound t)
+      (let ((start (when (re-search-forward org-ts-regexp-inactive (pos-eol) t)
+                     (parse-time-string (match-string 1))))
+            (end (when (and (looking-at "--")
+                            (re-search-forward org-ts-regexp-inactive (pos-eol) t))
+                   (parse-time-string (match-string 1)))))
+        (push (cons start end) result)))
+    result))
 
 (defun org-memento--calculated-end-time (block)
   "Return an end time calculated from the duration."
