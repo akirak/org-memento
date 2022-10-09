@@ -98,7 +98,9 @@ If you run `org-memento-open-today' or one of the other commands
 that perform daily check-in, this hook is called after
 scaffolding is done before the user gets interactivity. The hook
 is first called at the body of the entry, so you can use it to
-insert some contents into the daily entry."
+insert some contents into the daily entry.
+
+Note that this hook is not called on blocks inside a daily entry."
   :type 'hook)
 
 (defcustom org-memento-day-end-hook nil
@@ -689,6 +691,7 @@ The function returns non-nil if the check-in is done."
     t))
 
 (defun org-memento--maybe-checkin-to-day ()
+  "Check in to the daily entry, if it is not done yet."
   (setq org-memento-block-idle-logging nil)
   (when (org-memento--maybe-check-in)
     ;; The point should be moved to the heading to call scaffolding
