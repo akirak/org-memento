@@ -405,12 +405,7 @@ implements methods such as `org-memento-started-time'."
     (let ((time-user-left (time-subtract (org-memento--current-time)
                                          (* 60 org-memento-idle-time))))
       (org-memento-with-today-entry
-       (org-narrow-to-subtree)
-       (unless (re-search-forward (format org-complex-heading-regexp-format
-                                          org-memento-idle-heading)
-                                  nil t)
-         (goto-char (point-max))
-         (insert "\n** " org-memento-idle-heading "\n"))
+       (org-memento--find-or-create-idle-heading)
        (org-clock-in nil time-user-left)
        (add-hook 'pre-command-hook #'org-memento-unidle)))))
 
@@ -671,6 +666,18 @@ This function is primarily intended for use in
   "Return the check-in time of the entry as an internal time."
   (when-let (string (org-entry-get nil "memento_checkin_time"))
     (org-timestamp-to-time (org-timestamp-from-string string))))
+
+(defun org-memento--find-or-create-idle-heading ()
+  "Move the point to the next idle heading in the buffer.
+
+To use this function properly, you have to move the point to the
+daily entry."
+  (org-narrow-to-subtree)
+  (unless (re-search-forward (format org-complex-heading-regexp-format
+                                     org-memento-idle-heading)
+                             nil t)
+    (goto-char (point-max))
+    (insert "\n** " org-memento-idle-heading "\n")))
 
 (defun org-memento-map-past-days (func)
   (with-current-buffer (org-memento--buffer)
