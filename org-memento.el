@@ -1054,15 +1054,15 @@ the daily entry."
 
 (defun org-memento-goto-template-parent ()
   "Return the marker to one of the template roots or its descendant."
-  (let* ((alist (org-memento--map-template-entries
-                 (lambda (_source)
-                   (cons (org-format-outline-path
-                          (org-get-outline-path t t)
-                          nil (buffer-name) "/")
-                         (point-marker)))
-                 t))
+  (let* ((alist (nreverse (org-memento--map-template-entries
+                           (lambda (_source)
+                             (cons (org-format-outline-path
+                                    (org-get-outline-path t t)
+                                    nil (buffer-name) "/")
+                                   (point-marker)))
+                           t)))
          (completions-sort nil)
-         (choice (completing-read "Choose a parent: " (nreverse alist)
+         (choice (completing-read "Choose a parent: " alist
                                   nil t)))
     (org-goto-marker-or-bmk (cdr (assoc choice alist)))))
 
