@@ -1530,6 +1530,43 @@ nil. If one of them is nil, the other one is returned."
             (floor (/ minutes 60))
             (mod minutes 60))))
 
+(cl-defun org-memento-read-time-of-day (&key decoded-date start-time
+                                             initial-value past future)
+  "Prompt a time of day or a time range.
+
+It returns the number of minutes since the midnight.
+
+Optionally, it accepts h:MM-h:MM format, in which case the
+function returns a list of durations."
+  (let* ((prompt (format "%s (%sh:MM): "
+                         (if start-time
+                             "End time"
+                           "Start time")
+                         (if start-time
+                             (format-time-string "%R-" start-time)
+                           "")))
+         (input (completing-read prompt nil nil nil
+                                 (when initial-value
+                                   ;; org-duration-from-minutes returns a 1d
+                                   ;; h:mm string if the input is longer than
+                                   ;; 24 hours, which is undesirable in this case.
+                                   (format "%d:%02d"
+                                           (/ (floor initial-value) 60)
+                                           (mod (floor initial-value) 60))))))
+    (cond
+     ((string-empty-p input)
+      nil)
+     ((string-match (rx bol
+                        (group (+ digit) ":" (+ digit))
+                        "-"
+                        (group (+ digit) ":" (+ digit))
+                        eol)
+                    input)
+      (list (org-duration-to-minutes (match-string 1 input))
+            (org-duration-to-minutes (match-string 2 input))))
+     (t
+      (org-duration-to-minutes input)))))
+
 ;;;; Integrations with third-party packages
 
 ;;;;; org-ql
