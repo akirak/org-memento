@@ -453,7 +453,8 @@ implements methods such as `org-memento-started-time'."
                                         (when-let (block (org-memento-next-scheduled-block))
                                           (org-memento-title block))))))
   (org-memento-with-block-title title
-    (org-memento--maybe-check-in))
+    (when (org-memento--maybe-check-in)
+      (org-memento--save-buffer)))
   (setq org-memento-current-block title)
   ;; This should be moved to `org-memento-status'.
   (let* ((block (org-memento-with-current-block
@@ -487,7 +488,8 @@ implements methods such as `org-memento-started-time'."
   (interactive)
   (when org-memento-current-block
     (org-memento-with-current-block
-      (org-todo 'done))
+      (org-todo 'done)
+      (org-memento--save-buffer))
     (setq org-memento-current-block nil)
     (org-memento--cancel-block-timer)
     (run-hooks 'org-memento-block-exit-hook)))
@@ -559,6 +561,7 @@ point to the heading.
   (interactive)
   (org-memento-with-today-entry
    (org-todo 'done)
+   (org-memento--save-buffer)
    (setq org-memento-block-idle-logging t)
    (run-hooks 'org-memento-checkout-hook)))
 
@@ -638,6 +641,7 @@ point to the heading.
            (let ((found (looking-at (concat org-ts-regexp (rx (* blank) "\n")))))
              (when found (replace-match ""))
              (insert (org-memento--format-active-range start end) "\n")
+             (org-memento--save-buffer)
              (if found
                  (message "Replaced the existing timestamp")
                (message "Inserted a new timestamp"))))))
@@ -648,6 +652,7 @@ point to the heading.
                                               :context nil
                                               :starting-time (float-time start)
                                               :ending-time (float-time end))))
+        (org-memento--save-buffer)
         (message "Added a new block from the selected template")))
       (string
        (let ((org-capture-entry `("" ""
@@ -663,6 +668,11 @@ point to the heading.
   (or (find-buffer-visiting org-memento-file)
       (let ((auto-insert-mode nil))
         (find-file-noselect org-memento-file))))
+
+(defun org-memento--save-buffer ()
+  (let ((make-backup-files nil)
+        (version-control nil))
+    (save-buffer)))
 
 (defun org-memento-goto-today ()
   "Switch the buffer to the file and go to the today's entry.
@@ -777,8 +787,10 @@ The function returns non-nil if the check-in is done."
     (save-excursion
       (atomic-change-group
         (org-memento--scaffold-day)))
+    (org-memento--save-buffer)
     (org-end-of-meta-data t)
-    (run-hooks 'org-memento-checkin-hook)))
+    (run-hooks 'org-memento-checkin-hook)
+    t))
 
 (defun org-memento--insert-checking-out-time ()
   "Insert the expected checkout time of the day after the metadata.
