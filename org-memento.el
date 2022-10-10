@@ -504,19 +504,28 @@ implements methods such as `org-memento-started-time'."
   (interactive (org-memento--read-past-blank-hours))
   (let* ((title (read-string "Title: "))
          (category (completing-read "Category: " (org-memento--all-categories)))
+         (donep (and end (time-less-p (current-time) end)))
+         (checkin (format-time-string (org-time-stamp-format t t)
+                                      start))
+         (closed (if donep
+                     (concat org-closed-string " "
+                             (format-time-string (org-time-stamp-format t t)
+                                                 end)
+                             "\n")
+                   ""))
+         (active (if donep
+                     ""
+                   (concat (org-memento--format-active-range start end)
+                           "\n")))
          (org-capture-entry `("" ""
                               entry #'org-memento-goto-today
-                              ,(concat "* DONE " title "\n"
-                                       org-closed-string " "
-                                       (format-time-string (org-time-stamp-format t t)
-                                                           end)
+                              ,(concat "* " (if donep "DONE " "") title "\n"
+                                       closed
                                        ":PROPERTIES:\n"
-                                       ":memento_checkin_time: "
-                                       (format-time-string (org-time-stamp-format t t)
-                                                           start)
-                                       "\n"
+                                       ":memento_checkin_time: " checkin "\n"
                                        ":memento_category: " category
                                        ":END:\n"
+                                       active
                                        "%?"))))
     (org-capture)))
 
