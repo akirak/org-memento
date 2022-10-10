@@ -677,7 +677,11 @@ daily entry."
                                      org-memento-idle-heading)
                              nil t)
     (goto-char (point-max))
-    (insert "\n** " org-memento-idle-heading "\n")))
+    (insert (if (not (bolp))
+                "\n"
+              "")
+            "** " org-memento-idle-heading "\n")
+    (end-of-line 0)))
 
 (defun org-memento-map-past-days (func)
   (with-current-buffer (org-memento--buffer)
