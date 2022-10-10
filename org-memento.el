@@ -809,7 +809,8 @@ The point must be at the heading."
                                      (let ((headline (match-string 4)))
                                        (or (equal org-memento-idle-heading headline)
                                            (string-prefix-p "COMMENT" headline)))))
-                        (re-search-forward (rx bol "** ")))))))
+                        (re-search-forward (rx bol "*" (? "*") blank)
+                                           nil t))))))
 
 (defun org-memento-block-entry ()
   "Return information on the block at point."
