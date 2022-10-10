@@ -119,6 +119,11 @@ Note that this hook is not called on blocks inside a daily entry."
                                     ((const :normal-duration)
                                      string)))))
 
+(defcustom org-memento-schedule-away-alist nil
+  ""
+  :type '(alist :key-type string
+                :value-type plist))
+
 (defcustom org-memento-frame-title-format
   '((t
      org-memento-current-block)
@@ -292,7 +297,8 @@ Return a copy of the list."
 ;;;;; org-memento-template
 
 (cl-defstruct org-memento-template
-  file olp title category tags normal-hour normal-dows duration leaf-p)
+  file olp title category tags normal-hour normal-dows duration leaf-p
+  relative-olp)
 
 (cl-defmethod org-memento-title ((x org-memento-template))
   (org-memento-template-title x))
@@ -576,6 +582,17 @@ point to the heading.
       (read-only-mode t)
       (display-buffer (current-buffer)))))
 
+(defun org-memento-schedule-away-time (start end)
+  (let* ((title (completing-read "Title: " org-memento-schedule-away-alist))
+         (org-capture-entry `("" ""
+                              entry (function org-memento-goto-idle)
+                              ,(concat "* " title "\n"
+                                       (org-format-time-string
+                                        (org-memento--format-active-range
+                                         start end))
+                                       "\n%?"))))
+    (org-capture)))
+
 ;;;; Timers and notifications
 
 (defun org-memento-block-timeout ()
@@ -666,6 +683,12 @@ This function is primarily intended for use in
   "Return the check-in time of the entry as an internal time."
   (when-let (string (org-entry-get nil "memento_checkin_time"))
     (org-timestamp-to-time (org-timestamp-from-string string))))
+
+(defun org-memento-goto-idle ()
+  "Go to the today's idle entry."
+  (org-goto-marker-or-bmk (org-memento-with-today-entry
+                           (org-memento--find-or-create-idle-heading)
+                           (point-marker))))
 
 (defun org-memento--find-or-create-idle-heading ()
   "Move the point to the next idle heading in the buffer.
@@ -1024,11 +1047,17 @@ the daily entry."
     (nreverse templates)))
 
 (defun org-memento--parse-template-spec (source)
-  (let ((level (org-outline-level))
-        (olp (org-get-outline-path t t)))
+  (let* ((level (org-outline-level))
+         (olp (org-get-outline-path t t))
+         (relative-olp (pcase source
+                         (`(file+olp ,_ . ,root-olp)
+                          (seq-drop olp (length root-olp)))
+                         (_
+                          olp))))
     (make-org-memento-template
      :file (buffer-file-name)
      :olp olp
+     :relative-olp relative-olp
      :leaf-p (save-excursion
                (goto-char (org-entry-end-position))
                (not (looking-at (concat "[[:space:]]*"
@@ -1036,9 +1065,7 @@ the daily entry."
                                         "\\*?[[:blank:]]"))))
      :title (org-get-heading t t t t)
      :category (or (org-entry-get nil "memento_category" t)
-                   (pcase source
-                     (`(file+olp ,_file . ,root-olp)
-                      (car (seq-drop olp (length root-olp))))))
+                   (car relative-olp))
      :tags (org-get-tags)
      :normal-hour (when-let (string (org-entry-get nil "memento_normal_hour" t))
                     (org-memento--parse-normal-hour string))
@@ -1135,52 +1162,75 @@ the daily entry."
    :test #'equal))
 
 (cl-defun org-memento-read-block-or-template (prompt &key start end)
-  (let* ((todayp (when star
+  (let* ((todayp (when start
                    (time-equal-p (thread-last
                                    (decode-time start)
                                    (org-memento--start-of-day))
                                  (thread-last
                                    (decode-time (org-memento--current-time))
                                    (org-memento--start-of-day)))))
-         ;; unfinished and unscheduled blocks (only for today)
-         ;; checked-in but unfinished blocks (only for today)
-         ;; templates (only leaves)
-         )
-    (completing-read prompt)))
-
-(defvar org-memento-block-cache nil)
-
-(defun org-memento-block-completion ()
-  (let ((items (thread-last
-                 (org-memento--blocks)
-                 (seq-filter #'org-memento-block-not-closed-p))))
-    (if org-memento-block-cache
-        (clrhash org-memento-block-cache)
-      (setq org-memento-block-cache
-            (make-hash-table :test #'equal :size (length items))))
-    (dolist (block items)
-      (puthash (org-memento-title block) block org-memento-block-cache))
-    `(lambda (string pred action)
-       (if (eq action 'metadata)
-           '(metadata . ((category . org-memento-block)
-                         (annotation-function . org-memento-block-annotator)))
-         (complete-with-action action ',(mapcar #'org-memento-title items)
-                               string pred)))))
-
-(defun org-memento-block-annotator (title)
-  (if-let (block (gethash title org-memento-block-cache))
-      (concat (when-let (time (org-memento-starting-time block))
-                (propertize (format " %s, in %d minutes"
-                                    (format-time-string "%R" time)
-                                    (org-memento-minutes-from-now time))
-                            'face 'font-lock-warning-face))
-              (when-let (duration (org-memento-duration block))
-                (propertize (format " (%s)" (org-duration-from-minutes duration))
-                            'face 'font-lock-doc-face))
-              (when-let (time (org-memento-started-time block))
-                (propertize (format-time-string " already checked in at %R" time)
-                            'face 'font-lock-comment-face)))
-    ""))
+         (duration (when (and start end)
+                     (/ (- (float-time end) (float-time start)) 60)))
+         (blocks (when todayp
+                   ;; Use already generated blocks only for today
+                   (org-memento-status)
+                   (seq-filter `(lambda (block)
+                                  ;; The following two types only matter:
+                                  ;;
+                                  (cond
+                                   ;; * unfinished and unscheduled blocks
+                                   ((and (not (org-memento-starting-time block))
+                                         (not (org-memento-ended-time block)))
+                                    (or (not ,duration)
+                                        (not (org-memento-duration block))
+                                        (<= (org-memento-duration block)
+                                            ,duration)))
+                                   ;; * checked-in but unfinished blocks
+                                   ((and (org-memento-started-time block)
+                                         (not (org-memento-ended-time block)))
+                                    t)))
+                               (org-memento--blocks))))
+         ;; templates
+         (templates (if duration
+                        (thread-last
+                          (org-memento-templates)
+                          (seq-filter `(lambda (template)
+                                         (or (not (org-memento-duration template))
+                                             (<= (org-memento-duration template)
+                                                 ,duration)))))
+                      (org-memento-templates)))
+         (cache (make-hash-table :test #'equal :size (+ (length blocks)
+                                                        (length templates))))
+         items)
+    (unwind-protect
+        (cl-labels
+            ((annotation (candidate)
+               (cl-typecase (gethash candidate cache)
+                 (org-memento-block
+                  " (block)")
+                 (org-memento-template
+                  " (template)")
+                 (otherwise
+                  "")))
+             (table (string pred action)
+               (if (eq action 'metadata)
+                   (cons 'metadata
+                         (list (cons 'category 'org-memento-eventable)
+                               (cons 'annotation-function #'annotation)))
+                 (complete-with-action action items string pred))))
+          (dolist (block blocks)
+            (let ((title (org-memento-title block)))
+              (push title items)
+              (puthash title block cache)))
+          (dolist (template templates)
+            (let ((title (org-format-outline-path
+                          (org-memento-template-relative-olp template))))
+              (remove-text-properties 0 (length title) '(face) title)
+              (push title items)
+              (puthash title template cache)))
+          (let ((input (completing-read prompt #'table)))
+            (gethash input cache input)))
+      (clrhash cache))))
 
 ;;;; Retrieving timing information
 

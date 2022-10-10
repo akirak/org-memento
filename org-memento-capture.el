@@ -74,21 +74,28 @@ The value should be an internal time of the midnight on the date.")
   (apply #'org-memento-schedule-block
          (org-memento-capture--read-time-span :future t)))
 
+(defun org-memento-capture-away-time ()
+  "Add a time block scheduled on today."
+  (interactive)
+  (apply #'org-memento-schedule-away-time
+         (org-memento-capture--read-time-span :future t)))
+
 ;;;; Prefix commands
 
 ;;;###autoload (autoload 'org-memento-capture "org-memento-capture" nil 'interactive)
 (transient-define-prefix org-memento-capture ()
   "Main entry point to capture commands for Memento."
   ["With a specific time/range"
-   :class transient-subgroups
-   [("-d" org-memento-capture--date-infix)]
+   :class transient-columns
+   ["Options"
+    ("-d" org-memento-capture--date-infix)]
    ["Past"
     ("l" "Log" org-memento-capture-log)]
    ["Future"
-    ;; today's time block
-    ;; away time
-    ]]
+    ("b" "Time block" org-memento-capture-block)
+    ("a" "Away time" org-memento-capture-away-time)]]
   ["Without time"
+   :class transient-row
    ("c" "Category template" org-memento-add-template)]
   (interactive)
   (transient-setup 'org-memento-capture))
