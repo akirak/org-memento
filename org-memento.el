@@ -1596,18 +1596,35 @@ This respects `org-extend-today-until'."
       (decoded-time-add decoded-time (make-decoded-time :day -1))
     decoded-time))
 
-(defun org-memento--make-ts-regexp (from to)
-  "Return a regexp that matches active timestamps in a range.
+(cl-defun org-memento--make-ts-regexp (from to &key (active t) inactive)
+  "Return a regexp that matches timestamps in a range.
 
 FROM and TO must be internal time representations. The regexp
 matches long active timestamps. It is intended for fast timestamp
 scanning, and it can produce false positives. You should perform
-further checks against your desired time range."
+further checks against your desired time range.
+
+ACTIVE and INACTIVE specify types of timestamp to match against."
   (let ((date-strs (thread-last
                      (number-sequence (float-time from) (float-time to) (* 3600 24))
                      (mapcar (lambda (float)
                                (format-time-string "%F" float))))))
-    (format "<%s>" (rx-to-string `(and (or ,@date-strs) blank (+? anything))))))
+    (rx-to-string `(and (any ,(thread-last
+                                (list (when active
+                                        ?\<)
+                                      (when inactive
+                                        ?\[))
+                                (delq nil)
+                                (mapconcat #'char-to-string)))
+                        (and (or ,@date-strs)
+                             blank (+? anything))
+                        (any ,(thread-last
+                                (list (when active
+                                        ?\>)
+                                      (when inactive
+                                        ?\]))
+                                (delq nil)
+                                (mapconcat #'char-to-string)))))))
 
 (defun org-memento--make-past-date-regexp (today)
   (cl-flet
