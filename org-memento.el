@@ -35,6 +35,7 @@
 (require 'org-element)
 
 (declare-function org-element-headline-parser "org-element")
+(declare-function org-day-of-week "org-clock")
 (defvar org-capture-entry)
 
 (defgroup org-memento nil
@@ -1663,8 +1664,11 @@ nil. If one of them is nil, the other one is returned."
             (floor (/ minutes 60))
             (mod minutes 60))))
 
-(cl-defun org-memento-read-time-of-day (&key decoded-date start-time
-                                             initial-value past future)
+(cl-defun org-memento-read-time-of-day (&key start-time
+                                             ;; decoded-date
+                                             ;; past
+                                             ;; future
+                                             initial-value)
   "Prompt a time of day or a time range.
 
 It returns the number of minutes since the midnight.
