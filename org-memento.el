@@ -503,7 +503,7 @@ implements methods such as `org-memento-started-time'."
   "Log a past time block to the today's entry."
   (interactive (org-memento--read-past-blank-hours))
   (let* ((title (read-string "Title: "))
-         (category (completing-read "Category: " (org-memento--all-categories)))
+         (category (org-memento-read-category))
          (donep (and end (time-less-p (current-time) end)))
          (checkin (format-time-string (org-time-stamp-format t t)
                                       start))
@@ -612,6 +612,22 @@ point to the heading.
   ;; If the function is called at 23:59, the end of the day is not on the next
   ;; day, so wait for one minute until setting up the next timer.
   (run-with-timer 90 nil #'org-memento-setup-daily-timer))
+
+(defun org-memento-schedule-block (start end)
+  (interactive (org-memento-read-time-of-day))
+  (let ((todayp (time-equal-p (thread-last
+                                (decode-time start)
+                                (org-memento--start-of-day))
+                              (thread-last
+                                (decode-time (org-memento--current-time))
+                                (org-memento--start-of-day))))
+        (org-capture-entry `("" ""
+                             entry #'org-memento-goto-today
+                             ,(concat "* " title "\n"))))
+    (pcase (completing-read "Block, template, or a new title: "
+                            (org-memento--template)
+                            ))
+    ))
 
 ;;;; Functions for working with the structure
 
@@ -1081,6 +1097,11 @@ the daily entry."
 
 ;;;; Completion
 
+(defun org-memento-read-category (&optional prompt)
+  "Prompt for a category name."
+  (completing-read (or prompt "Category: ")
+                   (org-memento--all-categories)))
+
 (defun org-memento--all-categories ()
   (cl-remove-duplicates
    (thread-last
@@ -1090,6 +1111,20 @@ the daily entry."
      (append (with-current-buffer (org-memento--buffer)
                (org-property-get-allowed-values nil "memento_category"))))
    :test #'equal))
+
+(cl-defun org-memento-read-block-or-template (prompt &key start end)
+  (let* ((todayp (when star
+                   (time-equal-p (thread-last
+                                   (decode-time start)
+                                   (org-memento--start-of-day))
+                                 (thread-last
+                                   (decode-time (org-memento--current-time))
+                                   (org-memento--start-of-day)))))
+         ;; unfinished and unscheduled blocks (only for today)
+         ;; checked-in but unfinished blocks (only for today)
+         ;; templates (only leaves)
+         )
+    (completing-read prompt)))
 
 (defvar org-memento-block-cache nil)
 

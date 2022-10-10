@@ -116,19 +116,66 @@ START and END are internal time representations.")
   :class 'org-memento-capture--time-class
   :variable 'org-memento-capture--time)
 
+;;;; Suffix commands
+
+(defun org-memento-capture-log ()
+  "Log a past event."
+  (interactive)
+  (apply #'org-memento-log
+         (org-memento-capture--read-time-span :past t)))
+
+(defun org-memento-capture-block ()
+  "Add a time block scheduled on today."
+  (interactive)
+  (apply #'org-memento-schedule-block
+         (org-memento-capture--read-time-span :future t)))
+
 ;;;; Prefix commands
 
 ;;;###autoload (autoload 'org-memento-capture "org-memento-capture" nil 'interactive)
 (transient-define-prefix org-memento-capture ()
   "Main entry point to capture commands for Memento."
-  [("-d" org-memento-capture--date-infix)
-   ("'" org-memento-capture--time-infix)]
-  [
-   ;; ("l" "Log" org-memento-log)
+  ["With a specific time/range"
+   :class transient-subgroups
+   [("-d" org-memento-capture--date-infix)]
+   ["Past"
+    ("l" "Log" org-memento-capture-log)]
+   ["Future"
+    ;; today's time block
+    ;; away time
+    ]]
+  ["Without time"
    ;; ("c" "Category template" org-memento-add-template)
    ]
   (interactive)
   (transient-setup 'org-memento-capture))
+
+;;;; Helper functions
+
+(cl-defun org-memento-capture--read-time-span (&key past future)
+  (let ((midnight (or org-memento-capture--date
+                      (org-memento-capture--default-date))))
+    (cl-flet*
+        ((to-time (time)
+           (time-add midnight (* 60 time)))
+         (read-time (start)
+           (pcase (org-memento-read-time-of-day
+                   :past past :future future
+                   :start-time start
+                   :decoded-date (decode-time (or org-memento-capture--date
+                                                  (org-memento-capture--default-date))))
+             (`nil)
+             (`(,newstart ,newend)
+              (list (to-time newstart)
+                    (to-time newend)))
+             (time
+              (to-time time)))))
+      (let ((t1 (read-time nil)))
+        (pcase t1
+          (`(,_ ,_)
+           t1)
+          (start
+           (list start (read-time start))))))))
 
 (provide 'org-memento-capture)
 ;;; org-memento-capture.el ends here
