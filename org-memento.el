@@ -991,17 +991,16 @@ the daily entry."
 
 (defun org-memento-goto-template-parent ()
   "Return the marker to one of the template roots or its descendant."
-  (let* (alist
-         (_ (org-memento--map-template-entries
-             (lambda (_source)
-               (push (cons (org-format-outline-path
-                            (org-get-outline-path t t)
-                            nil (buffer-name) "/")
-                           (point))
-                     alist))
-             t))
+  (let* ((alist (org-memento--map-template-entries
+                 (lambda (_source)
+                   (cons (org-format-outline-path
+                          (org-get-outline-path t t)
+                          nil (buffer-name) "/")
+                         (point-marker)))
+                 t))
          (completions-sort nil)
-         (choice (completing-read "Choose a parent: " (nreverse alist))))
+         (choice (completing-read "Choose a parent: " (nreverse alist)
+                                  nil t)))
     (cdr (assoc choice alist))))
 
 (defun org-memento-templates ()
@@ -1054,24 +1053,28 @@ the daily entry."
 
 (defun org-memento--map-template-entries (func &optional include-roots)
   "Map a function on each entry under the template roots."
-  (dolist (source org-memento-template-sources)
-    (pcase source
-      (`(file+olp ,file . ,olp)
-       (save-current-buffer
-         (org-with-point-at (org-find-olp (cons (cl-etypecase file
-                                                  (symbol (symbol-value file))
-                                                  (string file))
-                                                olp))
-           (org-with-wide-buffer
-            (let ((start (if include-roots
-                             (point)
-                           (org-entry-end-position)))
-                  (end (org-end-of-subtree)))
-              (narrow-to-region start end)
-              (org-map-entries
-               `(lambda ()
-                  (unless (member "ARCHIVE" (org-get-tags))
-                    (funcall ',func ',source))))))))))))
+  (let (result)
+    (dolist (source org-memento-template-sources)
+      (setq result
+            (append result
+                    (pcase source
+                      (`(file+olp ,file . ,olp)
+                       (if-let (root (org-find-olp (cons (cl-etypecase file
+                                                           (symbol (symbol-value file))
+                                                           (string file))
+                                                         olp)))
+                           (save-current-buffer
+                             (org-with-point-at root
+                               (if include-roots
+                                   (org-narrow-to-subtree)
+                                 (narrow-to-region (org-entry-end-position)
+                                                   (org-end-of-subtree)))
+                               (org-map-entries
+                                `(lambda ()
+                                   (funcall ',func ',source))
+                                nil nil :archive t)))
+                         (error "Failed to find %s" source)))))))
+    result))
 
 (defun org-memento--make-default-plan (context)
   "Return templates with contexts for the day."
