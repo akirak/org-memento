@@ -626,20 +626,35 @@ point to the heading.
   (run-with-timer 90 nil #'org-memento-setup-daily-timer))
 
 (defun org-memento-schedule-block (start end)
-  (interactive (org-memento-read-time-of-day))
-  (let ((todayp (time-equal-p (thread-last
-                                (decode-time start)
-                                (org-memento--start-of-day))
-                              (thread-last
-                                (decode-time (org-memento--current-time))
-                                (org-memento--start-of-day))))
-        (org-capture-entry `("" ""
-                             entry #'org-memento-goto-today
-                             ,(concat "* " title "\n"))))
-    (pcase (completing-read "Block, template, or a new title: "
-                            (org-memento--template)
-                            ))
-    ))
+  (let ((result (org-memento-read-block-or-template "Schedule a new block: "
+                                                    :start start
+                                                    :end end)))
+    (cl-typecase result
+      (org-memento-block
+       (save-current-buffer
+         (org-with-point-at (org-memento-block-hd-marker result)
+           (org-end-of-meta-data t)
+           (let ((found (looking-at (concat org-ts-regexp (rx (* blank) "\n")))))
+             (when found (replace-match ""))
+             (insert (org-memento--format-active-range start end) "\n")
+             (if found
+                 (message "Replaced the existing timestamp")
+               (message "Inserted a new timestamp"))))))
+      (org-memento-template
+       (org-memento-with-today-entry
+        (org-memento--expand-templates (list (make-org-memento-twc
+                                              :template result
+                                              :context nil
+                                              :starting-time (float-time start)
+                                              :ending-time (float-time end))))
+        (message "Added a new block from the selected template")))
+      (string
+       (let ((org-capture-entry `("" ""
+                                  entry (function org-memento-goto-today)
+                                  ,(concat "* " result "\n"
+                                           (org-memento--format-active-range start end)
+                                           "\n%?"))))
+         (org-capture))))))
 
 ;;;; Functions for working with the structure
 
