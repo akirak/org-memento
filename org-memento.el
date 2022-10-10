@@ -1229,6 +1229,7 @@ the daily entry."
   "Return idle hours on today."
   (when org-memento-idle-heading
     (org-memento-with-today-entry
+     (org-narrow-to-subtree)
      (when (re-search-forward (format org-complex-heading-regexp-format
                                       org-memento-idle-heading)
                               nil t)
