@@ -1001,7 +1001,7 @@ the daily entry."
          (completions-sort nil)
          (choice (completing-read "Choose a parent: " (nreverse alist)
                                   nil t)))
-    (cdr (assoc choice alist))))
+    (org-goto-marker-or-bmk (cdr (assoc choice alist)))))
 
 (defun org-memento-templates ()
   "Return a list of template entries loaded from the source files."
@@ -1097,6 +1097,14 @@ the daily entry."
 (defun org-memento--sort-by (key pred items)
   (cl-sort items pred :key key))
 
+;;;###autoload
+(defun org-memento-add-template ()
+  "Add a template for time block."
+  (interactive)
+  (let ((org-capture-entry '("" ""
+                             entry (function org-memento-goto-template-parent)
+                             "* %?")))
+    (org-capture)))
 
 ;;;; Completion
 

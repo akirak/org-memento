@@ -145,8 +145,7 @@ START and END are internal time representations.")
     ;; away time
     ]]
   ["Without time"
-   ;; ("c" "Category template" org-memento-add-template)
-   ]
+   ("c" "Category template" org-memento-add-template)]
   (interactive)
   (transient-setup 'org-memento-capture))
 
