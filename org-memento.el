@@ -36,6 +36,10 @@
 
 (declare-function org-element-headline-parser "org-element")
 (declare-function org-day-of-week "org-clock")
+(declare-function taxy-emptied "ext:taxy")
+(declare-function taxy-fill "ext:taxy")
+(declare-function taxy-sort-items "ext:taxy")
+(declare-function make-taxy "ext:taxy")
 (defvar org-capture-entry)
 
 (defgroup org-memento nil
@@ -1571,6 +1575,123 @@ and END are float times."
               (* 60 (org-duration-to-minutes duration)))))
 
 ;;;; Collect data for analytic purposes
+
+;;;###autoload
+(defun org-memento-activity-taxy (start-day end-day)
+  (require 'taxy)
+  (cl-labels
+      ((date-string-to-time (string)
+         (thread-last
+           string
+           parse-time-string
+           org-memento--fill-decoded-time
+           encode-time))
+       (format-inactive-ts (time)
+         (format-time-string (org-time-stamp-format t t) time))
+       (format-range (start end)
+         (if start
+             (format "%s--%s"
+                     (format-inactive-ts start)
+                     (if end
+                         (format-inactive-ts end)
+                       ""))
+           ""))
+       (make-date (start end)
+         (cons (list start end nil)
+               (list (list start end nil nil 'gap))))
+       (make-block (start end)
+         (list start end nil nil 'gap))
+       (fill-voids (start-bound end-bound key make-record records)
+         (let* (result
+                (sorted-records (cl-sort records #'>
+                                         :key `(lambda (x)
+                                                 (car (funcall ',key x)))))
+                (next-start (or end-bound
+                                (cadr (funcall key (car sorted-records))))))
+           (dolist (item sorted-records)
+             (let* ((start (car (funcall key item)))
+                    (end (cadr (funcall key item))))
+               (when (and end (< end next-start))
+                 (push (funcall make-record end next-start)
+                       result))
+               (setq next-start start)
+               (push item result)))
+           (when (and start-bound (< start-bound next-start))
+             (push (funcall make-record start-bound next-start)
+                   result))
+           result))
+       (make-block-taxy (block-record)
+         (pcase block-record
+           (`(,start ,end . ,_)
+            (make-taxy
+             :name block-record
+             :predicate `(lambda (record)
+                           (and ,start
+                                ,end
+                                (>= (car record) ,start)
+                                (< (cadr record) ,end)))
+             :then #'identity))))
+       (make-date-taxy (date-record)
+         (pcase date-record
+           (`((,start ,end ,_date) . ,blocks)
+            (let ((computed-start (or start
+                                      (thread-first
+                                        (decode-time start)
+                                        (org-memento--start-of-day)
+                                        (encode-time)
+                                        (float-time))))
+                  (computed-end (or end
+                                    (thread-first
+                                      (decode-time end)
+                                      (org-memento--start-of-day)
+                                      (decoded-time-add (make-decoded-time
+                                                         :hour 23
+                                                         :minute 59))
+                                      (encode-time)
+                                      (float-time)))))
+              (make-taxy
+               :name (seq-take (car date-record) 3)
+               :predicate `(lambda (record)
+                             (and (>= (car record) ,computed-start)
+                                  (< (cadr record) ,computed-end)))
+               :then #'identity
+               :taxys (thread-last
+                        blocks
+                        (fill-voids start end #'identity #'make-block)
+                        (mapcar #'make-block-taxy))))))))
+    (let ((start-time (or (org-memento-maybe-with-date-entry start-day
+                            (when-let (string (org-entry-get nil "memento_checkin_time"))
+                              (thread-last
+                                (org-timestamp-from-string string)
+                                (org-timestamp-to-time))))
+                          (thread-first
+                            (parse-time-string start-day)
+                            (org-memento--set-time-of-day (or org-extend-today-until) 0 0)
+                            (encode-time))))
+          (end-time (or (org-memento-maybe-with-date-entry end-day
+                          (when-let (string (org-entry-get nil "CLOSED"))
+                            (thread-last
+                              (org-timestamp-from-string string)
+                              (org-timestamp-to-time))))
+                        (thread-first
+                          (parse-time-string end-day)
+                          (org-memento--set-time-of-day (or org-extend-today-until) 0 0)
+                          (decoded-time-add (make-decoded-time :hour 23 :minute 59))
+                          (encode-time)))))
+      (thread-last
+        (make-taxy
+         :taxys (thread-last
+                  (org-memento-past-blocks start-day end-day)
+                  (fill-voids (float-time start-time) (float-time end-time) #'car #'make-date)
+                  (mapcar #'make-date-taxy)))
+        (taxy-emptied)
+        (taxy-fill (org-memento-activities
+                    start-time
+                    end-time
+                    (cl-remove (expand-file-name org-memento-file)
+                               (org-agenda-files)
+                               :test #'equal)))
+        (taxy-sort-items #'< #'car)))))
 
 (cl-defun org-memento-activities (start-bound end-bound &optional files)
   "Gather activities during a certain date period from files.
