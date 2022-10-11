@@ -395,6 +395,29 @@
             :to-equal
             "Here should be an instruction.\n")))
 
+;;;; Analytics
+
+(describe "org-memento-activities"
+  (it "collects clock data in a range"
+    (let* ((data (org-memento-activities (org-memento-test--internal-time "2020-01-01 5:00:00")
+                                         (org-memento-test--internal-time "2020-01-01 23:59:59")
+                                         '("testdata/sample1.org")))
+           (task1-1 (seq-filter (lambda (record)
+                                  (equal (caddr record)
+                                         "Task 1.1"))
+                                data)))
+      (expect (caar task1-1)
+              :to-be-close-to
+              (org-memento-test--float-time "2020-01-01 15:25:00")
+              1)
+      (expect (cadar task1-1)
+              :to-be-close-to
+              (org-memento-test--float-time "2020-01-01 18:09:00")
+              1)
+      (expect (length task1-1)
+              :to-be
+              2))))
+
 ;;;; Other functions
 
 (describe "org-memento-goto-today"

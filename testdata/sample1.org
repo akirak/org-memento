@@ -1,0 +1,14 @@
+* DONE Task 1
+CLOSED: [2020-01-01 Wed 18:09]
+:LOGBOOK:
+- State "UNDERWAY"   from "DONE"       [2020-01-01 Wed 18:09]
+:END:
+** Task 1.1
+:LOGBOOK:
+CLOCK: [2020-01-01 Wed 15:25]--[2020-01-01 Wed 18:09] =>  0:44
+CLOCK: [2020-01-01 Wed 18:20]--[2020-01-01 Wed 19:10] =>  0:50
+:END:
+* Task 2
+:LOGBOOK:
+CLOCK: [2020-12-31 Tue 10:20]--[2020-12-31 Tue 11:15] =>  0:55
+:END:

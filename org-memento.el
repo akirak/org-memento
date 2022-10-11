@@ -1557,6 +1557,153 @@ and END are float times."
     (time-add checkin-time
               (* 60 (org-duration-to-minutes duration)))))
 
+;;;; Collect data for analytic purposes
+
+(cl-defun org-memento-activities (start-bound end-bound &optional files)
+  "Gather activities during a certain date period from files.
+
+Both START-BOUND and END-BOUND should be Emacs internal time
+representations, which specifies the target time span.
+
+FILES is a list of Org files from which activities are searched.
+It should be usually `org-agenda-files'.
+
+This function returns a list of lists. Each entry takes the form
+(START END TITLE MARKER TYPE . ARGS) where START and END are
+floats, TITLE is the heading of the Org entry the activity
+occured at, MARKER is a marker to the headline, TYPE is a symbol
+denoting the type of the activity. ARGS is an optional list."
+  (let* ((files (or files (org-agenda-files)))
+         (regexp (org-memento--make-ts-regexp
+                  start-bound end-bound
+                  :active t :inactive t))
+         (start-bound-float (float-time start-bound))
+         (end-bound-float (float-time end-bound))
+         result)
+    (cl-flet*
+        ((parse-time (string)
+           (thread-last
+             (parse-time-string string)
+             (encode-time)
+             (float-time)
+             (floor)))
+         (scan ()
+           (let ((hd-marker (point-marker))
+                 (heading (when (looking-at org-complex-heading-regexp)
+                            (match-string-no-properties 4)))
+                 (bound (org-entry-end-position)))
+             (when (re-search-forward org-logbook-drawer-re bound t)
+               (goto-char (match-beginning 0))
+               (let ((drawer-end (match-end 0)))
+                 (while (re-search-forward (rx bol (* space) "CLOCK:" (* blank))
+                                           drawer-end t)
+                   (when (looking-at (concat org-ts-regexp-inactive
+                                             "--"
+                                             org-ts-regexp-inactive))
+                     (let ((start (parse-time (match-string 1)))
+                           (end (parse-time (match-string 2))))
+                       (when (and start end
+                                  (> start start-bound-float)
+                                  (< end end-bound-float))
+                         (push (list start end
+                                     heading hd-marker
+                                     'clock)
+                               result)))))))))
+         (skip ()
+           (let ((bound (org-entry-end-position)))
+             (unless (save-excursion (re-search-forward regexp bound t))
+               bound))))
+      (org-map-entries #'scan nil files #'skip))
+    (nreverse result)))
+
+(defun org-memento-past-blocks (start-date-string &optional end-date-string)
+  (cl-flet*
+      ((parse-date (string)
+         (encode-time (org-memento--set-time-of-day
+                       (parse-time-string string)
+                       0 0 0)))
+       (parse-date-at-point ()
+         (when (looking-at (rx (repeat 4 digit) "-"
+                               (repeat 2 digit) "-"
+                               (repeat 2 digit)))
+           (parse-date (match-string 0))))
+       (parse-time (string)
+         (thread-last
+           (parse-time-string string)
+           (encode-time)
+           (float-time)
+           (floor)))
+       (parse-entry ()
+         (let* ((entry-end (org-entry-end-position))
+                (end (when (re-search-forward org-closed-time-regexp entry-end t)
+                       (parse-time (match-string 1))))
+                (start (when-let (string (org-entry-get nil "memento_checkin_time"))
+                         (when (string-match org-ts-regexp-inactive string)
+                           (parse-time (match-string 1 string))))))
+           (when start
+             (list start end))))
+       (parse-idle-clocks ()
+         (when (re-search-forward org-logbook-drawer-re (org-entry-end-position)
+                                  t)
+           (goto-char (match-beginning 0))
+           (let ((drawer-end (match-end 0))
+                 clocks)
+             (while (re-search-forward (rx bol (* space) "CLOCK:" (* blank))
+                                       drawer-end t)
+               (when (looking-at (concat org-ts-regexp-inactive
+                                         "--"
+                                         org-ts-regexp-inactive))
+                 (push (list (parse-time (match-string 1))
+                             (parse-time (match-string 2))
+                             org-memento-idle-heading
+                             'idle)
+                       clocks)))
+             clocks))))
+    (with-current-buffer (org-memento--buffer)
+      (org-save-outline-visibility t
+        (widen)
+        (goto-char (point-min))
+        (outline-show-all)
+        (let (dates)
+          (while (re-search-forward (rx bol "*" blank) nil t)
+            (when-let (date-string (and (re-search-forward (rx (repeat 4 digit) "-"
+                                                               (repeat 2 digit) "-"
+                                                               (repeat 2 digit))
+                                                           (pos-eol)
+                                                           t)
+                                        (match-string-no-properties 0)))
+              (when (or (member date-string (list start-date-string
+                                                  end-date-string))
+                        (and (or (not end-date-string)
+                                 (string-lessp date-string
+                                               end-date-string))
+                             (string-lessp start-date-string
+                                           date-string)))
+                (pcase (parse-entry)
+                  (`(,start ,end)
+                   (let ((day (list start end date-string))
+                         (subtree-end (save-excursion (org-end-of-subtree)))
+                         blocks)
+                     (while (re-search-forward (rx bol "**" blank) subtree-end t)
+                       (beginning-of-line)
+                       (or (looking-at org-complex-heading-regexp)
+                           (error "Did not match the heading regexp"))
+                       (let ((heading (match-string-no-properties 4))
+                             (hd-marker (point-marker)))
+                         (if (equal heading org-memento-idle-heading)
+                             (setq blocks (append blocks (parse-idle-clocks)))
+                           (pcase (parse-entry)
+                             (`(,start ,end)
+                              (push (list start
+                                          end
+                                          heading
+                                          hd-marker
+                                          'block)
+                                    blocks)))))
+                       (end-of-line 1))
+                     (push (cons day blocks) dates)))))))
+          dates)))))
+
 ;;;; Utility functions for time representations and Org timestamps
 
 (defun org-memento--fill-decoded-time (decoded-time)
