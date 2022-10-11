@@ -806,7 +806,7 @@ The point must be at the heading."
               (now (org-memento--current-time)))
           (org-end-of-meta-data t)
           ;; If there is an existing active timestamp, don't insert it.
-          (unless (re-search-forward org-ts-regexp (org-entry-end-position) t)
+          (unless (looking-at org-ts-regexp)
             (when-let (duration-string (plist-get (org-memento--standard-workhour day)
                                                   :normal-duration))
               (let ((end-time (time-add now (* 60 (org-duration-to-minutes
