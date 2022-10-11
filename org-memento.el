@@ -700,10 +700,13 @@ This function is primarily intended for use in
                               (org-memento--fill-decoded-time
                                (parse-time-string heading)))
                              (org-memento--current-time))
+                (beginning-of-line)
+                (insert "* " today "\n")
                 (end-of-line 0)
-                (insert "\n* " today "\n")
                 (throw 'found-today nil)))))
-          (insert "\n* " today "\n")))))
+          (insert (if (bolp) "" "\n")
+                  "* " today "\n")
+          (end-of-line 0)))))
 
 (defun org-memento--checkin-time ()
   "Return the check-in time of the entry as an internal time."
