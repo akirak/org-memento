@@ -16,6 +16,54 @@
         "type": "github"
       }
     },
+    "compat": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1662132224,
+        "narHash": "sha256-zWYjpJixxFCeYKr9Hzhb4gIhK+8ZZd+L1u3afeFaYR4=",
+        "ref": "refs/heads/master",
+        "rev": "e827a9f3e2ba585de8b07cd246534a15ec414a8b",
+        "revCount": 415,
+        "type": "git",
+        "url": "https://git.sr.ht/~pkal/compat"
+      },
+      "original": {
+        "type": "git",
+        "url": "https://git.sr.ht/~pkal/compat"
+      }
+    },
+    "dash": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1665499973,
+        "narHash": "sha256-omhbg8d+l6JhWu969D4vOzik4qF5kJGzpZgahfAmpCc=",
+        "owner": "magnars",
+        "repo": "dash.el",
+        "rev": "e926385625bd8cf395770479a4fc6a8290526289",
+        "type": "github"
+      },
+      "original": {
+        "owner": "magnars",
+        "repo": "dash.el",
+        "type": "github"
+      }
+    },
+    "magit-section": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1665257245,
+        "narHash": "sha256-xkzA7e9gSo/9fE2t9pxNksya5SsCUBgfj0wCdnd6isU=",
+        "owner": "magit",
+        "repo": "magit",
+        "rev": "3e833f369911069eb55e96bc617cb2cfdaa1713f",
+        "type": "github"
+      },
+      "original": {
+        "owner": "magit",
+        "repo": "magit",
+        "type": "github"
+      }
+    },
     "org-memento": {
       "flake": false,
       "locked": {
@@ -32,10 +80,47 @@
         "type": "sourcehut"
       }
     },
+    "org-memento-timeline": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1665464867,
+        "narHash": "sha256-qEa2Goy9KrqlnsFWzknN66h1Z5j9P5zNs8w2QMI43Mo=",
+        "owner": "~akirak",
+        "repo": "org-memento",
+        "rev": "6314a99647feb76604187aa7c49fdcfb4a795c62",
+        "type": "sourcehut"
+      },
+      "original": {
+        "owner": "~akirak",
+        "repo": "org-memento",
+        "type": "sourcehut"
+      }
+    },
     "root": {
       "inputs": {
         "buttercup": "buttercup",
-        "org-memento": "org-memento"
+        "compat": "compat",
+        "dash": "dash",
+        "magit-section": "magit-section",
+        "org-memento": "org-memento",
+        "org-memento-timeline": "org-memento-timeline",
+        "taxy": "taxy"
+      }
+    },
+    "taxy": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1663621606,
+        "narHash": "sha256-qEL9Bgg/A5h3fKS5XfcPQnzYEFh+uUFrr9AgNDQokMA=",
+        "owner": "alphapapa",
+        "repo": "taxy.el",
+        "rev": "b27fa67ecf3f8954ce0d5c2747d1de4dc94ff09f",
+        "type": "github"
+      },
+      "original": {
+        "owner": "alphapapa",
+        "repo": "taxy.el",
+        "type": "github"
       }
     }
   },

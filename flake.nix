@@ -7,7 +7,7 @@
       flake = false;
     };
     melpa = {
-      url = "github:akirak/melpa/org-memento";
+      url = "github:akirak/melpa/org-memento-timeline";
       flake = false;
     };
     epkgs = {
@@ -37,6 +37,7 @@
       src = ./.;
       localPackages = [
         "org-memento"
+        "org-memento-timeline"
       ];
 
       scripts = {
