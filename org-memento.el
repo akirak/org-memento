@@ -793,6 +793,7 @@ The function returns non-nil if the check-in is done."
     (org-memento--save-buffer)
     (org-end-of-meta-data t)
     (run-hooks 'org-memento-checkin-hook)
+    (org-memento-status)
     t))
 
 (defun org-memento--insert-checking-out-time ()
