@@ -368,6 +368,19 @@ implements methods such as `org-memento-started-time'."
       (org-memento--find-today)
       ,@progn)))
 
+(defmacro org-memento-maybe-with-date-entry (date &rest progn)
+  (declare (indent 1))
+  `(with-current-buffer (org-memento--buffer)
+     (org-with-wide-buffer
+      (goto-char (point-min))
+      (when (re-search-forward (format org-complex-heading-regexp-format
+                                       (regexp-quote (cl-etypecase ,date
+                                                       (list (format-time-string "%F" ',date))
+                                                       (number (format-time-string "%F" ,date))
+                                                       (string ,date))))
+                               nil t)
+        ,@progn))))
+
 (defmacro org-memento-with-block-title (title &rest progn)
   (declare (indent 1))
   `(org-memento-with-today-entry
