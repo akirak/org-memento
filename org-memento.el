@@ -4,7 +4,9 @@
 
 ;; Author: Akira Komamura <akira.komamura@gmail.com>
 ;; Version: 0.1
-;; URL: https://github.com/akirak/org-memento
+;; Package-Requires: ((emacs "28.1") (taxy "0.10"))
+;; Keywords: calendar
+;; URL: https://git.sr.ht/~akirak/org-memento
 
 ;; This file is not part of GNU Emacs.
 
