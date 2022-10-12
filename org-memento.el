@@ -1609,11 +1609,15 @@ and END are float times."
                          (format-inactive-ts end)
                        ""))
            ""))
-       (make-date (start end)
+       (make-gap-date (start end)
          (cons (list start end nil)
                (list (list start end nil nil 'gap))))
        (make-block (start end)
          (list start end nil nil 'gap))
+       (block-reducer (record acc)
+         (cons record acc))
+       (wrap-anonymous-blocks (records)
+         (cl-reduce #'block-reducer records :from-end t :initial-value nil))
        (fill-voids (start-bound end-bound key make-record records)
          (let* (result
                 (sorted-records (cl-sort records #'>
@@ -1671,6 +1675,7 @@ and END are float times."
                :taxys (thread-last
                         blocks
                         (fill-voids start end #'identity #'make-block)
+                        (wrap-anonymous-blocks)
                         (mapcar #'make-block-taxy))))))))
     (let ((start-time (or (org-memento-maybe-with-date-entry start-day
                             (when-let (string (org-entry-get nil "memento_checkin_time"))
@@ -1695,7 +1700,7 @@ and END are float times."
         (make-taxy
          :taxys (thread-last
                   (org-memento-past-blocks start-day end-day)
-                  (fill-voids (float-time start-time) (float-time end-time) #'car #'make-date)
+                  (fill-voids (float-time start-time) (float-time end-time) #'car #'make-gap-date)
                   (mapcar #'make-date-taxy)))
         (taxy-emptied)
         (taxy-fill (org-memento-activities
