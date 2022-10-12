@@ -550,7 +550,7 @@ implements methods such as `org-memento-started-time'."
                                        closed
                                        ":PROPERTIES:\n"
                                        ":memento_checkin_time: " checkin "\n"
-                                       ":memento_category: " category
+                                       ":memento_category: " category "\n"
                                        ":END:\n"
                                        active
                                        "%?"))))
