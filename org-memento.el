@@ -480,18 +480,18 @@ implements methods such as `org-memento-started-time'."
   (let* ((block (org-memento-with-current-block
                   (org-memento-block-entry)))
          (ending-time (org-memento-ending-time block))
-         (next-event (org-memento--next-agenda-event
+         (upnext-event (org-memento--next-agenda-event
                       (org-memento-block-hd-marker block)))
          (ending-time-2 (cond
-                         ((and next-event ending-time)
-                          (min ending-time (org-memento-ending-time-default next-event)))
-                         (next-event
-                          (org-memento-ending-time-default next-event))
+                         ((and upnext-event ending-time)
+                          (min ending-time (org-memento-ending-time-default upnext-event)))
+                         (upnext-event
+                          (org-memento-ending-time-default upnext-event))
                          (t
                           ending-time))))
     (setq org-memento-current-category
           (org-memento-block-category block)
-          org-memento-next-event next-event)
+          org-memento-next-event upnext-event)
     (setq org-memento-title-string (when ending-time-2
                                      (format-time-string " (until %R)" ending-time-2)))
     (org-memento--cancel-block-timer)
