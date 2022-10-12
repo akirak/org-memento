@@ -166,7 +166,11 @@
                                 (start-time taxy))
                              60)))))
              ;; TODO: Add sum of clocked minutes and the utilization
-             (insert-items (taxy-items taxy) end))))
+             (insert-items (taxy-items taxy)
+                           ;; Don't show the end of the block if the block is
+                           ;; anonymous
+                           (when (title taxy)
+                             end)))))
        (insert-date (taxy)
          (magit-insert-section (magit-section)
            (let ((title (title taxy))
