@@ -95,21 +95,6 @@
                              (org-duration-from-minutes
                               (/ (- end start) 60)))
                    "")))
-       (insert-tree (tree level)
-         (magit-insert-section (magit-section)
-           (let ((indent (make-string (* 2 level) ?\s)))
-             (magit-insert-heading
-               indent
-               (if-let (title (title tree))
-                   (propertize title 'face 'magit-section-heading)
-                 "Gap"))
-             (insert indent " "
-                     (format-time-range (start-time tree) (end-time tree))
-                     "\n"))
-           (when (taxy-p tree)
-             (dolist (child (or (taxy-taxys tree)
-                                (taxy-items tree)))
-               (insert-tree child (1+ level))))))
        (insert-items (items end-time-of-block)
          (when items
            (let ((indent1 (make-string 6 ?\s))
