@@ -48,7 +48,7 @@
   '((t (:inherit default :slant italic)))
   "Face for time ranges.")
 
-;;;; Commands
+;;;; Display the timeline
 
 ;;;###autoload
 (defun org-memento-timeline (start-day end-day)
@@ -210,6 +210,11 @@
       (dolist (taxy (taxy-taxys root-taxy))
         (insert-date taxy)))
     (goto-char (point-min))))
+
+;;;###autoload
+(define-derived-mode org-memento-timeline-mode magit-section-mode
+  "MementoTl"
+  "Major mode that displays a timeline of Org Memento.")
 
 (provide 'org-memento-timeline)
 ;;; org-memento-timeline.el ends here
