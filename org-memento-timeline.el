@@ -109,7 +109,8 @@
            (let ((indent1 (make-string 6 ?\s))
                  (indent2 (make-string 15 ?\s)))
              (dolist (group (-partition-by #'caddr items))
-               (magit-insert-section (magit-section nil 'hide)
+               (magit-insert-section (group (car group)
+                                            'hide)
                  (let ((marker (cadddr (car group)))
                        (title (caddr (car group))))
                    (magit-insert-heading
@@ -133,7 +134,7 @@
                                                   (end-time clock))
                                "\n"))))))
              (when-let (last-end (cadr (car (last items))))
-               (magit-insert-section (magit-section)
+               (magit-insert-section (clock-out)
                  (magit-insert-heading
                    indent1
                    (format-time-string "%R" last-end)
@@ -145,7 +146,7 @@
                    "\n"))))
            (insert ?\n)))
        (insert-block (taxy)
-         (magit-insert-section (magit-section nil 'hide)
+         (magit-insert-section (block (taxy-name taxy) 'hide)
            (let ((indent1 (make-string 4 ?\s))
                  (indent2 (make-string 11 ?\s))
                  (indent2 (make-string 13 ?\s))
@@ -179,7 +180,7 @@
                            (when (title taxy)
                              end)))))
        (insert-date (taxy)
-         (magit-insert-section (magit-section)
+         (magit-insert-section (date (taxy-name taxy))
            (let ((title (title taxy))
                  (indent (make-string 2 ?\s)))
              (magit-insert-heading
