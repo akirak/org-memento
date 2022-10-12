@@ -986,6 +986,8 @@ the daily entry."
           (org-entry-put nil key value))
         (when-let (duration (org-memento-duration item))
           (org-entry-put nil "Effort" (org-duration-from-minutes duration)))
+        (when-let (category (org-memento-template-category template))
+          (org-entry-put nil "memento_category" category))
         (when (looking-at org-heading-regexp)
           (end-of-line 0))
         ;; Set the time
