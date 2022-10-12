@@ -143,7 +143,11 @@
                                'face (if (eq (cadddr (get-record taxy)) 'idle)
                                          'font-lock-comment-face
                                        'magit-section-heading))
-                 (propertize "Gap" 'face 'font-lock-comment-face))
+                 (if (taxy-items taxy)
+                     (let ((marker (cadddr (car (taxy-items taxy)))))
+                       (propertize (file-name-base (buffer-name (marker-buffer marker)))
+                                   'face 'font-lock-comment-face))
+                   (propertize "Gap" 'face 'font-lock-comment-face)))
                (when (and start end)
                  (format " (%s)"
                          (org-duration-from-minutes
