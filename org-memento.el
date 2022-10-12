@@ -515,9 +515,12 @@ implements methods such as `org-memento-started-time'."
     (run-hooks 'org-memento-block-exit-hook)))
 
 (defun org-memento-stop-block ()
-  "Stop the current block without marking it as done."
+  "Change the state of the current block to a done keyword."
   (interactive)
   (when org-memento-current-block
+    (org-memento-with-current-block
+      (org-todo (completing-read "Change the state: " org-done-keywords))
+      (org-memento--save-buffer))
     (setq org-memento-current-block nil)
     (org-memento--cancel-block-timer)
     (run-hooks 'org-memento-block-exit-hook)))
