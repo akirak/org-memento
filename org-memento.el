@@ -526,7 +526,7 @@ implements methods such as `org-memento-started-time'."
 (defun org-memento-log (start end)
   "Log a past time block to the today's entry."
   (interactive (org-memento--read-past-blank-hours))
-  (let* ((title (read-string "Title: "))
+  (let* ((title (read-from-minibuffer "Title: " nil nil nil nil nil 'inherit-input-method))
          (category (org-memento-read-category))
          (donep (and end (time-less-p (current-time) end)))
          (checkin (format-time-string (org-time-stamp-format t t)
