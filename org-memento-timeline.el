@@ -50,6 +50,8 @@
 
 ;;;; Display the timeline
 
+(defvar org-memento-timeline-date-range nil)
+
 ;;;###autoload
 (defun org-memento-timeline (start-day end-day)
   (interactive (if (equal current-prefix-arg '(4))
@@ -59,13 +61,20 @@
                    (list today today))))
   (when (string-lessp end-day start-day)
     (user-error "The end day must be no earlier than the start day"))
-  (let ((taxy (org-memento-activity-taxy start-day end-day)))
-    (with-current-buffer (get-buffer-create org-memento-timeline-ms-buffer)
-      (magit-section-mode)
-      (let ((inhibit-read-only t))
-        (erase-buffer)
-        (org-memento-timeline--insert taxy))
-      (pop-to-buffer (current-buffer)))))
+  (with-current-buffer (get-buffer-create org-memento-timeline-ms-buffer)
+    (magit-section-mode)
+    (setq-local org-memento-timeline-date-range (list start-day end-day)
+                revert-buffer-function #'org-memento-timeline-revert)
+    (org-memento-timeline-revert)
+    (pop-to-buffer (current-buffer))))
+
+(defun org-memento-timeline-revert (&rest _args)
+  (interactive)
+  (let ((taxy (apply #'org-memento-activity-taxy
+                     org-memento-timeline-date-range)))
+    (let ((inhibit-read-only t))
+      (erase-buffer)
+      (org-memento-timeline--insert taxy))))
 
 (defun org-memento-timeline--insert (root-taxy)
   ;; TODO: Maybe set magit-section-set-visibility-hook
