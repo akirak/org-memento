@@ -1703,9 +1703,12 @@ and END are float times."
        (block-taxy-reducer (block-taxy acc)
          ;; If the block has a third element ,then it is a named block.
          (if (caddr (taxy-name block-taxy))
-             (progn
-               (setf (taxy-items block-taxy) (fill-voids-in-block-taxy block-taxy))
-               (cons block-taxy acc))
+             (cons (make-taxy :name (taxy-name block-taxy)
+                              :items (fill-voids (car (taxy-name block-taxy))
+                                                 (cadr (taxy-name block-taxy))
+                                                 #'identity #'make-gap-block
+                                                 (taxy-items block-taxy)))
+                   acc)
            (append (split-block-taxy block-taxy) acc)))
        (postprocess-block-taxys (block-taxys)
          (cl-reduce #'block-taxy-reducer block-taxys
