@@ -666,14 +666,20 @@ point to the heading.
                  (message "Replaced the existing timestamp")
                (message "Inserted a new timestamp"))))))
       (org-memento-template
-       (org-memento-with-today-entry
-        (org-memento--expand-templates (list (make-org-memento-twc
-                                              :template result
-                                              :context nil
-                                              :starting-time (float-time start)
-                                              :ending-time (float-time end))))
-        (org-memento--save-buffer)
-        (message "Added a new block from the selected template")))
+       (let* ((default-title (org-memento-template-title result))
+              (title (read-from-minibuffer (format "Title [%s]: " default-title)
+                                           nil nil nil nil
+                                           default-title)))
+         (when (and title (not (string-empty-p title)))
+           (setf (org-memento-template-title result) title))
+         (org-memento-with-today-entry
+          (org-memento--expand-templates (list (make-org-memento-twc
+                                                :template result
+                                                :context nil
+                                                :starting-time (float-time start)
+                                                :ending-time (float-time end))))
+          (org-memento--save-buffer)
+          (message "Added a new block from the selected template"))))
       (string
        (let ((org-capture-entry `("" ""
                                   entry (function org-memento-goto-today)
