@@ -1615,24 +1615,27 @@ and END are float times."
        (make-block (start end)
          (list start end nil nil 'gap))
        (fill-voids (start-bound end-bound key make-record records)
-         (let* (result
-                (sorted-records (cl-sort records #'>
-                                         :key `(lambda (x)
-                                                 (car (funcall ',key x)))))
-                (next-start (or end-bound
-                                (cadr (funcall key (car sorted-records))))))
-           (dolist (item sorted-records)
-             (let* ((start (car (funcall key item)))
-                    (end (cadr (funcall key item))))
-               (when (and end (< end next-start))
-                 (push (funcall make-record end next-start)
+         (if records
+             (let* (result
+                    (sorted-records (cl-sort records #'>
+                                             :key `(lambda (x)
+                                                     (car (funcall ',key x)))))
+                    (next-start (or end-bound
+                                    (cadr (funcall key (car sorted-records))))))
+               (dolist (item sorted-records)
+                 (let* ((start (car (funcall key item)))
+                        (end (cadr (funcall key item))))
+                   (when (and end (< end next-start))
+                     (push (funcall make-record end next-start)
+                           result))
+                   (setq next-start start)
+                   (push item result)))
+               (when (and start-bound (< start-bound next-start))
+                 (push (funcall make-record start-bound next-start)
                        result))
-               (setq next-start start)
-               (push item result)))
-           (when (and start-bound (< start-bound next-start))
-             (push (funcall make-record start-bound next-start)
-                   result))
-           result))
+               result)
+           ;; Return nil if there is no record during the span.
+           nil))
        (make-block-taxy (block-record)
          (pcase block-record
            (`(,start ,end . ,_)
@@ -1685,17 +1688,21 @@ and END are float times."
            (make-taxy
             :name item-record
             :items nil)))
+       (fill-voids-in-block-taxy (block-taxy)
+         (fill-voids (car (taxy-name block-taxy))
+                     (cadr (taxy-name block-taxy))
+                     #'identity #'make-gap-block
+                     (taxy-items block-taxy)))
        (split-block-taxy (block-taxy)
          (thread-last
-           (fill-voids (car (taxy-name block-taxy))
-                       (cadr (taxy-name block-taxy))
-                       #'identity #'make-gap-block
-                       (taxy-items block-taxy))
+           (fill-voids-in-block-taxy block-taxy)
            (mapcar #'make-block-taxy-for-item)))
        (block-taxy-reducer (block-taxy acc)
          ;; If the block has a third element ,then it is a named block.
          (if (caddr (taxy-name block-taxy))
-             (cons block-taxy acc)
+             (progn
+               (setf (taxy-items block-taxy) (fill-voids-in-block-taxy block-taxy))
+               (cons block-taxy acc))
            (append (split-block-taxy block-taxy) acc)))
        (postprocess-block-taxys (block-taxys)
          (cl-reduce #'block-taxy-reducer block-taxys
