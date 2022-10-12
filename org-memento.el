@@ -1614,10 +1614,6 @@ and END are float times."
                (list (list start end nil nil 'gap))))
        (make-block (start end)
          (list start end nil nil 'gap))
-       (block-reducer (record acc)
-         (cons record acc))
-       (wrap-anonymous-blocks (records)
-         (cl-reduce #'block-reducer records :from-end t :initial-value nil))
        (fill-voids (start-bound end-bound key make-record records)
          (let* (result
                 (sorted-records (cl-sort records #'>
@@ -1675,8 +1671,41 @@ and END are float times."
                :taxys (thread-last
                         blocks
                         (fill-voids start end #'identity #'make-block)
-                        (wrap-anonymous-blocks)
-                        (mapcar #'make-block-taxy))))))))
+                        (mapcar #'make-block-taxy)))))))
+       (make-gap-block (start end)
+         (list start end nil))
+       (make-block-taxy-for-item (item-record)
+         (if (caddr item-record)
+             (make-taxy
+              :name (append (seq-take item-record 2)
+                            (list nil
+                                  nil
+                                  'anonymous))
+              :items (list item-record))
+           (make-taxy
+            :name item-record
+            :items nil)))
+       (split-block-taxy (block-taxy)
+         (thread-last
+           (fill-voids (car (taxy-name block-taxy))
+                       (cadr (taxy-name block-taxy))
+                       #'identity #'make-gap-block
+                       (taxy-items block-taxy))
+           (mapcar #'make-block-taxy-for-item)))
+       (block-taxy-reducer (block-taxy acc)
+         ;; If the block has a third element ,then it is a named block.
+         (if (caddr (taxy-name block-taxy))
+             (cons block-taxy acc)
+           (append (split-block-taxy block-taxy) acc)))
+       (postprocess-block-taxys (block-taxys)
+         (cl-reduce #'block-taxy-reducer block-taxys
+                    :initial-value nil
+                    :from-end t))
+       (postprocess-root-taxy (taxy)
+         (dolist (date-taxy (taxy-taxys taxy))
+           (setf (taxy-taxys date-taxy)
+                 (postprocess-block-taxys (taxy-taxys date-taxy))))
+         taxy))
     (let ((start-time (or (org-memento-maybe-with-date-entry start-day
                             (when-let (string (org-entry-get nil "memento_checkin_time"))
                               (thread-last
@@ -1709,7 +1738,8 @@ and END are float times."
                     (cl-remove (expand-file-name org-memento-file)
                                (org-agenda-files)
                                :test #'equal)))
-        (taxy-sort-items #'< #'car)))))
+        (taxy-sort-items #'< #'car)
+        (postprocess-root-taxy)))))
 
 (cl-defun org-memento-activities (start-bound end-bound &optional files)
   "Gather activities during a certain date period from files.
