@@ -109,7 +109,7 @@
            (let ((indent1 (make-string 6 ?\s))
                  (indent2 (make-string 15 ?\s)))
              (dolist (group (-partition-by #'caddr items))
-               (magit-insert-section (magit-section)
+               (magit-insert-section (magit-section nil 'hide)
                  (let ((marker (cadddr (car group)))
                        (title (caddr (car group))))
                    (magit-insert-heading
@@ -145,7 +145,7 @@
                    "\n"))))
            (insert ?\n)))
        (insert-block (taxy)
-         (magit-insert-section (magit-section)
+         (magit-insert-section (magit-section nil 'hide)
            (let ((indent1 (make-string 4 ?\s))
                  (indent2 (make-string 11 ?\s))
                  (indent2 (make-string 13 ?\s))
