@@ -2018,9 +2018,9 @@ nil. If one of them is nil, the other one is returned."
             (mod minutes 60))))
 
 (cl-defun org-memento-read-time-of-day (&key start-time
-                                             ;; decoded-date
-                                             ;; past
-                                             ;; future
+                                             decoded-date
+                                             past
+                                             future
                                              initial-value)
   "Prompt a time of day or a time range.
 
