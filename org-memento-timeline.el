@@ -101,19 +101,28 @@
                  (indent2 (make-string 15 ?\s)))
              (dolist (group (-partition-by #'caddr items))
                (magit-insert-section (magit-section)
-                 (let ((marker (cadddr (car group))))
+                 (let ((marker (cadddr (car group)))
+                       (title (caddr (car group))))
                    (magit-insert-heading
                      indent1
                      (format-time-string "%R" (car (car group)))
                      (make-string 2 ?\s)
-                     (propertize (org-link-display-format (caddr (car group)))
-                                 'face 'magit-section-heading)
-                     "\n")
-                   (dolist (clock group)
-                     (insert indent2
-                             (format-time-range (start-time clock)
-                                                (end-time clock))
-                             "\n")))))
+                     (if title
+                         (propertize (org-link-display-format title)
+                                     'face 'magit-section-heading)
+                       (when (cadr (car group))
+                         (propertize "Gap" 'face 'font-lock-comment-face)))
+                     (format " (%s)\n"
+                             (org-duration-from-minutes
+                              (/ (- (cadr (car group))
+                                    (car (car group)))
+                                 60))))
+                   (when (or title (> (length group) 1))
+                     (dolist (clock group)
+                       (insert indent2
+                               (format-time-range (start-time clock)
+                                                  (end-time clock))
+                               "\n"))))))
              (when-let (last-end (cadr (car (last items))))
                (magit-insert-section (magit-section)
                  (magit-insert-heading
