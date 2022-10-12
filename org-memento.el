@@ -177,7 +177,7 @@ Note that this hook is not called on blocks inside a daily entry."
   (or org-memento-current-time (current-time)))
 
 (defsubst org-memento-minutes-from-now (float-time)
-  (round (* (- float-time (float-time (org-memento--current-time)))
+  (round (/ (- float-time (float-time (org-memento--current-time)))
             60)))
 
 (defsubst org-memento--set-time-of-day (decoded-time hour minute sec)

@@ -45,6 +45,13 @@
       (expect (org-memento--today-string (decode-time (org-memento--current-time)))
               :to-equal "2020-01-01"))))
 
+(describe "org-memento-minutes-from-now"
+  (it "returns the number of minutes from now"
+    (org-memento-with-test-context nil "2020-01-01 12:00:00"
+      (expect (org-memento-minutes-from-now
+               (time-add (org-memento--current-time) (* 60 10)))
+              :to-be 10))))
+
 (describe "org-memento--fill-decoded-time"
   (it "returns a date string"
     (expect (org-memento--fill-decoded-time
@@ -188,8 +195,8 @@
 (describe "org-memento-block"
   (describe "on the current daily entry"
     (let ((block (org-memento-with-test-context "memento1.org" "2020-01-01 12:00:00"
-                   (org-memento-with-today-entry
-                    (org-memento-block-entry)))))
+                                                (org-memento-with-today-entry
+                                                 (org-memento-block-entry)))))
       (it "The started time is the check-in time"
         (expect (org-memento-started-time block)
                 :to-be-close-to
