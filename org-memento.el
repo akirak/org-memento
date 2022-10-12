@@ -104,8 +104,9 @@ temporarily setting this variable."
 If you run `org-memento-open-today' or one of the other commands
 that perform daily check-in, this hook is called after
 scaffolding is done before the user gets interactivity. The hook
-is first called at the body of the entry, so you can use it to
-insert some contents into the daily entry.
+is first called at the next line of an active timestamp in the
+body of the entry, so you can use it to insert some contents into
+the daily entry.
 
 Note that this hook is not called on blocks inside a daily entry."
   :type 'hook)
@@ -811,6 +812,8 @@ The function returns non-nil if the check-in is done."
         (org-memento--scaffold-day)))
     (org-memento--save-buffer)
     (org-end-of-meta-data t)
+    (when (looking-at org-ts-regexp)
+      (beginning-of-line 2))
     (run-hooks 'org-memento-checkin-hook)
     (org-memento-status)
     t))
