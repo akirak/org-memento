@@ -1718,6 +1718,26 @@ and END are float times."
          (dolist (date-taxy (taxy-taxys taxy))
            (setf (taxy-taxys date-taxy)
                  (postprocess-block-taxys (taxy-taxys date-taxy))))
+         taxy)
+       (make-empty-date-taxy (start end)
+         (make-taxy
+          :name (list start end nil)
+          :taxys (list (make-taxy
+                        :name (list start end nil)
+                        :items nil))))
+       (date-filler (date-taxy acc)
+         (if-let* ((_ (and (caddr (taxy-name date-taxy))
+                           (and acc (caddr (taxy-name (car acc))))))
+                   (start (cadr (taxy-name date-taxy)))
+                   (end (car (taxy-name (car acc)))))
+             (cons date-taxy (cons (make-empty-date-taxy start end)
+                                   acc))
+           (cons date-taxy acc)))
+       (fill-date-gaps (taxy)
+         (setf (taxy-taxys taxy)
+               (cl-reduce #'date-filler (taxy-taxys taxy)
+                          :initial-value nil
+                          :from-end t))
          taxy))
     (let ((start-time (or (org-memento-maybe-with-date-entry start-day
                             (when-let (string (org-entry-get nil "memento_checkin_time"))
@@ -1752,7 +1772,8 @@ and END are float times."
                                (org-agenda-files)
                                :test #'equal)))
         (taxy-sort-items #'< #'car)
-        (postprocess-root-taxy)))))
+        (postprocess-root-taxy)
+        (fill-date-gaps)))))
 
 (cl-defun org-memento-activities (start-bound end-bound &optional files)
   "Gather activities during a certain date period from files.
