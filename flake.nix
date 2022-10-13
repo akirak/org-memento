@@ -43,7 +43,7 @@
       scripts = {
         test = {
           description = "Run buttercup tests";
-          compile = true;
+          compile = false;
           extraPackages = [
             "buttercup"
           ];
