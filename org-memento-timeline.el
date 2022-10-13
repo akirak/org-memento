@@ -38,9 +38,32 @@
 
 (defgroup org-memento-timeline nil
   "Activity timeline."
+  :prefix "org-memento-"
   :group 'org-memento)
 
 (defconst org-memento-timeline-ms-buffer "*Org-Memento Timeline*")
+
+;;;; Custom variables
+
+(defcustom org-memento-timeline-pre-hook
+  nil
+  "Hook run before the timeline sections are inserted.
+
+The hook is run inside the timeline buffer.
+
+Each function in the hook takes the taxy representing the
+timeline as an argument."
+  :type 'hook)
+
+(defcustom org-memento-timeline-post-hook
+  nil
+  "Hook run after the timeline sections are inserted.
+
+The hook is run inside the timeline buffer.
+
+Each function in the hook takes the taxy representing the
+timeline as an argument."
+  :type 'hook)
 
 ;;;; Faces
 
@@ -74,7 +97,9 @@
                      org-memento-timeline-date-range)))
     (let ((inhibit-read-only t))
       (erase-buffer)
-      (org-memento-timeline--insert taxy))))
+      (run-hook-with-args 'org-memento-timeline-pre-hook taxy)
+      (org-memento-timeline--insert taxy)
+      (run-hook-with-args 'org-memento-timeline-post-hook taxy))))
 
 (defun org-memento-timeline--insert (root-taxy)
   ;; TODO: Maybe set magit-section-set-visibility-hook
