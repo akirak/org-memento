@@ -184,7 +184,7 @@ timeline as an argument."
                  (make-string 7 ?\s))
                (if-let (title (title taxy))
                    (propertize title
-                               'face (if (eq (cadddr (get-record taxy)) 'idle)
+                               'face (if (eq (cadddr (cdr (get-record taxy))) 'idle)
                                          'font-lock-comment-face
                                        'magit-section-heading))
                  (if (taxy-items taxy)
