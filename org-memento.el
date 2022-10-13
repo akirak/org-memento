@@ -567,16 +567,18 @@ point to the heading.
 "
   (interactive)
   (with-current-buffer (org-memento--buffer)
-    (let ((initial-pos (point)))
-      (widen)
-      (org-memento--find-today)
+    (widen)
+    (push-mark)
+    (let ((pos (point))
+          (existing (org-memento--find-today)))
       (org-memento--maybe-checkin-to-day)
       (org-back-to-heading)
       (org-narrow-to-subtree)
-      (unless (save-excursion
-                (re-search-forward (rx bol "*" (+ blank)) initial-pos t))
-        (goto-char initial-pos)))
-    (pop-to-buffer (current-buffer))))
+      (when (and existing
+                 (> pos (point-min))
+                 (< pos (point-max)))
+        (pop-mark))
+      (pop-to-buffer (current-buffer)))))
 
 ;;;###autoload
 (defun org-memento-checkout-from-day ()
