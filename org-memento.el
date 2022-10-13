@@ -712,7 +712,10 @@ This function is primarily intended for use in
   (org-memento--find-today))
 
 (defun org-memento--find-today ()
-  "Move the point to the today's entry or insert the entry."
+  "Move the point to the today's entry or insert the entry.
+
+The function returns non-nil if the heading is existing. It
+returns nil if it creates a new heading."
   (let ((today (org-memento--today-string (decode-time (org-memento--current-time)))))
     (or (re-search-backward (format org-complex-heading-regexp-format
                                     (regexp-quote today))
@@ -735,7 +738,9 @@ This function is primarily intended for use in
                 (throw 'found-today nil)))))
           (insert (if (bolp) "" "\n")
                   "* " today "\n")
-          (end-of-line 0)))))
+          (end-of-line 0)
+          ;; Explicitly return nil
+          nil))))
 
 (defun org-memento--checkin-time ()
   "Return the check-in time of the entry as an internal time."
