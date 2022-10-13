@@ -1745,10 +1745,13 @@ and END are float times."
          (cl-reduce #'block-taxy-reducer block-taxys
                     :initial-value nil
                     :from-end t))
+       ;; When compiled, setf inside cl-labels seems to cause an error.
+       ;; For now, I will define this function to set the particular field.
+       (set-taxy-taxys (taxy new-value)
+         (aset taxy (cl-struct-slot-offset 'taxy 'taxys) new-value))
        (postprocess-root-taxy (taxy)
          (dolist (date-taxy (taxy-taxys taxy))
-           (setf (taxy-taxys date-taxy)
-                 (postprocess-block-taxys (taxy-taxys date-taxy))))
+           (set-taxy-taxys date-taxy (postprocess-block-taxys (taxy-taxys date-taxy))))
          taxy)
        (make-empty-date-taxy (start end)
          (make-taxy
@@ -1765,10 +1768,9 @@ and END are float times."
                                    acc))
            (cons date-taxy acc)))
        (fill-date-gaps (taxy)
-         (setf (taxy-taxys taxy)
-               (cl-reduce #'date-filler (taxy-taxys taxy)
-                          :initial-value nil
-                          :from-end t))
+         (set-taxy-taxys taxy (cl-reduce #'date-filler (taxy-taxys taxy)
+                                         :initial-value nil
+                                         :from-end t))
          taxy))
     (let ((start-time (or (org-memento-maybe-with-date-entry start-day
                             (when-let (string (org-entry-get nil "memento_checkin_time"))
