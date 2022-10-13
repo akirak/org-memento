@@ -529,8 +529,8 @@ implements methods such as `org-memento-started-time'."
 (defun org-memento-log (start end)
   "Log a past time block to the today's entry."
   (interactive (org-memento--read-past-blank-hours))
-  (let* ((title (read-from-minibuffer "Title: " nil nil nil nil nil 'inherit-input-method))
-         (category (org-memento-read-category))
+  (let* ((category (org-memento-read-category))
+         (title (org-memento-read-title nil category))
          (donep (and end (time-less-p (current-time) end)))
          (checkin (format-time-string (org-time-stamp-format t t)
                                       start))
@@ -672,9 +672,8 @@ point to the heading.
                (message "Inserted a new timestamp"))))))
       (org-memento-template
        (let* ((default-title (org-memento-template-title result))
-              (title (read-from-minibuffer (format "Title [%s]: " default-title)
-                                           nil nil nil nil
-                                           default-title)))
+              (title (org-memento-read-title (format "Title [%s]: " default-title)
+                                             :default default-title)))
          (when (and title (not (string-empty-p title)))
            (setf (org-memento-template-title result) title))
          (org-memento-with-today-entry
@@ -1234,6 +1233,30 @@ the daily entry."
      (append (with-current-buffer (org-memento--buffer)
                (org-property-get-allowed-values nil "memento_category"))))
    :test #'equal))
+
+(cl-defun org-memento-read-title (&optional prompt &key category default)
+  (completing-read (or prompt "Title: ")
+                   (when category
+                     (org-memento--titles-in-category category))
+                   nil nil nil nil default 'inherit-input-method))
+
+(defun org-memento--titles-in-category (category)
+  (let (result)
+    (with-current-buffer (org-memento--buffer)
+      (let ((regexp (org-re-property "memento_category" nil nil category)))
+        (org-with-wide-buffer
+         (goto-char (point-min))
+         (while (re-search-forward regexp nil t)
+           (let ((heading (org-get-heading t t t t)))
+             (remove-text-properties 0 (length heading) '(face) heading)
+             (push heading result))))))
+    (thread-last
+      (org-memento-templates)
+      (seq-filter `(lambda (template)
+                     (equal (org-memento-template-category template)
+                            ,category)))
+      (mapcar #'org-memento-template-title))
+    (cl-remove-duplicates result :test #'equal)))
 
 (cl-defun org-memento-read-block-or-template (prompt &key start end)
   (let* ((todayp (when start
