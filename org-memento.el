@@ -1904,6 +1904,7 @@ denoting the type of the activity. ARGS is an optional list."
                  (push (list (parse-time (match-string 1))
                              (parse-time (match-string 2))
                              org-memento-idle-heading
+                             nil
                              'idle)
                        clocks)))
              clocks))))
