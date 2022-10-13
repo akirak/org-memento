@@ -1791,6 +1791,7 @@ and END are float times."
                           (encode-time)))))
       (thread-last
         (make-taxy
+         :name (list start-time end-time)
          :taxys (thread-last
                   (org-memento-past-blocks start-day end-day)
                   (fill-voids (float-time start-time) (float-time end-time) #'car #'make-gap-date)
