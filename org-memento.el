@@ -844,7 +844,7 @@ The point must be at the heading."
           (org-end-of-meta-data t)
           ;; If there is an existing active timestamp, don't insert it.
           (unless (looking-at org-ts-regexp)
-            (when-let (duration-string (plist-get (org-memento--standard-workhour day)
+            (when-let (duration-string (plist-get (org-memento--normal-workhour day)
                                                   :normal-duration))
               (let ((end-time (time-add now (* 60 (org-duration-to-minutes
                                                    duration-string)))))
@@ -1531,7 +1531,7 @@ marker to the time stamp, and the margin in seconds."
       ;; (org-memento--sort-by-car result)
       (mapcar #'cdr))))
 
-(defun org-memento--standard-workhour (decoded-time)
+(defun org-memento--normal-workhour (decoded-time)
   "Return a plist which specifies the work hour for the day."
   (let ((dow (apply #'org-day-of-week
                     (thread-first
@@ -1554,7 +1554,7 @@ and END are float times."
          result)
     (dolist (date (org-memento--date-list from-date to-date))
       (catch 'day-end
-        (when-let* ((workhour (org-memento--standard-workhour date))
+        (when-let* ((workhour (org-memento--normal-workhour date))
                     (checkin (plist-get workhour :normal-checkin))
                     (duration (plist-get workhour :normal-duration)))
           (let* ((checkin-minutes (floor (org-duration-to-minutes checkin)))
@@ -1613,7 +1613,7 @@ and END are float times."
   "Return time at which today's work ends."
   (when-let* ((time (org-memento--current-time))
               (decoded-time (decode-time time))
-              (plist (org-memento--standard-workhour
+              (plist (org-memento--normal-workhour
                       (org-memento--start-of-day decoded-time)))
               (duration (plist-get plist :normal-duration))
               (checkin-time (org-memento-with-today-entry
