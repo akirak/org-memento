@@ -9,7 +9,7 @@
                                       `(encode-time
                                         (parse-time-string ,time-string))))
          (org-memento-file ,(when file
-                              `(expand-file-name (concat "testdata/" ,file)
+                              `(expand-file-name ,file
                                                  (file-name-directory
                                                   (or load-file-name
                                                       (buffer-file-name)))))))
@@ -408,7 +408,7 @@
   (it "collects clock data in a range"
     (let* ((data (org-memento-activities (org-memento-test--internal-time "2020-01-01 5:00:00")
                                          (org-memento-test--internal-time "2020-01-01 23:59:59")
-                                         '("testdata/sample1.org")))
+                                         '("sample1.org")))
            (task1-1 (seq-filter (lambda (record)
                                   (equal (caddr record)
                                          "Task 1.1"))

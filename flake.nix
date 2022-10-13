@@ -48,7 +48,8 @@
             "buttercup"
           ];
           text = ''
-            emacs -batch -l buttercup -f buttercup-run-discover "$PWD"
+            cd test
+            emacs -batch -L .. -l buttercup -f buttercup-run-discover "$PWD"
           '';
         };
       };
