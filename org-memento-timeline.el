@@ -46,7 +46,7 @@
 ;;;; Custom variables
 
 (defcustom org-memento-timeline-pre-hook
-  nil
+  '(org-memento-timeline-insert-insights)
   "Hook run before the timeline sections are inserted.
 
 The hook is run inside the timeline buffer.
@@ -252,6 +252,81 @@ timeline as an argument."
 (define-derived-mode org-memento-timeline-mode magit-section-mode
   "MementoTl"
   "Major mode that displays a timeline of Org Memento.")
+
+;;;; Extra hooks
+
+;;;;; Overview
+
+(defun org-memento-timeline-insert-insights (taxy)
+  (magit-insert-section (overview (taxy-name taxy) nil)
+    (magit-insert-heading "Insights")
+    (cl-labels
+        ((get-record (x)
+           (if (taxy-p x)
+               (taxy-name x)
+             x))
+         (get-marker (x)
+           (cadddr (get-record x)))
+         (start-time (x)
+           (car (get-record x)))
+         (end-time (x)
+           (cadr (get-record x)))
+         (title (x)
+           (caddr (get-record x))))
+      (let ((indent1 (make-string 2 ?\s))
+            (indent2 (make-string 4 ?\s))
+            (ndays (thread-last
+                     (taxy-taxys taxy)
+                     (seq-filter #'title)
+                     (length))))
+        (magit-insert-section (magit-section)
+          (magit-insert-heading indent1 "Time on categories")
+          (let (block-activities)
+            (dolist (date-taxy (taxy-taxys taxy))
+              (dolist (block-taxy (taxy-taxys date-taxy))
+                (when-let* ((block-marker (get-marker block-taxy))
+                            (start (start-time block-taxy))
+                            (end (end-time block-taxy)))
+                  (save-current-buffer
+                    (org-with-point-at block-marker
+                      (when-let (category (org-entry-get nil "memento_category"))
+                        (push (cons category
+                                    (round (/ (- end start) 60)))
+                              block-activities)))))))
+            (if block-activities
+                (let* ((statistics (thread-last
+                                     (seq-group-by #'car block-activities)
+                                     (mapcar (pcase-lambda (`(,category . ,alist))
+                                               (let ((sum (cl-reduce #'+ (mapcar #'cdr alist)
+                                                                     :initial-value 0)))
+                                                 (list category
+                                                       (format "%s (%s)"
+                                                               (org-duration-from-minutes sum)
+                                                               (org-duration-from-minutes
+                                                                (/ sum ndays)))))))))
+                       (heading1 "Category")
+                       (width1 (thread-last
+                                 (mapcar #'car statistics)
+                                 (mapcar #'length)
+                                 (apply #'max)
+                                 (max (length heading1))))
+                       (heading2 "Actual (avg./day)")
+                       (width2 (thread-last
+                                 (mapcar #'cadr statistics)
+                                 (mapcar #'length)
+                                 (apply #'max)
+                                 (max (length heading2)))))
+                  (insert indent1 "| " (string-pad heading1 width1)
+                          " | " (string-pad heading2 width2)
+                          " |\n")
+                  (pcase-dolist (`(,category ,actual)
+                                 statistics)
+                    (insert indent1 "| "
+                            (string-pad category width1)
+                            " | " (string-pad actual width2)
+                            " |\n")))
+              (insert indent2 "No activities yet.\n")))))))
+  (insert ?\n))
 
 (provide 'org-memento-timeline)
 ;;; org-memento-timeline.el ends here
