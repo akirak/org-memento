@@ -991,6 +991,7 @@ the daily entry."
                     (concat " :" (string-join tags ":") ":")
                   "")
                 "\n")
+        (end-of-line 0)
         ;; Copy the properties
         (pcase-dolist (`(,key . ,value) (plist-get extra-data :props))
           (org-entry-put nil key value))
