@@ -886,7 +886,7 @@ The point must be at the heading."
   (org-back-to-heading)
   (make-org-memento-block
    :hd-marker (point-marker)
-   :headline (org-element-headline-parser)
+   :headline (org-element-headline-parser (org-entry-end-position))
    :active-ts (when (re-search-forward org-ts-regexp
                                        (org-entry-end-position)
                                        t)
