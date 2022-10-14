@@ -530,7 +530,7 @@ implements methods such as `org-memento-started-time'."
   "Log a past time block to the today's entry."
   (interactive (org-memento--read-past-blank-hours))
   (let* ((category (org-memento-read-category))
-         (title (org-memento-read-title nil category))
+         (title (org-memento-read-title nil :category category))
          (donep (and end (time-less-p (current-time) end)))
          (checkin (format-time-string (org-time-stamp-format t t)
                                       start))
