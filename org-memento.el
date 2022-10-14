@@ -860,6 +860,18 @@ The point must be at the heading."
   (setq org-memento-status-data (org-memento--block-data
                                  (or check-in
                                      (called-interactively-p t))))
+  (unless (and org-memento-current-block
+               (when-let (block (seq-find (lambda (block)
+                                            (equal (org-memento-title block)
+                                                   org-memento-current-block))
+                                          (org-memento--blocks)))
+                 (not (org-memento-ended-time block))))
+    (setq org-memento-current-block
+          (seq-some (lambda (block)
+                      (when (and (org-memento-started-time block)
+                                 (not (org-memento-ended-time block)))
+                        (org-memento-title block)))
+                    (org-memento--blocks))))
   (when-let (event (org-memento--next-agenda-event
                     (car org-memento-status-data)))
     (setq org-memento-next-event event)))
