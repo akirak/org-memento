@@ -1014,13 +1014,18 @@ the daily entry."
                        ((and `(,_ ,_ ,end)
                              (guard end))
                         ending-time))))))
-
+        ;; `org-entry-put' isn't supposed to move the point, so there may be a
+        ;; property drawer after the point. Skip it.
+        (unless (bolp)
+          (beginning-of-line 2))
+        (when (looking-at org-property-drawer-re)
+          (looking-at (concat (rx (* space)) org-property-drawer-re))
+          (goto-char (match-end 0))
+          (beginning-of-line 2))
+        ;; If the point is on the next headline, go back to the next entry
         ;; Insert the body
         (when-let (body (plist-get extra-data :body))
-          (insert (if (bolp)
-                      ""
-                    "\n")
-                  body))))))
+          (insert body))))))
 
 (defun org-memento--parse-template-extra ()
   "Parse extra template data at point."
