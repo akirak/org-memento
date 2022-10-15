@@ -1740,11 +1740,12 @@ and END are float times."
                             blocks
                             (fill-voids start end #'identity #'make-block)
                             (mapcar #'make-block-taxy))
-                          (let ((now (float-time (org-memento--current-time))))
-                            (if (< end now)
-                                (list (make-block-taxy (list start end nil)))
-                              (list (make-block-taxy (list start now nil))
-                                    (make-block-taxy (list now end nil)))))))))))
+                          (when end
+                            (let ((now (float-time (org-memento--current-time))))
+                              (if (< end now)
+                                  (list (make-block-taxy (list start end nil)))
+                                (list (make-block-taxy (list start now nil))
+                                      (make-block-taxy (list now end nil))))))))))))
        (make-gap-block (start end)
          (list start end nil))
        (make-block-taxy-for-item (item-record)
