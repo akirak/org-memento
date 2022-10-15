@@ -1789,6 +1789,7 @@ and END are float times."
          (dolist (date-taxy (taxy-taxys taxy))
            (set-taxy-taxys date-taxy (postprocess-block-taxys (taxy-taxys date-taxy))))
          taxy)
+       ;; Use `make-block-taxy' here.
        (make-empty-date-taxy (start end)
          (make-taxy
           :name (list start end nil)
@@ -1801,6 +1802,9 @@ and END are float times."
                                (cadr (taxy-name date-taxy))))
                    (end (car (taxy-name (car acc)))))
              (cons date-taxy (cons (make-empty-date-taxy start end)
+                                   ;; TODO: We can use this instead of the
+                                   ;; expression above
+                                   ;; (make-block-taxy (list start end nil))
                                    acc))
            (cons date-taxy acc)))
        (fill-date-gaps (taxy)
