@@ -829,7 +829,8 @@ The function returns non-nil if the check-in is done."
     (org-end-of-meta-data t)
     (when (looking-at org-ts-regexp)
       (beginning-of-line 2))
-    (run-hooks 'org-memento-checkin-hook)
+    (save-excursion
+      (run-hooks 'org-memento-checkin-hook))
     (org-memento-status)
     t))
 
