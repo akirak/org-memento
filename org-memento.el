@@ -115,6 +115,19 @@ Note that this hook is not called on blocks inside a daily entry."
   "Hook run when `org-memento-checkout-from-day' command is run."
   :type 'hook)
 
+(defcustom org-memento-agenda-files nil
+  "Function used to determine agenda files for each block.
+
+If the variable is a function, the function is called at the
+heading of the block and should return a list of Org files.
+
+When `org-memento-timeline' evaluates efficiency of each block
+activity, only clock activities on the designated set of Org
+files are considered proper utilization; other activities are
+distractions."
+  :type '(choice (const nil)
+                 (function :tag "Function without an argument")))
+
 (defcustom org-memento-workhour-alist
   '(((1 2 3 4 5)
      :normal-checkin "9:30"
