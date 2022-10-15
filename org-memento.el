@@ -1079,6 +1079,16 @@ the daily entry."
                 (unless (string-empty-p string)
                   string)))))))
 
+;;;; Agenda files
+
+;;;###autoload
+(defun org-memento-agenda-files ()
+  "Return a list of Org agenda files for the current block."
+  (org-memento-with-block-title (or org-memento-current-block
+                                    (error "Currently no block"))
+    (pcase org-memento-agenda-files
+      ((pred functionp) (funcall org-memento-agenda-files)))))
+
 ;;;; Reporting
 
 ;;;;; Check-in time
