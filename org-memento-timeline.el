@@ -300,30 +300,37 @@ timeline as an argument."
                                                (let ((sum (cl-reduce #'+ (mapcar #'cdr alist)
                                                                      :initial-value 0)))
                                                  (list category
-                                                       (format "%s (%s)"
-                                                               (org-duration-from-minutes sum)
-                                                               (org-duration-from-minutes
-                                                                (/ sum ndays)))))))))
+                                                       (org-duration-from-minutes sum)
+                                                       (org-duration-from-minutes
+                                                        (/ sum ndays))))))))
                        (heading1 "Category")
                        (width1 (thread-last
                                  (mapcar #'car statistics)
                                  (mapcar #'length)
                                  (apply #'max)
                                  (max (length heading1))))
-                       (heading2 "Actual (avg./day)")
+                       (heading2 "Actual")
                        (width2 (thread-last
                                  (mapcar #'cadr statistics)
                                  (mapcar #'length)
                                  (apply #'max)
-                                 (max (length heading2)))))
+                                 (max (length heading2))))
+                       (heading3 "Average")
+                       (width3 (thread-last
+                                 (mapcar #'caddr statistics)
+                                 (mapcar #'length)
+                                 (apply #'max)
+                                 (max (length heading3)))))
                   (insert indent1 "| " (string-pad heading1 width1)
                           " | " (string-pad heading2 width2)
+                          " | " (string-pad heading3 width3)
                           " |\n")
-                  (pcase-dolist (`(,category ,actual)
+                  (pcase-dolist (`(,category ,actual ,average)
                                  statistics)
                     (insert indent1 "| "
                             (string-pad category width1)
                             " | " (string-pad actual width2)
+                            " | " (string-pad average width3)
                             " |\n")))
               (insert indent2 "No activities yet.\n")))))))
   (insert ?\n))
