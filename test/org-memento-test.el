@@ -395,6 +395,12 @@
               :to-be
               2))))
 
+(describe "org-memento-activity-taxy"
+  (describe "If the day has an active timestamp range")
+  (describe "If the day has no active timestamp range")
+  (describe "If the date range contains past dates")
+  (describe "If the date range contains future dates"))
+
 ;;;; Other functions
 
 (describe "org-memento-goto-today"
