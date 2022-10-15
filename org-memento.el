@@ -115,6 +115,10 @@ Note that this hook is not called on blocks inside a daily entry."
   "Hook run when `org-memento-checkout-from-day' command is run."
   :type 'hook)
 
+(defcustom org-memento-status-hook nil
+  "Hook run when the status is updated with `org-memento-status'."
+  :type 'hook)
+
 (defcustom org-memento-agenda-files nil
   "Function used to determine agenda files for each block.
 
@@ -888,7 +892,8 @@ The point must be at the heading."
                     (org-memento--blocks))))
   (when-let (event (org-memento--next-agenda-event
                     (car org-memento-status-data)))
-    (setq org-memento-next-event event)))
+    (setq org-memento-next-event event))
+  (run-hooks 'org-memento-status-hook))
 
 (defun org-memento--block-data (&optional check-in)
   ;; The first item will always be the day itself.
