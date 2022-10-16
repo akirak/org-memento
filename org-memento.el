@@ -1818,10 +1818,10 @@ and END are float times."
            (set-taxy-taxys date-taxy
                            (thread-last
                              (taxy-taxys date-taxy)
-                             (postprocess-block-taxys)
                              (fill-voids (car (taxy-name date-taxy))
                                          (cadr (taxy-name date-taxy))
-                                         #'taxy-name #'make-gap-block-taxy))))
+                                         #'taxy-name #'make-gap-block-taxy)
+                             (postprocess-block-taxys))))
          taxy)
        ;; Use `make-block-taxy' here.
        (make-empty-date-taxy (start end)
