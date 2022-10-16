@@ -1844,10 +1844,14 @@ and END are float times."
                             (org-memento--set-time-of-day (or org-extend-today-until) 0 0)
                             (encode-time))))
           (end-time (or (org-memento-maybe-with-date-entry end-day
-                          (when-let (string (org-entry-get nil "CLOSED"))
-                            (thread-last
-                              (org-timestamp-from-string string)
-                              (org-timestamp-to-time))))
+                          (let ((block (save-excursion
+                                         (org-memento-block-entry))))
+                            (if-let (ended (org-memento-ended-time block))
+                                (time-convert ended 'list)
+                              (let ((ending (org-memento-ending-time block)))
+                                (when (and ending (> ending (float-time
+                                                             (org-memento--current-time))))
+                                  (time-convert ending 'list))))))
                         (thread-first
                           (parse-time-string end-day)
                           (org-memento--set-time-of-day
