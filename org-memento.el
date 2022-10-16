@@ -1862,11 +1862,11 @@ and END are float times."
         (make-taxy
          :name (list start-time end-time)
          :taxys (thread-last
-                  (org-memento-block-activities start-day end-day)
+                  (org-memento--block-activities start-day end-day)
                   (fill-voids (float-time start-time) (float-time end-time) #'car #'make-gap-date)
                   (mapcar #'make-date-taxy)))
         (taxy-emptied)
-        (taxy-fill (org-memento-activities
+        (taxy-fill (org-memento--agenda-activities
                     start-time
                     end-time
                     (cl-remove (expand-file-name org-memento-file)
@@ -1876,7 +1876,7 @@ and END are float times."
         (postprocess-root-taxy)
         (fill-date-gaps)))))
 
-(cl-defun org-memento-activities (start-bound end-bound &optional files)
+(cl-defun org-memento--agenda-activities (start-bound end-bound &optional files)
   "Gather activities during a certain date period from files.
 
 Both START-BOUND and END-BOUND should be Emacs internal time
@@ -1964,7 +1964,7 @@ denoting the type of the activity. ARGS is an optional list."
       (org-map-entries #'scan nil files #'skip))
     (nreverse result)))
 
-(defun org-memento-block-activities (start-date-string &optional end-date-string)
+(defun org-memento--block-activities (start-date-string &optional end-date-string)
   (cl-flet*
       ((parse-date (string)
          (encode-time (org-memento--set-time-of-day
