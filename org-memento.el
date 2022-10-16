@@ -1700,20 +1700,24 @@ and END are float times."
                (list (list start end nil nil 'gap))))
        (make-block (start end)
          (list start end nil nil 'gap))
+       (compare-dates (a b)
+         (or (> (car a) (car b))
+             (and (= (car a) (car b))
+                  (> (cadr a) (cadr b)))))
        (fill-voids (start-bound end-bound key make-record records)
          (if records
              (let* (result
-                    (sorted-records (cl-sort records #'>
-                                             :key `(lambda (x)
-                                                     (car (funcall ',key x)))))
+                    (sorted-records (cl-sort records #'compare-dates
+                                             :key key))
                     (next-start (or end-bound
                                     (cadr (funcall key (car sorted-records))))))
                (dolist (item sorted-records)
                  (let* ((start (car (funcall key item)))
                         (end (cadr (funcall key item))))
                    (when (and end (< end next-start))
-                     (push (funcall make-record end next-start)
-                           result))
+                     (let ((new-item (funcall make-record end next-start)))
+                       (unless (member new-item sorted-records)
+                         (push new-item result))))
                    (setq next-start start)
                    (push item result)))
                (when (and start-bound (< start-bound next-start))
