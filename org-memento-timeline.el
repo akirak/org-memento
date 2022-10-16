@@ -159,20 +159,23 @@ timeline as an argument."
                                  (format-time-range (start-time clock)
                                                     (end-time clock))
                                  "\n"))))))
-               (when-let (last-end (cadr (car (last items))))
-                 (magit-insert-section (clock-out)
-                   (magit-insert-heading
-                     indent1
-                     (format-time-string "%R" last-end)
-                     (make-string 2 ?\s)
-                     (if (< last-end now)
-                         (concat (propertize "Clocked out" 'face 'font-lock-comment-face)
-                                 (if end-time-of-block
-                                     (format " (until %s)"
-                                             (format-time-string "%R" end-time-of-block))
-                                   ""))
-                       (propertize "Ending" 'face 'font-lock-comment-face))
-                     "\n"))))
+               (let ((last-entry (car (last items))))
+                 (unless (eq (nth 4 last-entry)
+                             'clock-unfinished)
+                   (when-let (last-end (cadr last-entry))
+                     (magit-insert-section (clock-out)
+                       (magit-insert-heading
+                         indent1
+                         (format-time-string "%R" last-end)
+                         (make-string 2 ?\s)
+                         (if (< last-end now)
+                             (concat (propertize "Clocked out" 'face 'font-lock-comment-face)
+                                     (if end-time-of-block
+                                         (format " (until %s)"
+                                                 (format-time-string "%R" end-time-of-block))
+                                       ""))
+                           (propertize "Ending" 'face 'font-lock-comment-face))
+                         "\n"))))))
              (insert ?\n)))
          (insert-block (taxy)
            (magit-insert-section (block (taxy-name taxy) 'hide)
