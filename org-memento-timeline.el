@@ -200,28 +200,40 @@ timeline as an argument."
                    (indent2 (make-string 11 ?\s))
                    (indent2 (make-string 13 ?\s))
                    (start (start-time taxy))
-                   (end (end-time taxy)))
-               (magit-insert-heading
-                 indent1
-                 (if start
-                     (format-time-string "%R- " start)
-                   (make-string 7 ?\s))
-                 (if-let (title (title taxy))
-                     (propertize title
-                                 'face (if (eq (cadddr (cdr (get-record taxy))) 'idle)
-                                           'font-lock-comment-face
-                                         'magit-section-heading))
-                   (if (taxy-items taxy)
-                       (let ((marker (cadddr (car (taxy-items taxy)))))
-                         (propertize (file-name-base (buffer-name (marker-buffer marker)))
-                                     'face 'font-lock-comment-face))
-                     (propertize "Gap" 'face 'font-lock-comment-face)))
-                 (when (and start end)
-                   (format " (%s)"
-                           (org-duration-from-minutes
-                            (/ (- (end-time taxy)
-                                  (start-time taxy))
-                               60)))))
+                   (end (end-time taxy))
+                   (nowp (eq 'now (nth 4 (taxy-name taxy)))))
+               (if nowp
+                   (magit-insert-heading
+                     indent1
+                     (make-string 6 ?-)
+                     (propertize " Now " 'face 'font-lock-comment-face)
+                     (make-string (- (window-width)
+                                     (+ 4 6 5
+                                        ;; margin
+                                        5))
+                                  ?-))
+                 (magit-insert-heading
+                   indent1
+                   (if start
+                       (format-time-string "%R- " start)
+                     (make-string 7 ?\s))
+                   (if-let (title (title taxy))
+                       (propertize title
+                                   'face (if (eq (cadddr (cdr (get-record taxy))) 'idle)
+                                             'font-lock-comment-face
+                                           'magit-section-heading))
+                     (if (taxy-items taxy)
+                         (let ((marker (cadddr (car (taxy-items taxy)))))
+                           (propertize (file-name-base (buffer-name (marker-buffer marker)))
+                                       'face 'font-lock-comment-face))
+                       (propertize "Gap" 'face 'font-lock-comment-face)))
+                   (if (and start end)
+                       (format " (%s)"
+                               (org-duration-from-minutes
+                                (/ (- (end-time taxy)
+                                      (start-time taxy))
+                                   60)))
+                     "")))
                (when (or (and (taxy-items taxy)
                               (unfinished-clock-p (car (last (taxy-items taxy)))))
                          (and org-memento-current-block

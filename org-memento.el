@@ -1843,30 +1843,30 @@ and END are float times."
                                          :initial-value nil
                                          :from-end t))
          taxy))
-    (let ((start-time (or (org-memento-maybe-with-date-entry start-day
-                            (when-let (string (org-entry-get nil "memento_checkin_time"))
-                              (thread-last
-                                (org-timestamp-from-string string)
-                                (org-timestamp-to-time))))
-                          (thread-first
-                            (parse-time-string start-day)
-                            (org-memento--set-time-of-day (or org-extend-today-until) 0 0)
-                            (encode-time))))
-          (end-time (or (org-memento-maybe-with-date-entry end-day
-                          (let ((block (save-excursion
-                                         (org-memento-block-entry))))
-                            (if-let (ended (org-memento-ended-time block))
-                                (time-convert ended 'list)
-                              (let ((ending (org-memento-ending-time block)))
-                                (when (and ending (> ending (float-time
-                                                             (org-memento--current-time))))
-                                  (time-convert ending 'list))))))
-                        (thread-first
-                          (parse-time-string end-day)
-                          (org-memento--set-time-of-day
-                           (or org-extend-today-until) 0 0)
-                          (decoded-time-add (make-decoded-time :hour 23 :minute 59))
-                          (encode-time)))))
+    (let* ((now (float-time (org-memento--current-time)))
+           (start-time (or (org-memento-maybe-with-date-entry start-day
+                             (when-let (string (org-entry-get nil "memento_checkin_time"))
+                               (thread-last
+                                 (org-timestamp-from-string string)
+                                 (org-timestamp-to-time))))
+                           (thread-first
+                             (parse-time-string start-day)
+                             (org-memento--set-time-of-day (or org-extend-today-until) 0 0)
+                             (encode-time))))
+           (end-time (or (org-memento-maybe-with-date-entry end-day
+                           (let ((block (save-excursion
+                                          (org-memento-block-entry))))
+                             (if-let (ended (org-memento-ended-time block))
+                                 (time-convert ended 'list)
+                               (let ((ending (org-memento-ending-time block)))
+                                 (when (and ending (> ending now))
+                                   (time-convert ending 'list))))))
+                         (thread-first
+                           (parse-time-string end-day)
+                           (org-memento--set-time-of-day
+                            (or org-extend-today-until) 0 0)
+                           (decoded-time-add (make-decoded-time :hour 23 :minute 59))
+                           (encode-time)))))
       (thread-last
         (make-taxy
          :name (list start-time end-time)
@@ -1875,6 +1875,11 @@ and END are float times."
                   (fill-voids (float-time start-time) (float-time end-time) #'car #'make-gap-date)
                   (mapcar #'make-date-taxy)))
         (taxy-emptied)
+        (taxy-fill (when (and (not org-memento-current-block)
+                              (not org-clock-marker)
+                              (> now (float-time start-time))
+                              (< now (float-time end-time)))
+                     (list (list now now nil nil 'now))))
         (taxy-fill (org-memento--agenda-activities
                     start-time
                     end-time
