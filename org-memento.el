@@ -1920,17 +1920,22 @@ denoting the type of the activity. ARGS is an optional list."
                (let ((drawer-end (match-end 0)))
                  (while (re-search-forward (rx bol (* space) "CLOCK:" (* blank))
                                            drawer-end t)
-                   (when (looking-at (concat org-ts-regexp-inactive
-                                             "--"
-                                             org-ts-regexp-inactive))
+                   (when (looking-at (rx (regexp org-ts-regexp-inactive)
+                                         (?  "--" (regexp org-ts-regexp-inactive))))
                      (let ((start (parse-time (match-string 1)))
-                           (end (parse-time (match-string 2))))
-                       (when (and start end
+                           (end (when-let (str (match-string 2))
+                                  (parse-time str))))
+                       (when (and start
                                   (> start start-bound-float)
-                                  (< end end-bound-float))
-                         (push (list start end
+                                  (if end
+                                      (< end end-bound-float)
+                                    t))
+                         (push (list start
+                                     (or end (float-time (org-memento--current-time)))
                                      heading hd-marker
-                                     'clock)
+                                     (if end
+                                         'clock
+                                       'clock-unfinished))
                                result)))))))
              (when (and contains-future
                         (not (org-entry-is-done-p)))
