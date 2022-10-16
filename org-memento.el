@@ -1844,7 +1844,8 @@ and END are float times."
                               (org-timestamp-to-time))))
                         (thread-first
                           (parse-time-string end-day)
-                          (org-memento--set-time-of-day (or org-extend-today-until) 0 0)
+                          (org-memento--set-time-of-day
+                           (or org-extend-today-until) 0 0)
                           (decoded-time-add (make-decoded-time :hour 23 :minute 59))
                           (encode-time)))))
       (thread-last
@@ -2131,6 +2132,17 @@ Both TIME1 and TIME2 must be an internal time representation or
 nil. If one of them is nil, the other one is returned."
   (if (and time1 time2)
       (if (time-less-p time1 time2)
+          time1
+        time2)
+    (or time1 time2)))
+
+(defun org-memento--time-max (time1 time2)
+  "Return an later time of the two.
+
+Both TIME1 and TIME2 must be an internal time representation or
+nil. If one of them is nil, the other one is returned."
+  (if (and time1 time2)
+      (if (time-less-p time2 time1)
           time1
         time2)
     (or time1 time2)))
