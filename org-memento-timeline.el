@@ -71,6 +71,14 @@ timeline as an argument."
   '((t (:inherit default :slant italic)))
   "Face for time ranges.")
 
+(defface org-memento-timeline-active-face
+  '((((class color) (min-colors 88) (background dark))
+     :background "HotPink3")
+    (((class color) (min-colors 88) (background light))
+     :background "LightPink")
+    (t (:inherit default :foreground "" :background "")))
+  "Face for an item at the current time.")
+
 ;;;; Display the timeline
 
 (defvar org-memento-timeline-date-range nil)
@@ -130,6 +138,11 @@ timeline as an argument."
                                (org-duration-from-minutes
                                 (/ (- end start) 60)))
                      "")))
+         (unfinished-clock-p (item)
+           (eq (nth 4 item) 'clock-unfinished))
+         (highlight-previous-line ()
+           (put-text-property (pos-bol 0) (1- (pos-bol))
+                              'face 'org-memento-timeline-active-face))
          (insert-items (items end-time-of-block)
            (when items
              (let ((indent1 (make-string 6 ?\s))
@@ -153,12 +166,16 @@ timeline as an argument."
                                 (/ (- (cadr (car group))
                                       (car (car group)))
                                    60))))
+                     (when (unfinished-clock-p (car (last group)))
+                       (highlight-previous-line))
                      (when (or title (> (length group) 1))
                        (dolist (clock group)
                          (insert indent2
                                  (format-time-range (start-time clock)
                                                     (end-time clock))
-                                 "\n"))))))
+                                 "\n")
+                         (when (unfinished-clock-p clock)
+                           (highlight-previous-line)))))))
                (let ((last-entry (car (last items))))
                  (unless (eq (nth 4 last-entry)
                              'clock-unfinished)
@@ -205,6 +222,11 @@ timeline as an argument."
                             (/ (- (end-time taxy)
                                   (start-time taxy))
                                60)))))
+               (when (or (and (taxy-items taxy)
+                              (unfinished-clock-p (car (last (taxy-items taxy)))))
+                         (and org-memento-current-block
+                              (equal (title taxy) org-memento-current-block)))
+                 (highlight-previous-line))
                ;; TODO: Add sum of clocked minutes and the utilization
                (insert-items (taxy-items taxy)
                              ;; Don't show the end of the block if the block is
