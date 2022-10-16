@@ -93,7 +93,7 @@ timeline as an argument."
   (when (string-lessp end-day start-day)
     (user-error "The end day must be no earlier than the start day"))
   (with-current-buffer (get-buffer-create org-memento-timeline-ms-buffer)
-    (magit-section-mode)
+    (org-memento-timeline-mode)
     (setq-local org-memento-timeline-date-range (list start-day end-day)
                 revert-buffer-function #'org-memento-timeline-revert)
     (org-memento-timeline-revert)
@@ -294,10 +294,52 @@ timeline as an argument."
           (insert-date taxy)))
       (goto-char (point-min)))))
 
+;;;; Mode
+
+(defvar org-memento-timeline-mode-map
+  (let ((map (make-sparse-keymap)))
+    (define-key map "o" #'org-memento-timeline-open-entry)
+    (define-key map (kbd "SPC") #'org-memento-timeline-show-entry)
+    map))
+
 ;;;###autoload
 (define-derived-mode org-memento-timeline-mode magit-section-mode
   "MementoTl"
   "Major mode that displays a timeline of Org Memento.")
+
+;;;;; Commands available in the mode
+
+(defconst org-memento-timeline-indirect-buffer
+  "*Org-Memento Indirect*")
+
+(defun org-memento-timeline-open-entry ()
+  (interactive)
+  (when-let* ((section (magit-current-section))
+              (value (oref section value))
+              (marker (and (listp value)
+                           (nth 3 value))))
+    (org-memento-timeline--display-entry marker #'pop-to-buffer)))
+
+(defun org-memento-timeline-show-entry ()
+  (interactive)
+  (when-let* ((section (magit-current-section))
+              (value (oref section value))
+              (marker (and (listp value)
+                           (nth 3 value))))
+    (org-memento-timeline--display-entry marker #'display-buffer)))
+
+(defun org-memento-timeline--display-entry (marker fn)
+  (interactive)
+  (when-let (buffer (get-buffer org-memento-timeline-indirect-buffer))
+    (kill-buffer buffer))
+  (with-current-buffer (make-indirect-buffer
+                        (org-base-buffer (marker-buffer marker))
+                        org-memento-timeline-indirect-buffer
+                        'clone)
+    (goto-char marker)
+    (org-narrow-to-subtree)
+    (org-show-context 'agenda)
+    (funcall fn (current-buffer))))
 
 ;;;; Extra hooks
 
