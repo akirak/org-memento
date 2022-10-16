@@ -1879,7 +1879,7 @@ and END are float times."
                   (mapcar #'make-date-taxy)))
         (taxy-emptied)
         (taxy-fill (when (and (not org-memento-current-block)
-                              (not org-clock-marker)
+                              (not (org-clocking-p))
                               (> now (float-time start-time))
                               (< now (float-time end-time)))
                      (list (list now now nil nil 'now))))
