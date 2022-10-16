@@ -1738,7 +1738,7 @@ and END are float times."
            (append list1 list2)))
        (make-date-taxy (date-record)
          (pcase date-record
-           (`((,start ,end ,_date) . ,blocks)
+           (`((,start ,end . ,_) . ,blocks)
             (let ((computed-start (or start
                                       (thread-first
                                         (decode-time start)
@@ -1755,7 +1755,7 @@ and END are float times."
                                       (encode-time)
                                       (float-time)))))
               (make-taxy
-               :name (seq-take (car date-record) 3)
+               :name (car date-record)
                :predicate `(lambda (record)
                              (and (>= (car record) ,computed-start)
                                   (< (cadr record) ,computed-end)))
@@ -2063,13 +2063,16 @@ denoting the type of the activity. ARGS is an optional list."
                                                end-date-string))
                              (string-lessp start-date-string
                                            date-string)))
-                (let ((include-future (not (string-lessp date-string
+                (let ((marker (progn
+                                (beginning-of-line)
+                                (point-marker)))
+                      (include-future (not (string-lessp date-string
                                                          (org-memento--today-string
                                                           (decode-time
                                                            (org-memento--current-time)))))))
                   (pcase (parse-entry include-future)
                     (`(,start ,end)
-                     (let ((day (list start end date-string))
+                     (let ((day (list start end date-string marker))
                            (subtree-end (save-excursion (org-end-of-subtree)))
                            blocks)
                        (while (re-search-forward org-complex-heading-regexp subtree-end t)
