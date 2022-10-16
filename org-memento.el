@@ -1763,12 +1763,6 @@ and END are float times."
                :taxys (let ((now (float-time (org-memento--current-time))))
                         (or (thread-last
                               blocks
-                              (prepend-unless-empty
-                               (when (and (not org-memento-current-block)
-                                          (not org-clock-marker)
-                                          (> now start)
-                                          (< now end))
-                                 (list (list now now nil nil 'now))))
                               (fill-voids start end #'identity #'make-block)
                               (mapcar #'make-block-taxy))
                             (when end
