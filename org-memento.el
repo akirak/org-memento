@@ -1733,6 +1733,9 @@ and END are float times."
                                 (>= (car record) ,start)
                                 (< (cadr record) ,end)))
              :then #'identity))))
+       (prepend-unless-empty (list1 list2)
+         (when list2
+           (append list1 list2)))
        (make-date-taxy (date-record)
          (pcase date-record
            (`((,start ,end ,_date) . ,blocks)
@@ -1757,12 +1760,18 @@ and END are float times."
                              (and (>= (car record) ,computed-start)
                                   (< (cadr record) ,computed-end)))
                :then #'identity
-               :taxys (or (thread-last
-                            blocks
-                            (fill-voids start end #'identity #'make-block)
-                            (mapcar #'make-block-taxy))
-                          (when end
-                            (let ((now (float-time (org-memento--current-time))))
+               :taxys (let ((now (float-time (org-memento--current-time))))
+                        (or (thread-last
+                              blocks
+                              (prepend-unless-empty
+                               (when (and (not org-memento-current-block)
+                                          (not org-clock-marker)
+                                          (> now start)
+                                          (< now end))
+                                 (list (list now now nil nil 'now))))
+                              (fill-voids start end #'identity #'make-block)
+                              (mapcar #'make-block-taxy))
+                            (when end
                               (if (< end now)
                                   (list (make-block-taxy (list start end nil)))
                                 (list (make-block-taxy (list start now nil))
