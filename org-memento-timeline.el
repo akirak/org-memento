@@ -103,150 +103,156 @@ timeline as an argument."
 
 (defun org-memento-timeline--insert (root-taxy)
   ;; TODO: Maybe set magit-section-set-visibility-hook
-  (cl-labels
-      ((get-record (item)
-         (if (taxy-p item)
-             (taxy-name item)
-           item))
-       (start-time (item)
-         (car (get-record item)))
-       (end-time (item)
-         (cadr (get-record item)))
-       (title (item)
-         (caddr (get-record item)))
-       (sort-trees (items)
-         (cl-sort items #'< :key #'start-time))
-       (format-time-range (start end)
-         (concat (if start
-                     (format-time-string "%R" start)
-                   "")
-                 "–"
-                 (if end
-                     (format-time-string "%R" end)
-                   "")
-                 (if (and end start)
-                     (format " (%s)"
-                             (org-duration-from-minutes
-                              (/ (- end start) 60)))
-                   "")))
-       (insert-items (items end-time-of-block)
-         (when items
-           (let ((indent1 (make-string 6 ?\s))
-                 (indent2 (make-string 15 ?\s)))
-             (dolist (group (-partition-by #'caddr items))
-               (magit-insert-section (group (car group)
-                                            'hide)
-                 (let ((marker (cadddr (car group)))
-                       (title (caddr (car group))))
+  (let ((now (float-time (org-memento--current-time))))
+    (cl-labels
+        ((get-record (item)
+           (if (taxy-p item)
+               (taxy-name item)
+             item))
+         (start-time (item)
+           (car (get-record item)))
+         (end-time (item)
+           (cadr (get-record item)))
+         (title (item)
+           (caddr (get-record item)))
+         (sort-trees (items)
+           (cl-sort items #'< :key #'start-time))
+         (format-time-range (start end)
+           (concat (if start
+                       (format-time-string "%R" start)
+                     "")
+                   "–"
+                   (if end
+                       (format-time-string "%R" end)
+                     "")
+                   (if (and end start)
+                       (format " (%s)"
+                               (org-duration-from-minutes
+                                (/ (- end start) 60)))
+                     "")))
+         (insert-items (items end-time-of-block)
+           (when items
+             (let ((indent1 (make-string 6 ?\s))
+                   (indent2 (make-string 15 ?\s)))
+               (dolist (group (-partition-by #'caddr items))
+                 (magit-insert-section (group (car group)
+                                              'hide)
+                   (let ((marker (cadddr (car group)))
+                         (title (caddr (car group))))
+                     (magit-insert-heading
+                       indent1
+                       (format-time-string "%R" (car (car group)))
+                       (make-string 2 ?\s)
+                       (if title
+                           (propertize (org-link-display-format title)
+                                       'face 'magit-section-heading)
+                         (when (cadr (car group))
+                           (propertize "Gap" 'face 'font-lock-comment-face)))
+                       (format " (%s)\n"
+                               (org-duration-from-minutes
+                                (/ (- (cadr (car group))
+                                      (car (car group)))
+                                   60))))
+                     (when (or title (> (length group) 1))
+                       (dolist (clock group)
+                         (insert indent2
+                                 (format-time-range (start-time clock)
+                                                    (end-time clock))
+                                 "\n"))))))
+               (when-let (last-end (cadr (car (last items))))
+                 (magit-insert-section (clock-out)
                    (magit-insert-heading
                      indent1
-                     (format-time-string "%R" (car (car group)))
+                     (format-time-string "%R" last-end)
                      (make-string 2 ?\s)
-                     (if title
-                         (propertize (org-link-display-format title)
-                                     'face 'magit-section-heading)
-                       (when (cadr (car group))
-                         (propertize "Gap" 'face 'font-lock-comment-face)))
-                     (format " (%s)\n"
-                             (org-duration-from-minutes
-                              (/ (- (cadr (car group))
-                                    (car (car group)))
-                                 60))))
-                   (when (or title (> (length group) 1))
-                     (dolist (clock group)
-                       (insert indent2
-                               (format-time-range (start-time clock)
-                                                  (end-time clock))
-                               "\n"))))))
-             (when-let (last-end (cadr (car (last items))))
-               (magit-insert-section (clock-out)
-                 (magit-insert-heading
-                   indent1
-                   (format-time-string "%R" last-end)
-                   (make-string 2 ?\s)
-                   (propertize "Clocked out" 'face 'font-lock-comment-face)
-                   (if end-time-of-block
-                       (format " (until %s)" (format-time-string "%R" end-time-of-block))
-                     "")
-                   "\n"))))
-           (insert ?\n)))
-       (insert-block (taxy)
-         (magit-insert-section (block (taxy-name taxy) 'hide)
-           (let ((indent1 (make-string 4 ?\s))
-                 (indent2 (make-string 11 ?\s))
-                 (indent2 (make-string 13 ?\s))
-                 (start (start-time taxy))
-                 (end (end-time taxy)))
-             (magit-insert-heading
-               indent1
-               (if start
-                   (format-time-string "%R- " start)
-                 (make-string 7 ?\s))
-               (if-let (title (title taxy))
-                   (propertize title
-                               'face (if (eq (cadddr (cdr (get-record taxy))) 'idle)
-                                         'font-lock-comment-face
-                                       'magit-section-heading))
-                 (if (taxy-items taxy)
-                     (let ((marker (cadddr (car (taxy-items taxy)))))
-                       (propertize (file-name-base (buffer-name (marker-buffer marker)))
-                                   'face 'font-lock-comment-face))
-                   (propertize "Gap" 'face 'font-lock-comment-face)))
-               (when (and start end)
-                 (format " (%s)"
-                         (org-duration-from-minutes
-                          (/ (- (end-time taxy)
-                                (start-time taxy))
-                             60)))))
-             ;; TODO: Add sum of clocked minutes and the utilization
-             (insert-items (taxy-items taxy)
-                           ;; Don't show the end of the block if the block is
-                           ;; anonymous
-                           (when (title taxy)
-                             end)))))
-       (insert-date (taxy)
-         (magit-insert-section (date (taxy-name taxy))
-           (let ((title (title taxy))
-                 (indent (make-string 2 ?\s)))
-             (magit-insert-heading
-               (if title
-                   (propertize (thread-last
-                                 (parse-time-string title)
-                                 (org-memento--fill-decoded-time)
-                                 (encode-time)
-                                 (format-time-string "%F (%a)"))
-                               'face 'magit-section-heading)
-                 (propertize (format "(%s between the days)"
+                     (if (< last-end now)
+                         (concat (propertize "Clocked out" 'face 'font-lock-comment-face)
+                                 (if end-time-of-block
+                                     (format " (until %s)"
+                                             (format-time-string "%R" end-time-of-block))
+                                   ""))
+                       (propertize "Ending" 'face 'font-lock-comment-face))
+                     "\n"))))
+             (insert ?\n)))
+         (insert-block (taxy)
+           (magit-insert-section (block (taxy-name taxy) 'hide)
+             (let ((indent1 (make-string 4 ?\s))
+                   (indent2 (make-string 11 ?\s))
+                   (indent2 (make-string 13 ?\s))
+                   (start (start-time taxy))
+                   (end (end-time taxy)))
+               (magit-insert-heading
+                 indent1
+                 (if start
+                     (format-time-string "%R- " start)
+                   (make-string 7 ?\s))
+                 (if-let (title (title taxy))
+                     (propertize title
+                                 'face (if (eq (cadddr (cdr (get-record taxy))) 'idle)
+                                           'font-lock-comment-face
+                                         'magit-section-heading))
+                   (if (taxy-items taxy)
+                       (let ((marker (cadddr (car (taxy-items taxy)))))
+                         (propertize (file-name-base (buffer-name (marker-buffer marker)))
+                                     'face 'font-lock-comment-face))
+                     (propertize "Gap" 'face 'font-lock-comment-face)))
+                 (when (and start end)
+                   (format " (%s)"
+                           (org-duration-from-minutes
+                            (/ (- (end-time taxy)
+                                  (start-time taxy))
+                               60)))))
+               ;; TODO: Add sum of clocked minutes and the utilization
+               (insert-items (taxy-items taxy)
+                             ;; Don't show the end of the block if the block is
+                             ;; anonymous
+                             (when (title taxy)
+                               end)))))
+         (insert-date (taxy)
+           (magit-insert-section (date (taxy-name taxy))
+             (let ((title (title taxy))
+                   (indent (make-string 2 ?\s)))
+               (magit-insert-heading
+                 (if title
+                     (propertize (thread-last
+                                   (parse-time-string title)
+                                   (org-memento--fill-decoded-time)
+                                   (encode-time)
+                                   (format-time-string "%F (%a)"))
+                                 'face 'magit-section-heading)
+                   (propertize (format "(%s between the days)"
+                                       (org-duration-from-minutes
+                                        (/ (- (end-time taxy)
+                                              (start-time taxy))
+                                           60)))
+                               'face 'font-lock-comment-face)))
+               (insert indent
+                       (if-let (time (start-time taxy))
+                           (format-time-string "%R" time)
+                         "??:??")
+                       (if title
+                           " Checked in"
+                         "")
+                       "\n")
+               (dolist (block (taxy-taxys taxy))
+                 (insert-block block))
+               (when-let (end-time (end-time taxy))
+                 (insert indent
+                         (format-time-string "%R" end-time)
+                         (if title
+                             (format (if (< end-time now)
+                                         " Checked out (%s)\n"
+                                       " Checking out (%s)\n")
                                      (org-duration-from-minutes
                                       (/ (- (end-time taxy)
                                             (start-time taxy))
                                          60)))
-                             'face 'font-lock-comment-face)))
-             (insert indent
-                     (if-let (time (start-time taxy))
-                         (format-time-string "%R" time)
-                       "??:??")
-                     (if title
-                         " Checked in"
-                       "")
-                     "\n")
-             (dolist (block (taxy-taxys taxy))
-               (insert-block block))
-             (when-let (end-time (end-time taxy))
-               (insert indent
-                       (format-time-string "%R" end-time)
-                       (if title
-                           (format " Checked out (%s)\n"
-                                   (org-duration-from-minutes
-                                    (/ (- (end-time taxy)
-                                          (start-time taxy))
-                                       60)))
-                         "\n")))))
-         (insert ?\n)))
-    (magit-insert-section (magit-section)
-      (dolist (taxy (taxy-taxys root-taxy))
-        (insert-date taxy)))
-    (goto-char (point-min))))
+                           "\n")))))
+           (insert ?\n)))
+      (magit-insert-section (magit-section)
+        (dolist (taxy (taxy-taxys root-taxy))
+          (insert-date taxy)))
+      (goto-char (point-min)))))
 
 ;;;###autoload
 (define-derived-mode org-memento-timeline-mode magit-section-mode
