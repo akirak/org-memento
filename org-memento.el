@@ -256,8 +256,14 @@ Return a copy of the list."
   (org-element-property :MEMENTO_CATEGORY (org-memento-headline-element x)))
 
 (cl-defmethod org-memento-started-time ((x org-memento-block))
-  (when-let (str (org-element-property :MEMENTO_CHECKIN_TIME (org-memento-headline-element x)))
-    (float-time (org-timestamp-to-time (org-timestamp-from-string str)))))
+  (if-let (element (org-memento-headline-element x))
+      (when-let (str (org-element-property :MEMENTO_CHECKIN_TIME element))
+        (float-time (org-timestamp-to-time (org-timestamp-from-string str))))
+    (when-let* ((marker (org-memento-block-hd-marker x))
+                (str (save-current-buffer
+                       (org-with-point-at marker
+                         (org-entry-get nil "memento_checkin_time")))))
+      (float-time (org-timestamp-to-time (org-timestamp-from-string str))))))
 
 (cl-defmethod org-memento-starting-time ((x org-memento-block))
   (when-let (ts (org-memento-active-ts x))
