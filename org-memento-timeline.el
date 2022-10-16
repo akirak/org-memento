@@ -173,6 +173,9 @@ timeline as an argument."
                          (insert indent2
                                  (format-time-range (start-time clock)
                                                     (end-time clock))
+                                 (if (unfinished-clock-p clock)
+                                     " (continuing)"
+                                   "")
                                  "\n")
                          (when (unfinished-clock-p clock)
                            (highlight-previous-line)))))))
