@@ -1891,11 +1891,15 @@ floats, TITLE is the heading of the Org entry the activity
 occured at, MARKER is a marker to the headline, TYPE is a symbol
 denoting the type of the activity. ARGS is an optional list."
   (let* ((files (or files (org-agenda-files)))
+         (now (org-memento--current-time))
+         (contains-future (time-less-p now end-bound))
          (regexp (org-memento--make-ts-regexp
                   start-bound end-bound
-                  :active t :inactive t))
+                  :active contains-future :inactive t))
          (start-bound-float (float-time start-bound))
          (end-bound-float (float-time end-bound))
+         (now-float (when contains-future
+                      (float-time now)))
          result)
     (cl-flet*
         ((parse-time (string)
@@ -1904,6 +1908,8 @@ denoting the type of the activity. ARGS is an optional list."
              (encode-time)
              (float-time)
              (floor)))
+         (has-time (ts)
+           (org-element-property :hour-start ts))
          (scan ()
            (let ((hd-marker (point-marker))
                  (heading (when (looking-at org-complex-heading-regexp)
@@ -1925,7 +1931,32 @@ denoting the type of the activity. ARGS is an optional list."
                          (push (list start end
                                      heading hd-marker
                                      'clock)
-                               result)))))))))
+                               result)))))))
+             (when (and contains-future
+                        (not (org-entry-is-done-p)))
+               (catch 'active-ts
+                 (goto-char hd-marker)
+                 (while (re-search-forward org-ts-regexp bound t)
+                   ;; Skip SCHEDULED or DEADLINE line
+                   (unless (save-match-data
+                             (save-excursion
+                               (goto-char (pos-bol))
+                               (looking-at org-planning-line-re)))
+                     (let ((ts (org-timestamp-from-string (match-string 0))))
+                       (when (has-time ts)
+                         (let ((event (make-org-memento-org-event :marker hd-marker
+                                                                  :active-ts ts)))
+                           (when-let* ((starting-time (org-memento-starting-time event))
+                                       (ending-time (org-memento-ending-time event)))
+                             (when (and (> starting-time now-float)
+                                        (> ending-time now-float))
+                               (push (list starting-time
+                                           ending-time
+                                           heading
+                                           hd-marker
+                                           'active-ts)
+                                     result)
+                               (throw 'active-ts t))))))))))))
          (skip ()
            (let ((bound (org-entry-end-position)))
              (unless (save-excursion (re-search-forward regexp bound t))
