@@ -256,8 +256,14 @@ Return a copy of the list."
   (org-element-property :MEMENTO_CATEGORY (org-memento-headline-element x)))
 
 (cl-defmethod org-memento-started-time ((x org-memento-block))
-  (when-let (str (org-element-property :MEMENTO_CHECKIN_TIME (org-memento-headline-element x)))
-    (float-time (org-timestamp-to-time (org-timestamp-from-string str)))))
+  (if-let (element (org-memento-headline-element x))
+      (when-let (str (org-element-property :MEMENTO_CHECKIN_TIME element))
+        (float-time (org-timestamp-to-time (org-timestamp-from-string str))))
+    (when-let* ((marker (org-memento-block-hd-marker x))
+                (str (save-current-buffer
+                       (org-with-point-at marker
+                         (org-entry-get nil "memento_checkin_time")))))
+      (float-time (org-timestamp-to-time (org-timestamp-from-string str))))))
 
 (cl-defmethod org-memento-starting-time ((x org-memento-block))
   (when-let (ts (org-memento-active-ts x))
@@ -298,14 +304,14 @@ Return a copy of the list."
   (if (org-memento-org-event-got-ending-time x)
       (org-memento-org-event-ending-time x)
     (let* ((ts (org-memento-active-ts x))
-           (starting-time (float-time (org-timestamp-to-time ts)))
-           (end-ts (org-timestamp-split-range ts 'end)))
+           (end-time (org-timestamp-to-time ts 'end)))
       (prog1 (setf (org-memento-org-event-ending-time x)
-                   (if (not (eq (org-element-property :hour-start ts)
-                                (org-element-property :hour-start end-ts)))
-                       (float-time (org-timestamp-to-time end-ts))
+                   (if (not (time-equal-p (org-timestamp-to-time ts)
+                                          end-time))
+                       (float-time end-time)
                      (when-let (duration (org-memento-duration x))
-                       (+ starting-time (* 60 duration)))))
+                       (+ (float-time (org-timestamp-to-time ts))
+                          (* 60 duration)))))
         (setf (org-memento-org-event-got-ending-time x) t)))))
 
 (cl-defmethod org-memento-ended-time ((x org-memento-org-event))
@@ -1727,6 +1733,9 @@ and END are float times."
                                 (>= (car record) ,start)
                                 (< (cadr record) ,end)))
              :then #'identity))))
+       (prepend-unless-empty (list1 list2)
+         (when list2
+           (append list1 list2)))
        (make-date-taxy (date-record)
          (pcase date-record
            (`((,start ,end ,_date) . ,blocks)
@@ -1751,12 +1760,18 @@ and END are float times."
                              (and (>= (car record) ,computed-start)
                                   (< (cadr record) ,computed-end)))
                :then #'identity
-               :taxys (or (thread-last
-                            blocks
-                            (fill-voids start end #'identity #'make-block)
-                            (mapcar #'make-block-taxy))
-                          (when end
-                            (let ((now (float-time (org-memento--current-time))))
+               :taxys (let ((now (float-time (org-memento--current-time))))
+                        (or (thread-last
+                              blocks
+                              (prepend-unless-empty
+                               (when (and (not org-memento-current-block)
+                                          (not org-clock-marker)
+                                          (> now start)
+                                          (< now end))
+                                 (list (list now now nil nil 'now))))
+                              (fill-voids start end #'identity #'make-block)
+                              (mapcar #'make-block-taxy))
+                            (when end
                               (if (< end now)
                                   (list (make-block-taxy (list start end nil)))
                                 (list (make-block-taxy (list start now nil))
@@ -1828,34 +1843,44 @@ and END are float times."
                                          :initial-value nil
                                          :from-end t))
          taxy))
-    (let ((start-time (or (org-memento-maybe-with-date-entry start-day
-                            (when-let (string (org-entry-get nil "memento_checkin_time"))
-                              (thread-last
-                                (org-timestamp-from-string string)
-                                (org-timestamp-to-time))))
-                          (thread-first
-                            (parse-time-string start-day)
-                            (org-memento--set-time-of-day (or org-extend-today-until) 0 0)
-                            (encode-time))))
-          (end-time (or (org-memento-maybe-with-date-entry end-day
-                          (when-let (string (org-entry-get nil "CLOSED"))
-                            (thread-last
-                              (org-timestamp-from-string string)
-                              (org-timestamp-to-time))))
-                        (thread-first
-                          (parse-time-string end-day)
-                          (org-memento--set-time-of-day (or org-extend-today-until) 0 0)
-                          (decoded-time-add (make-decoded-time :hour 23 :minute 59))
-                          (encode-time)))))
+    (let* ((now (float-time (org-memento--current-time)))
+           (start-time (or (org-memento-maybe-with-date-entry start-day
+                             (when-let (string (org-entry-get nil "memento_checkin_time"))
+                               (thread-last
+                                 (org-timestamp-from-string string)
+                                 (org-timestamp-to-time))))
+                           (thread-first
+                             (parse-time-string start-day)
+                             (org-memento--set-time-of-day (or org-extend-today-until) 0 0)
+                             (encode-time))))
+           (end-time (or (org-memento-maybe-with-date-entry end-day
+                           (let ((block (save-excursion
+                                          (org-memento-block-entry))))
+                             (if-let (ended (org-memento-ended-time block))
+                                 (time-convert ended 'list)
+                               (let ((ending (org-memento-ending-time block)))
+                                 (when (and ending (> ending now))
+                                   (time-convert ending 'list))))))
+                         (thread-first
+                           (parse-time-string end-day)
+                           (org-memento--set-time-of-day
+                            (or org-extend-today-until) 0 0)
+                           (decoded-time-add (make-decoded-time :hour 23 :minute 59))
+                           (encode-time)))))
       (thread-last
         (make-taxy
          :name (list start-time end-time)
          :taxys (thread-last
-                  (org-memento-past-blocks start-day end-day)
+                  (org-memento--block-activities start-day end-day)
                   (fill-voids (float-time start-time) (float-time end-time) #'car #'make-gap-date)
                   (mapcar #'make-date-taxy)))
         (taxy-emptied)
-        (taxy-fill (org-memento-activities
+        (taxy-fill (when (and (not org-memento-current-block)
+                              (not org-clock-marker)
+                              (> now (float-time start-time))
+                              (< now (float-time end-time)))
+                     (list (list now now nil nil 'now))))
+        (taxy-fill (org-memento--agenda-activities
                     start-time
                     end-time
                     (cl-remove (expand-file-name org-memento-file)
@@ -1865,7 +1890,7 @@ and END are float times."
         (postprocess-root-taxy)
         (fill-date-gaps)))))
 
-(cl-defun org-memento-activities (start-bound end-bound &optional files)
+(cl-defun org-memento--agenda-activities (start-bound end-bound &optional files)
   "Gather activities during a certain date period from files.
 
 Both START-BOUND and END-BOUND should be Emacs internal time
@@ -1880,11 +1905,15 @@ floats, TITLE is the heading of the Org entry the activity
 occured at, MARKER is a marker to the headline, TYPE is a symbol
 denoting the type of the activity. ARGS is an optional list."
   (let* ((files (or files (org-agenda-files)))
+         (now (org-memento--current-time))
+         (contains-future (time-less-p now end-bound))
          (regexp (org-memento--make-ts-regexp
                   start-bound end-bound
-                  :active t :inactive t))
+                  :active contains-future :inactive t))
          (start-bound-float (float-time start-bound))
          (end-bound-float (float-time end-bound))
+         (now-float (when contains-future
+                      (float-time now)))
          result)
     (cl-flet*
         ((parse-time (string)
@@ -1893,6 +1922,8 @@ denoting the type of the activity. ARGS is an optional list."
              (encode-time)
              (float-time)
              (floor)))
+         (has-time (ts)
+           (org-element-property :hour-start ts))
          (scan ()
            (let ((hd-marker (point-marker))
                  (heading (when (looking-at org-complex-heading-regexp)
@@ -1903,18 +1934,48 @@ denoting the type of the activity. ARGS is an optional list."
                (let ((drawer-end (match-end 0)))
                  (while (re-search-forward (rx bol (* space) "CLOCK:" (* blank))
                                            drawer-end t)
-                   (when (looking-at (concat org-ts-regexp-inactive
-                                             "--"
-                                             org-ts-regexp-inactive))
+                   (when (looking-at (rx (regexp org-ts-regexp-inactive)
+                                         (?  "--" (regexp org-ts-regexp-inactive))))
                      (let ((start (parse-time (match-string 1)))
-                           (end (parse-time (match-string 2))))
-                       (when (and start end
+                           (end (when-let (str (match-string 2))
+                                  (parse-time str))))
+                       (when (and start
                                   (> start start-bound-float)
-                                  (< end end-bound-float))
-                         (push (list start end
+                                  (if end
+                                      (< end end-bound-float)
+                                    t))
+                         (push (list start
+                                     (or end (float-time (org-memento--current-time)))
                                      heading hd-marker
-                                     'clock)
-                               result)))))))))
+                                     (if end
+                                         'clock
+                                       'clock-unfinished))
+                               result)))))))
+             (when (and contains-future
+                        (not (org-entry-is-done-p)))
+               (catch 'active-ts
+                 (goto-char hd-marker)
+                 (while (re-search-forward org-ts-regexp bound t)
+                   ;; Skip SCHEDULED or DEADLINE line
+                   (unless (save-match-data
+                             (save-excursion
+                               (goto-char (pos-bol))
+                               (looking-at org-planning-line-re)))
+                     (let ((ts (org-timestamp-from-string (match-string 0))))
+                       (when (has-time ts)
+                         (let ((event (make-org-memento-org-event :marker hd-marker
+                                                                  :active-ts ts)))
+                           (when-let* ((starting-time (org-memento-starting-time event))
+                                       (ending-time (org-memento-ending-time event)))
+                             (when (and (> starting-time now-float)
+                                        (> ending-time now-float))
+                               (push (list starting-time
+                                           ending-time
+                                           heading
+                                           hd-marker
+                                           'active-ts)
+                                     result)
+                               (throw 'active-ts t))))))))))))
          (skip ()
            (let ((bound (org-entry-end-position)))
              (unless (save-excursion (re-search-forward regexp bound t))
@@ -1922,7 +1983,7 @@ denoting the type of the activity. ARGS is an optional list."
       (org-map-entries #'scan nil files #'skip))
     (nreverse result)))
 
-(defun org-memento-past-blocks (start-date-string &optional end-date-string)
+(defun org-memento--block-activities (start-date-string &optional end-date-string)
   (cl-flet*
       ((parse-date (string)
          (encode-time (org-memento--set-time-of-day
@@ -1939,15 +2000,28 @@ denoting the type of the activity. ARGS is an optional list."
            (encode-time)
            (float-time)
            (floor)))
-       (parse-entry ()
-         (let* ((entry-end (org-entry-end-position))
-                (end (when (re-search-forward org-closed-time-regexp entry-end t)
-                       (parse-time (match-string 1))))
-                (start (when-let (string (org-entry-get nil "memento_checkin_time"))
-                         (when (string-match org-ts-regexp-inactive string)
-                           (parse-time (match-string 1 string))))))
-           (when start
-             (list start end))))
+       (only-future (float)
+         (when (and float
+                    (> float (float-time (org-memento--current-time))))
+           float))
+       (parse-entry (include-future)
+         (if include-future
+             (let* ((block (org-memento-block-entry))
+                    (start (or (org-memento-started-time block)
+                               (only-future (org-memento-starting-time block))))
+                    (end (or (org-memento-ended-time block)
+                             (only-future (org-memento-ending-time block)))))
+               (when start
+                 (list start end)))
+           ;; Faster version for past activities.
+           (let* ((entry-end (org-entry-end-position))
+                  (end (when (re-search-forward org-closed-time-regexp entry-end t)
+                         (parse-time (match-string 1))))
+                  (start (when-let (string (org-entry-get nil "memento_checkin_time"))
+                           (when (string-match org-ts-regexp-inactive string)
+                             (parse-time (match-string 1 string))))))
+             (when start
+               (list start end)))))
        (parse-idle-clocks ()
          (when (re-search-forward org-logbook-drawer-re (org-entry-end-position)
                                   t)
@@ -1986,29 +2060,31 @@ denoting the type of the activity. ARGS is an optional list."
                                                end-date-string))
                              (string-lessp start-date-string
                                            date-string)))
-                (pcase (parse-entry)
-                  (`(,start ,end)
-                   (let ((day (list start end date-string))
-                         (subtree-end (save-excursion (org-end-of-subtree)))
-                         blocks)
-                     (while (re-search-forward (rx bol "**" blank) subtree-end t)
-                       (beginning-of-line)
-                       (or (looking-at org-complex-heading-regexp)
-                           (error "Did not match the heading regexp"))
-                       (let ((heading (match-string-no-properties 4))
-                             (hd-marker (point-marker)))
-                         (if (equal heading org-memento-idle-heading)
-                             (setq blocks (append blocks (parse-idle-clocks)))
-                           (pcase (parse-entry)
-                             (`(,start ,end)
-                              (push (list start
-                                          end
-                                          heading
-                                          hd-marker
-                                          'block)
-                                    blocks)))))
-                       (end-of-line 1))
-                     (push (cons day blocks) dates)))))))
+                (let ((include-future (not (string-lessp date-string
+                                                         (org-memento--today-string
+                                                          (decode-time
+                                                           (org-memento--current-time)))))))
+                  (pcase (parse-entry include-future)
+                    (`(,start ,end)
+                     (let ((day (list start end date-string))
+                           (subtree-end (save-excursion (org-end-of-subtree)))
+                           blocks)
+                       (while (re-search-forward org-complex-heading-regexp subtree-end t)
+                         (beginning-of-line)
+                         (let ((heading (match-string-no-properties 4))
+                               (hd-marker (point-marker)))
+                           (if (equal heading org-memento-idle-heading)
+                               (setq blocks (append blocks (parse-idle-clocks)))
+                             (pcase (parse-entry include-future)
+                               (`(,start ,end)
+                                (push (list start
+                                            end
+                                            heading
+                                            hd-marker
+                                            'block)
+                                      blocks)))))
+                         (end-of-line 1))
+                       (push (cons day blocks) dates))))))))
           dates)))))
 
 ;;;; Utility functions for time representations and Org timestamps
@@ -2131,6 +2207,17 @@ Both TIME1 and TIME2 must be an internal time representation or
 nil. If one of them is nil, the other one is returned."
   (if (and time1 time2)
       (if (time-less-p time1 time2)
+          time1
+        time2)
+    (or time1 time2)))
+
+(defun org-memento--time-max (time1 time2)
+  "Return an later time of the two.
+
+Both TIME1 and TIME2 must be an internal time representation or
+nil. If one of them is nil, the other one is returned."
+  (if (and time1 time2)
+      (if (time-less-p time2 time1)
           time1
         time2)
     (or time1 time2)))
