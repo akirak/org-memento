@@ -1778,6 +1778,9 @@ and END are float times."
                                       (make-block-taxy (list now end nil))))))))))))
        (make-gap-block (start end)
          (list start end nil))
+       (make-gap-block-taxy (start end)
+         (make-taxy
+          :name (make-gap-block start end)))
        (make-block-taxy-for-item (item-record)
          (if (caddr item-record)
              (make-taxy
@@ -1818,7 +1821,13 @@ and END are float times."
          (aset taxy (cl-struct-slot-offset 'taxy 'taxys) new-value))
        (postprocess-root-taxy (taxy)
          (dolist (date-taxy (taxy-taxys taxy))
-           (set-taxy-taxys date-taxy (postprocess-block-taxys (taxy-taxys date-taxy))))
+           (set-taxy-taxys date-taxy
+                           (thread-last
+                             (taxy-taxys date-taxy)
+                             (postprocess-block-taxys)
+                             (fill-voids (car (taxy-name date-taxy))
+                                         (cadr (taxy-name date-taxy))
+                                         #'taxy-name #'make-gap-block-taxy))))
          taxy)
        ;; Use `make-block-taxy' here.
        (make-empty-date-taxy (start end)
