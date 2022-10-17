@@ -1489,7 +1489,8 @@ denoting the type of the activity. ARGS is an optional list."
                            blocks)
                        (while (re-search-forward org-complex-heading-regexp subtree-end t)
                          (beginning-of-line)
-                         (let ((heading (match-string-no-properties 4))
+                         (let ((level (length (match-string 1)))
+                               (heading (match-string-no-properties 4))
                                (hd-marker (point-marker)))
                            (if (equal heading org-memento-idle-heading)
                                (setq blocks (append blocks (parse-idle-clocks)))
@@ -1499,7 +1500,9 @@ denoting the type of the activity. ARGS is an optional list."
                                             end
                                             heading
                                             hd-marker
-                                            'block)
+                                            (if (= level 2)
+                                                'block
+                                              'away))
                                       blocks)))))
                          (end-of-line 1))
                        (push (cons day blocks) dates))))))))

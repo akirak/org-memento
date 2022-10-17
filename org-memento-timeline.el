@@ -222,6 +222,8 @@ timeline as an argument."
                      (make-string 7 ?\s))
                    (if-let (title (title taxy))
                        (propertize title
+                                   ;; TODO: Apply a different face if the block
+                                   ;; type is away
                                    'face (if (eq (cadddr (cdr (get-record taxy))) 'idle)
                                              'font-lock-comment-face
                                            'magit-section-heading))
