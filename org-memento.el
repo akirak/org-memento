@@ -41,7 +41,12 @@
 (declare-function taxy-emptied "ext:taxy")
 (declare-function taxy-fill "ext:taxy")
 (declare-function taxy-sort-items "ext:taxy")
+(declare-function taxy-taxys "ext:taxy")
+(declare-function taxy-items "ext:taxy")
+(declare-function taxy-name "ext:taxy")
 (declare-function make-taxy "ext:taxy")
+(declare-function org-capture "org-capture")
+(declare-function org-clocking-p "org-clock")
 (defvar org-capture-entry)
 
 (defgroup org-memento nil
