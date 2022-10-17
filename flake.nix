@@ -31,11 +31,11 @@
     };
   };
 
-  outputs =
-    { self
-    , nomake
-    , ...
-    } @ inputs:
+  outputs = {
+    self,
+    nomake,
+    ...
+  } @ inputs:
     nomake.lib.mkFlake {
       src = ./.;
       localPackages = [
