@@ -1628,13 +1628,19 @@ nil. If one of them is nil, the other one is returned."
         (push (parse-time-string (match-string 1)) result)))
     (nreverse result)))
 
-(defun org-memento--read-time-span ()
+(defun org-memento--read-time-span (&optional default)
   "Prompt for a time span.
+
+DEFAULT is an optional timestamp string which contains the
+default range.
 
 This function returns (START END) where START and END are time
 representations. END can be nil if the user doesn't enter a time
 range."
   (let* ((ts (with-temp-buffer
+               (when default
+                 (insert default)
+                 (goto-char (point-min)))
                (org-time-stamp nil)
                (goto-char (point-min))
                (org-element-timestamp-parser)))
