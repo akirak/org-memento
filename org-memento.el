@@ -897,7 +897,7 @@ The point must be at the heading."
 
 (defun org-memento--all-categories ()
   (with-current-buffer (org-memento--buffer)
-    (org-property-get-allowed-values nil "memento_category")))
+    (delq nil (org-property-values "memento_category"))))
 
 (cl-defun org-memento-read-title (&optional prompt &key category default)
   (completing-read (or prompt "Title: ")
