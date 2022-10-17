@@ -606,7 +606,10 @@ This function is primarily intended for use in
   "Move the point to the today's entry or insert the entry.
 
 The function returns non-nil if the heading is existing. It
-returns nil if it creates a new heading."
+returns nil if it creates a new heading.
+
+After the function is called, the point should be at the
+beginning of the entry."
   (let ((today (org-memento--today-string (decode-time (org-memento--current-time)))))
     (or (re-search-backward (format org-complex-heading-regexp-format
                                     (regexp-quote today))
@@ -617,6 +620,7 @@ returns nil if it creates a new heading."
             (let ((heading (match-string 4)))
               (cond
                ((equal today heading)
+                (beginning-of-line 1)
                 (throw 'found-today t))
                ;; Past date
                ((time-less-p (encode-time
@@ -625,11 +629,11 @@ returns nil if it creates a new heading."
                              (org-memento--current-time))
                 (beginning-of-line)
                 (insert "* " today "\n")
-                (end-of-line 0)
+                (beginning-of-line 0)
                 (throw 'found-today nil)))))
           (insert (if (bolp) "" "\n")
                   "* " today "\n")
-          (end-of-line 0)
+          (beginning-of-line 0)
           ;; Explicitly return nil
           nil))))
 
