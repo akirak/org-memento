@@ -1960,13 +1960,14 @@ denoting the type of the activity. ARGS is an optional list."
 
 (defun org-memento--parse-time-range (string)
   "Return a cons cell of minutes from a string time spec."
-  (when (string-match (rx bol (group (+ digit) ":" (+ digit))
-                          (?  "-" (group (group (+ digit) ":" (+ digit))))
-                          eol)
-                      string)
-    (cons (save-match-data (floor (org-duration-to-minutes (match-string 1 string))))
-          (when (> (length (match-data)) 4)
-            (floor (org-duration-to-minutes (match-string 2 string)))))))
+  (save-match-data
+    (when (string-match (rx bol (group (+ digit) ":" (+ digit))
+                            (?  "-" (group (group (+ digit) ":" (+ digit))))
+                            eol)
+                        string)
+      (cons (save-match-data (floor (org-duration-to-minutes (match-string 1 string))))
+            (when (> (length (match-data)) 4)
+              (floor (org-duration-to-minutes (match-string 2 string))))))))
 
 (defun org-memento--today-string (decoded-time)
   (format-time-string "%F"
