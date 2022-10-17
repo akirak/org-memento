@@ -1489,7 +1489,7 @@ denoting the type of the activity. ARGS is an optional list."
                                                            (org-memento--current-time)))))))
                   (pcase (parse-entry include-future)
                     (`(,start ,end)
-                     (let ((day (list start end date-string marker))
+                     (let ((day (list start end date-string marker 'date))
                            (subtree-end (save-excursion (org-end-of-subtree)))
                            blocks)
                        (while (re-search-forward org-complex-heading-regexp subtree-end t)
