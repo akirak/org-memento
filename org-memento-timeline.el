@@ -231,7 +231,14 @@ timeline as an argument."
                          (let ((marker (cadddr (car (taxy-items taxy)))))
                            (propertize (file-name-base (buffer-name (marker-buffer marker)))
                                        'face 'font-lock-comment-face))
-                       (propertize "Gap" 'face 'font-lock-comment-face)))
+                       (propertize (cond
+                                    ((< (float-time) start)
+                                     "Empty slot")
+                                    ((< end (float-time))
+                                     "Gap")
+                                    (t
+                                     "Remaining"))
+                                   'face 'font-lock-comment-face)))
                    (if (and start end)
                        (format " (%s)"
                                (org-duration-from-minutes
@@ -300,6 +307,7 @@ timeline as an argument."
 
 (defvar org-memento-timeline-mode-map
   (let ((map (make-sparse-keymap)))
+    (define-key map "e" #'org-memento-timeline-edit-dwim)
     (define-key map "o" #'org-memento-timeline-open-entry)
     (define-key map (kbd "SPC") #'org-memento-timeline-show-entry)
     map))
@@ -342,6 +350,86 @@ timeline as an argument."
     (org-narrow-to-subtree)
     (org-show-context 'agenda)
     (funcall fn (current-buffer))))
+
+(defun org-memento-timeline-edit-dwim (&optional arg)
+  "Adjust the time slice(s) at point.
+
+If ARG is non-nil, create an away event."
+  (interactive "P")
+  (cl-labels
+      ((of-type-p (type record)
+         (eq type (nth 4 record)))
+       (block-p (record)
+         (of-type-p 'block record))
+       (time-range (records)
+         (list (apply #'min (delq nil (mapcar #'car records)))
+               (apply #'max (delq nil (mapcar #'cadr records)))))
+       (format-inactive (time)
+         (format-time-string (org-time-stamp-format t t) time))
+       (set-new-past-range (record start end)
+         (save-current-buffer
+           (org-with-point-at (nth 3 record)
+             (let (updated)
+               (when start
+                 (org-entry-put nil "memento_checkin_time" (format-inactive start))
+                 (setq updated t))
+               (when end
+                 ;; Throw an error if there is no closed time string
+                 (re-search-forward org-closed-time-regexp (org-entry-end-position))
+                 (replace-match (format-inactive end) nil nil nil 1)
+                 (setq updated (or updated t)))
+               updated))))
+       (add-event (start end &optional moderate-time away)
+         (pcase-exhaustive (if moderate-time
+                               (org-memento--read-time-span
+                                (org-memento--format-active-range start end))
+                             (list start end))
+           (`(,start ,end)
+            (org-memento-add-event :start start :end end
+                                   :interactive t :away away)))))
+    (let ((now (float-time)))
+      (when (catch 'updated
+              ;; Has multiple selections
+              (if-let (values (magit-region-values))
+                  (pcase-let ((`(,start ,end) (time-range values)))
+                    (pcase (seq-count #'block-p values)
+                      (1
+                       (if (< end now)
+                           (let ((the-block (seq-find #'block-p values)))
+                             (when (yes-or-no-p (format "Expand the time range of\
+ the block \"%s\"?"
+                                                        (nth 2 the-block)))
+                               (throw 'updated (set-new-past-range the-block start end))))
+                         (error "Merging is not supported for future slices")))
+                      (0
+                       (if (and (< start now)
+                                (< end now))
+                           (add-event start end t)
+                         (error "Creating an event is supported for future slices")))
+                      (_
+                       (error "There are multiple time blocks"))))
+                ;; No selection
+                (pcase (oref (magit-current-section) value)
+                  (`nil
+                   (user-error "No section at point"))
+                  (`(,start ,end ,_title ,_marker ,type . ,_)
+                   (cl-case type
+                     ((block away)
+                      (user-error "No action is defined on type %s" type))
+                     (gap
+                      (add-event start end t arg))
+                     (idle
+                      (add-event start end t t))
+                     (otherwise
+                      (error "Unexpected event type %s" type))))
+                  (`(,start ,end . ,_)
+                   (if (> end now)
+                       (add-event (max start (float-time))
+                                  end t arg)
+                     (add-event start end t arg)))
+                  (_
+                   (user-error "Don't know what to do for the section")))))
+        (org-memento-timeline-revert)))))
 
 ;;;; Extra hooks
 
