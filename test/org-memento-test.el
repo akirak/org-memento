@@ -90,20 +90,6 @@
              (encode-time (parse-time-string "2020-01-01 12:00:00"))
              (encode-time (parse-time-string "2020-01-03 12:00:00"))))))
 
-(describe "org-memento--make-past-date-regexp"
-  (it "matches a past date"
-    (expect "2019-12-31"
-            :to-match
-            (org-memento--make-past-date-regexp (parse-time-string "2020-01-01"))))
-  (it "does not match the current date"
-    (expect "2020-01-01"
-            :to-match
-            (org-memento--make-past-date-regexp (parse-time-string "2020-01-01"))))
-  (it "does not match a future date"
-    (expect "2020-01-02"
-            :to-match
-            (org-memento--make-past-date-regexp (parse-time-string "2020-01-01")))))
-
 (describe "org-memento--seconds-since-midnight"
   (it "returns the number of seconds"
     (expect (org-memento--seconds-since-midnight
