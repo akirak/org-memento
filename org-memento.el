@@ -776,13 +776,14 @@ The point must be at the heading."
    (org-map-entries #'org-memento-block-entry
                     nil nil
                     (lambda ()
-                      (when (and (looking-at org-complex-heading-regexp)
-                                 (or (< 2 (length (match-string 1)))
-                                     (let ((headline (match-string 4)))
-                                       (or (equal org-memento-idle-heading headline)
-                                           (string-prefix-p "COMMENT" headline)))))
-                        (re-search-forward (rx bol "*" (? "*") blank)
-                                           nil t))))))
+                      (and (looking-at org-complex-heading-regexp)
+                           (not (= 1 (length (match-string 1))))
+                           (or (> (length (match-string 1))
+                                  2)
+                               (let ((headline (match-string 4)))
+                                 (or (equal org-memento-idle-heading headline)
+                                     (string-prefix-p "COMMENT" headline))))
+                           (org-end-of-subtree))))))
 
 (defun org-memento-block-entry ()
   "Return information on the block at point."
