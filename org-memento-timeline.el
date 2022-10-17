@@ -375,7 +375,9 @@ If ARG is non-nil, create an away event."
                  (setq updated t))
                (when end
                  ;; Throw an error if there is no closed time string
-                 (re-search-forward org-closed-time-regexp (org-entry-end-position))
+                 (re-search-forward (rx word-start (literal org-closed-string)
+                                        (* " ") (group (+ nonl)))
+                                    (org-entry-end-position))
                  (replace-match (format-inactive end) nil nil nil 1)
                  (setq updated (or updated t)))
                updated))))
