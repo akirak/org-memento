@@ -1112,6 +1112,8 @@ marker to the time stamp, and the margin in seconds."
          (or (> (car a) (car b))
              (and (= (car a) (car b))
                   (> (cadr a) (cadr b)))))
+       (thresp (seconds)
+         (> seconds 60.0))
        (fill-voids (start-bound end-bound key make-record records)
          (if records
              (let* (result
@@ -1124,13 +1126,15 @@ marker to the time stamp, and the margin in seconds."
                         (end (cadr (funcall key item))))
                    (when (and end
                               (< end next-start)
-                              (> (- next-start end) 60.0))
+                              (thresp (- next-start end)))
                      (let ((new-item (funcall make-record end next-start)))
                        (unless (member new-item sorted-records)
                          (push new-item result))))
                    (setq next-start start)
                    (push item result)))
-               (when (and start-bound (< start-bound next-start))
+               (when (and start-bound
+                          (< start-bound next-start)
+                          (thresp (- next-start start-bound)))
                  (push (funcall make-record start-bound next-start)
                        result))
                result)
