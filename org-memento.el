@@ -1783,6 +1783,33 @@ range."
 
 ;;;;; org-ql
 
+;;;###autoload
+(defun org-memento-make-agenda-block ()
+  "Return an `org-agenda' block for time blocks on today.
+
+Note that this functionality uses `org-ql-block', so you have to
+install org-ql package to use it.
+
+A recommended way to use this function is to define an
+interactive command that wraps `org-agenda' function. Otherwise,
+you would have to update the value of
+`org-agenda-custom-commands' every day before you get to work."
+  (require 'org-ql-search)
+  `(org-ql-block '(and (level 2)
+                       (parent (heading ,(org-memento--today-string
+                                          (decode-time))))
+                       (not (heading-regexp
+                             ,(rx-to-string `(or (and bol "COMMENT")
+                                                 ,org-memento-idle-heading)))))
+                 ((org-ql-block-header "Time blocks")
+                  (org-agenda-files '(,org-memento-file))
+                  (org-super-agenda-properties-inherit nil)
+                  (org-super-agenda-groups
+                   '((:name "Closed" :todo "DONE")
+                     (:name "Working on" :property "memento_checkin_time")
+                     (:auto-map org-memento--super-agenda-ts-map)
+                     (:name "Unscheduled" :anything t))))))
+
 (defun org-memento--super-agenda-ts-map (item)
   (when-let* ((marker (or (get-text-property 0 'org-marker item)
                           (get-text-property 0 'org-hd-marker item)))
