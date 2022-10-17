@@ -1308,7 +1308,9 @@ the daily entry."
       (seq-filter `(lambda (template)
                      (equal (org-memento-template-category template)
                             ,category)))
-      (mapcar #'org-memento-template-title))
+      (mapcar #'org-memento-template-title)
+      (append result)
+      (setq result))
     (cl-remove-duplicates result :test #'equal)))
 
 (cl-defun org-memento-read-block-or-template (prompt &key start end)
