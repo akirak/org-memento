@@ -1714,7 +1714,9 @@ and END are float times."
                (dolist (item sorted-records)
                  (let* ((start (car (funcall key item)))
                         (end (cadr (funcall key item))))
-                   (when (and end (< end next-start))
+                   (when (and end
+                              (< end next-start)
+                              (> (- next-start end) 60.0))
                      (let ((new-item (funcall make-record end next-start)))
                        (unless (member new-item sorted-records)
                          (push new-item result))))
