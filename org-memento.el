@@ -1964,7 +1964,7 @@ denoting the type of the activity. ARGS is an optional list."
                           (?  "-" (group (group (+ digit) ":" (+ digit))))
                           eol)
                       string)
-    (cons (floor (org-duration-to-minutes (match-string 1 string)))
+    (cons (save-match-data (floor (org-duration-to-minutes (match-string 1 string))))
           (when (> (length (match-data)) 4)
             (floor (org-duration-to-minutes (match-string 2 string)))))))
 
