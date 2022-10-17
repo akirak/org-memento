@@ -1705,6 +1705,10 @@ range."
                      (org-memento--goto-date ,date)
                      (when ,away
                        (org-memento--find-or-create-idle-heading))))
+         (title (or title (org-memento-read-title)))
+         (category (unless away
+                     (or category
+                         (org-memento-read-category nil))))
          (template (if away
                        (org-memento--away-event-template
                         :start start :end end :title title
