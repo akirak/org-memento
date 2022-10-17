@@ -1669,6 +1669,95 @@ range."
             (floor (/ minutes 60))
             (mod minutes 60))))
 
+;;;; Capture
+
+;;;###autoload
+(cl-defun org-memento-add-event (&key title category start end
+                                      interactive away)
+  "Insert an block/event entry into the journal"
+  (interactive (let* ((span (org-memento--read-time-span))
+                      (title (org-memento-read-title))
+                      (away (equal current-prefix-arg '(4)))
+                      (category (unless away (org-memento-read-category nil))))
+                 (list :start (car span)
+                       :end (cadr span)
+                       :title title
+                       :category category
+                       :interactive t
+                       :away away)))
+  (let* ((date (format-time-string "%F" (thread-last
+                                          (decode-time start)
+                                          (org-memento--maybe-decrement-date)
+                                          (encode-time))))
+         (jump-fn `(lambda ()
+                     (org-memento--goto-date ,date)
+                     (when ,away
+                       (org-memento--find-or-create-idle-heading))))
+         (template (if away
+                       (org-memento--away-event-template
+                        :start start :end end :title title
+                        :interactive interactive)
+                     (org-memento--event-template
+                      :start start :end end :title title :category category
+                      :interactive interactive)))
+         (plist (unless interactive
+                  '(:immediate-finish t)))
+         (org-capture-entry `("" ""
+                              entry (file+function ,org-memento-file ,jump-fn)
+                              ,template ,@plist)))
+    (org-capture)))
+
+(cl-defun org-memento--event-template (&key title category start end interactive)
+  (let* ((started-past (time-less-p start (org-memento--current-time)))
+         (ended-past (and end (time-less-p end (org-memento--current-time))))
+         (properties (thread-last
+                       `(("memento_category"
+                          . ,(unless (and category (string-empty-p category))
+                               category))
+                         ("memento_checkin_time"
+                          . ,(when started-past
+                               (format-time-string (org-time-stamp-format t t) start))))
+                       (seq-filter #'cdr))))
+    (concat "* " (if ended-past "DONE " "")
+            (or title (user-error "Title is missing"))
+            "\n"
+            (if ended-past
+                (concat "CLOSED: "
+                        (format-time-string (org-time-stamp-format t t) end)
+                        "\n")
+              "")
+            (if properties
+                (concat ":PROPERTIES:\n"
+                        (mapconcat (lambda (cell)
+                                     (format ":%s: %s" (car cell) (cdr cell)))
+                                   properties
+                                   "\n")
+                        "\n:END:\n"))
+            (if (and start (not (and started-past ended-past)))
+                (concat (org-memento--format-active-range start end) "\n")
+              "")
+            (if interactive
+                "%?"
+              ""))))
+
+(cl-defun org-memento--away-event-template (&key title start end interactive)
+  (let ((past (time-less-p start (org-memento--current-time))))
+    (concat "* " (or title (user-error "Title is missing")) "\n"
+            (if past
+                (format ":LOGBOOK:\nCLOCK: %s--%s =>  %s\n:END:\n"
+                        (format-time-string (org-time-stamp-format t t) start)
+                        (format-time-string (org-time-stamp-format t t) end)
+                        (org-duration-from-minutes (/ (- (time-float end)
+                                                         (time-float start))
+                                                      60)))
+              "")
+            (if past
+                ""
+              (concat (org-memento--format-active-range start end) "\n"))
+            (if interactive
+                "%?"
+              ""))))
+
 ;;;; Integrations with third-party packages
 
 ;;;;; org-ql
