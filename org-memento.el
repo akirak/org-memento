@@ -1427,7 +1427,10 @@ denoting the type of the activity. ARGS is an optional list."
                     (start (or (org-memento-started-time block)
                                (only-future (org-memento-starting-time block))))
                     (end (or (org-memento-ended-time block)
-                             (only-future (org-memento-ending-time block)))))
+                             (only-future (org-memento-ending-time block))
+                             (when (equal (org-memento-title block)
+                                          org-memento-current-block)
+                               (float-time (org-memento--current-time))))))
                (when start
                  (list start end)))
            ;; Faster version for past activities.
