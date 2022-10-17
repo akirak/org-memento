@@ -635,7 +635,7 @@ beginning of the entry."
               (beginning-of-line 1)
               (throw 'found-heading t))
              ;; Past date
-             ((and (match-string-p (rx (repeat 4 digit) "-"
+             ((and (string-match-p (rx (repeat 4 digit) "-"
                                        (repeat 2 digit) "-"
                                        (repeat 2 digit))
                                    heading)
@@ -1759,8 +1759,8 @@ range."
                 (format ":LOGBOOK:\nCLOCK: %s--%s =>  %s\n:END:\n"
                         (format-time-string (org-time-stamp-format t t) start)
                         (format-time-string (org-time-stamp-format t t) end)
-                        (org-duration-from-minutes (/ (- (time-float end)
-                                                         (time-float start))
+                        (org-duration-from-minutes (/ (- (float-time end)
+                                                         (float-time start))
                                                       60)))
               "")
             (if past
