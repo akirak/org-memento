@@ -751,11 +751,12 @@ The point must be at the heading."
                                  (or check-in
                                      (called-interactively-p t))))
   (unless (and org-memento-current-block
-               (when-let (block (seq-find (lambda (block)
-                                            (equal (org-memento-title block)
-                                                   org-memento-current-block))
-                                          (org-memento--blocks)))
-                 (not (org-memento-ended-time block))))
+               (seq-find (lambda (block)
+                           (and (equal (org-memento-title block)
+                                       org-memento-current-block)
+                                (org-memento-started-time block)
+                                (not (org-memento-ended-time block))))
+                         (org-memento--blocks)))
     (setq org-memento-current-block
           (seq-some (lambda (block)
                       (when (and (org-memento-started-time block)
