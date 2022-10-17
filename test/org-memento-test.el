@@ -174,11 +174,12 @@
 
 ;;;; Analytics
 
-(describe "org-memento-activities"
+(describe "org-memento--agenda-activities"
   (it "collects clock data in a range"
-    (let* ((data (org-memento-activities (org-memento-test--internal-time "2020-01-01 5:00:00")
-                                         (org-memento-test--internal-time "2020-01-01 23:59:59")
-                                         '("sample1.org")))
+    (let* ((data (org-memento--agenda-activities
+                  (org-memento-test--internal-time "2020-01-01 5:00:00")
+                  (org-memento-test--internal-time "2020-01-01 23:59:59")
+                  '("sample1.org")))
            (task1-1 (seq-filter (lambda (record)
                                   (equal (caddr record)
                                          "Task 1.1"))
