@@ -1627,13 +1627,20 @@ nil. If one of them is nil, the other one is returned."
     (nreverse result)))
 
 (defun org-memento--read-time-span ()
-  "Prompt a time span and return (START END)."
-  (let ((ts (with-temp-buffer
-              (org-time-stamp nil)
-              (goto-char (point-min))
-              (org-element-timestamp-parser))))
-    (list (org-timestamp-to-time ts)
-          (org-timestamp-to-time ts 'end))))
+  "Prompt for a time span.
+
+This function returns (START END) where START and END are time
+representations. END can be nil if the user doesn't enter a time
+range."
+  (let* ((ts (with-temp-buffer
+               (org-time-stamp nil)
+               (goto-char (point-min))
+               (org-element-timestamp-parser)))
+         (start-time (org-timestamp-to-time ts))
+         (end-time (org-timestamp-to-time ts 'end)))
+    (list start-time
+          (unless (time-equal-p start-time end-time)
+            end-time))))
 
 (defun org-memento--format-active-range (start-time end-time)
   (format (org-format-time-string "<%Y-%m-%d %a %%s%%s>" start-time)
