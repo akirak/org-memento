@@ -551,7 +551,7 @@ implements methods such as `org-memento-started-time'."
 ;;;###autoload
 (defun org-memento-log (start end)
   "Log a past time block to the today's entry."
-  (interactive (org-memento--read-past-blank-hours))
+  (interactive (org-memento--read-time-span))
   (let* ((category (org-memento-read-category))
          (title (org-memento-read-title nil :category category))
          (donep (and end (time-less-p (current-time) end)))
@@ -635,6 +635,7 @@ point to the heading.
       (display-buffer (current-buffer)))))
 
 (defun org-memento-schedule-away-time (start end)
+  (interactive (org-memento--read-time-span))
   (let* ((title (completing-read "Title: " org-memento-schedule-away-alist))
          (org-capture-entry `("" ""
                               entry (function org-memento-goto-idle)
@@ -2254,6 +2255,15 @@ nil. If one of them is nil, the other one is returned."
         (looking-at org-ts-regexp)
         (push (parse-time-string (match-string 1)) result)))
     (nreverse result)))
+
+(defun org-memento--read-time-span ()
+  "Prompt a time span and return (START END)."
+  (let ((ts (with-temp-buffer
+              (org-time-stamp nil)
+              (goto-char (point-min))
+              (org-element-timestamp-parser))))
+    (list (org-timestamp-to-time ts)
+          (org-timestamp-to-time ts 'end))))
 
 (defun org-memento--format-active-range (start-time end-time)
   (format (org-format-time-string "<%Y-%m-%d %a %%s%%s>" start-time)
