@@ -41,7 +41,12 @@
 (declare-function taxy-emptied "ext:taxy")
 (declare-function taxy-fill "ext:taxy")
 (declare-function taxy-sort-items "ext:taxy")
+(declare-function taxy-taxys "ext:taxy")
+(declare-function taxy-items "ext:taxy")
+(declare-function taxy-name "ext:taxy")
 (declare-function make-taxy "ext:taxy")
+(declare-function org-capture "org-capture")
+(declare-function org-clocking-p "org-clock")
 (defvar org-capture-entry)
 
 (defgroup org-memento nil
@@ -77,18 +82,6 @@ than `org-clock-idle-time'."
               (const :tag "Thursday" 4)
               (const :tag "Friday" 5)
               (const :tag "Saturday" 6)))
-
-(defcustom org-memento-template-sources
-  '((file+olp org-memento-file "Notes" "Templates"))
-  "Location where you define your templates for time blocks.
-
-For simplicity, only a single file is allowed. If you want to
-define categories in multiple files, you should implement it by
-temporarily setting this variable."
-  :type '(repeat (list (const file+olp)
-                       (choice (file :tag "File name")
-                               (symbol :tag "Variable to a file name"))
-                       (repeat :tag "Outline path" :inline t string))))
 
 (defcustom org-memento-block-start-hook nil
   "Hook run after starting a block."
@@ -184,9 +177,6 @@ distractions."
   "Prevent from idle logging till next check-in.")
 
 (defvar org-memento-title-string nil)
-
-(defvar org-memento-template-cache nil
-  "Hash table that stores available templates.")
 
 ;;;; Substs
 
@@ -324,71 +314,6 @@ Return a copy of the list."
                                                t)
                         (org-timestamp-from-string (match-string 1)))))))
     (float-time (org-timestamp-to-time ts))))
-
-;;;;; org-memento-template
-
-(cl-defstruct org-memento-template
-  file olp title category tags normal-hour normal-dows duration leaf-p
-  relative-olp)
-
-(cl-defmethod org-memento-title ((x org-memento-template))
-  (org-memento-template-title x))
-
-(cl-defmethod org-memento-duration ((x org-memento-template))
-  (org-memento-template-duration x))
-
-(cl-defstruct org-memento-twc
-  "Template with scheduling context.
-
-The template should be a `org-memento-template'.
-
-The context can be `org-memento-block' or another type that
-implements methods such as `org-memento-started-time'."
-  template context
-  ;; These fields hold computed values.
-  starting-time ending-time)
-
-(cl-defmethod org-memento-title ((x org-memento-twc))
-  (org-memento-title (org-memento-twc-template x)))
-
-(cl-defmethod org-memento-duration ((x org-memento-twc))
-  (org-memento-duration (org-memento-twc-template x)))
-
-(cl-defmethod org-memento-starting-time ((x org-memento-twc))
-  (org-memento-twc-starting-time x))
-
-(cl-defmethod org-memento-ending-time ((x org-memento-twc))
-  (org-memento-twc-ending-time x))
-
-(defun org-memento--init-twc (context template)
-  (let* ((checkin-time (org-memento-started-time context))
-         (decoded-checkin-time (decode-time checkin-time))
-         starting-time
-         ending-time)
-    (pcase (org-memento-template-normal-hour template)
-      (`(relative ,start ,end)
-       (setq starting-time (+ checkin-time (* start 60))
-             ending-time (when end
-                           (+ checkin-time (* end 60)))))
-      (`(absolute ,start ,end)
-       (let ((midnight (thread-first
-                         (org-memento--start-of-day decoded-checkin-time)
-                         (org-memento--set-time-of-day 0 0 0)
-                         (encode-time)
-                         (float-time))))
-         (setq starting-time (+ midnight (* start 60))
-               ending-time (when end
-                             (+ midnight (* end 60)))))))
-    (when (and starting-time
-               (not ending-time)
-               (org-memento-duration template))
-      (setq ending-time (+ starting-time
-                           (* (org-memento-duration template) 60))))
-    (make-org-memento-twc
-     :template template
-     :context context
-     :starting-time starting-time
-     :ending-time ending-time)))
 
 ;;;; Macros
 
@@ -551,7 +476,7 @@ implements methods such as `org-memento-started-time'."
 ;;;###autoload
 (defun org-memento-log (start end)
   "Log a past time block to the today's entry."
-  (interactive (org-memento--read-past-blank-hours))
+  (interactive (org-memento--read-time-span))
   (let* ((category (org-memento-read-category))
          (title (org-memento-read-title nil :category category))
          (donep (and end (time-less-p (current-time) end)))
@@ -613,28 +538,8 @@ point to the heading.
    (setq org-memento-block-idle-logging t)
    (run-hooks 'org-memento-checkout-hook)))
 
-;;;###autoload
-(defun org-memento-display-empty-slots (from-date to-date &optional duration-minutes)
-  "Display a list of empty slots during a period."
-  (interactive (append (org-memento--read-date-range)
-                       (when (equal current-prefix-arg '(4))
-                         (list (org-duration-to-minutes
-                                (read-string "Duration [H:MM]: "))))))
-  (let ((duration-secs (when duration-minutes (* 60 duration-minutes))))
-    (with-current-buffer (get-buffer-create "*Memento Slots*")
-      (let ((inhibit-read-only t))
-        (erase-buffer)
-        (pcase-dolist (`(,start . ,end)
-                       (org-memento--search-empty-slots from-date to-date))
-          (when (or (null duration-secs)
-                    (> (- end start) duration-secs))
-            (insert (org-memento--format-active-range start end)
-                    "\n")))
-        (org-mode))
-      (read-only-mode t)
-      (display-buffer (current-buffer)))))
-
 (defun org-memento-schedule-away-time (start end)
+  (interactive (org-memento--read-time-span))
   (let* ((title (completing-read "Title: " org-memento-schedule-away-alist))
          (org-capture-entry `("" ""
                               entry (function org-memento-goto-idle)
@@ -677,44 +582,6 @@ point to the heading.
   ;; day, so wait for one minute until setting up the next timer.
   (run-with-timer 90 nil #'org-memento-setup-daily-timer))
 
-(defun org-memento-schedule-block (start end)
-  (let ((result (org-memento-read-block-or-template "Schedule a new block: "
-                                                    :start start
-                                                    :end end)))
-    (cl-typecase result
-      (org-memento-block
-       (save-current-buffer
-         (org-with-point-at (org-memento-block-hd-marker result)
-           (org-end-of-meta-data t)
-           (let ((found (looking-at (concat org-ts-regexp (rx (* blank) "\n")))))
-             (when found (replace-match ""))
-             (insert (org-memento--format-active-range start end) "\n")
-             (org-memento--save-buffer)
-             (if found
-                 (message "Replaced the existing timestamp")
-               (message "Inserted a new timestamp"))))))
-      (org-memento-template
-       (let* ((default-title (org-memento-template-title result))
-              (title (org-memento-read-title (format "Title [%s]: " default-title)
-                                             :default default-title)))
-         (when (and title (not (string-empty-p title)))
-           (setf (org-memento-template-title result) title))
-         (org-memento-with-today-entry
-          (org-memento--expand-templates (list (make-org-memento-twc
-                                                :template result
-                                                :context nil
-                                                :starting-time (float-time start)
-                                                :ending-time (float-time end))))
-          (org-memento--save-buffer)
-          (message "Added a new block from the selected template"))))
-      (string
-       (let ((org-capture-entry `("" ""
-                                  entry (function org-memento-goto-today)
-                                  ,(concat "* " result "\n"
-                                           (org-memento--format-active-range start end)
-                                           "\n%?"))))
-         (org-capture))))))
-
 ;;;; Functions for working with the structure
 
 (defun org-memento--buffer ()
@@ -739,32 +606,49 @@ This function is primarily intended for use in
   "Move the point to the today's entry or insert the entry.
 
 The function returns non-nil if the heading is existing. It
-returns nil if it creates a new heading."
+returns nil if it creates a new heading.
+
+After the function is called, the point should be at the
+beginning of the entry."
   (let ((today (org-memento--today-string (decode-time (org-memento--current-time)))))
-    (or (re-search-backward (format org-complex-heading-regexp-format
-                                    (regexp-quote today))
-                            nil t)
-        (catch 'found-today
-          (goto-char (point-min))
-          (while (re-search-forward org-complex-heading-regexp nil t)
-            (let ((heading (match-string 4)))
-              (cond
-               ((equal today heading)
-                (throw 'found-today t))
-               ;; Past date
-               ((time-less-p (encode-time
-                              (org-memento--fill-decoded-time
-                               (parse-time-string heading)))
-                             (org-memento--current-time))
-                (beginning-of-line)
-                (insert "* " today "\n")
-                (end-of-line 0)
-                (throw 'found-today nil)))))
-          (insert (if (bolp) "" "\n")
-                  "* " today "\n")
-          (end-of-line 0)
-          ;; Explicitly return nil
-          nil))))
+    (org-memento--goto-date today)))
+
+(defun org-memento--goto-date (date)
+  "Move the point to the entry of a given date or insert a new one.
+
+DATE must be a string in ISO-8601 format.
+
+The function returns non-nil if the heading is existing. It
+returns nil if it creates a new heading.
+
+After the function is called, the point should be at the
+beginning of the entry."
+  (or (re-search-backward (format org-complex-heading-regexp-format
+                                  (regexp-quote date))
+                          nil t)
+      (catch 'found-heading
+        (goto-char (point-min))
+        (while (re-search-forward org-complex-heading-regexp nil t)
+          (let ((heading (match-string 4)))
+            (cond
+             ((equal date heading)
+              (beginning-of-line 1)
+              (throw 'found-heading t))
+             ;; Past date
+             ((and (match-string-p (rx (repeat 4 digit) "-"
+                                       (repeat 2 digit) "-"
+                                       (repeat 2 digit))
+                                   heading)
+                   (string-lessp heading date))
+              (beginning-of-line)
+              (insert "* " date "\n")
+              (beginning-of-line 0)
+              (throw 'found-heading nil)))))
+        (insert (if (bolp) "" "\n")
+                "* " date "\n")
+        (beginning-of-line 0)
+        ;; Explicitly return nil
+        nil)))
 
 (defun org-memento--checkin-time ()
   "Return the check-in time of the entry as an internal time."
@@ -792,24 +676,6 @@ daily entry."
               "")
             "** " org-memento-idle-heading "\n")
     (end-of-line 0)))
-
-(defun org-memento-map-past-days (func)
-  (with-current-buffer (org-memento--buffer)
-    (org-with-wide-buffer
-     (goto-char (point-min))
-     (let ((regexp (rx-to-string
-                    `(and bol "*" (+ blank)
-                          (?  (regexp ,org-todo-regexp) (+ blank))
-                          (regexp ,(org-memento--make-past-date-regexp
-                                    (decode-time (org-memento--current-time)))))))
-           result)
-       (while (re-search-forward regexp nil t)
-         (save-excursion
-           (beginning-of-line 1)
-           (org-narrow-to-subtree)
-           (push (funcall func) result)
-           (widen)))
-       (nreverse result)))))
 
 ;;;;; Updating properties
 
@@ -845,9 +711,9 @@ The function returns non-nil if the check-in is done."
     ;; The point should be moved to the heading to call scaffolding
     (org-back-to-heading)
     (org-memento--insert-checking-out-time)
-    (save-excursion
-      (atomic-change-group
-        (org-memento--scaffold-day)))
+    ;; (save-excursion
+    ;;   (atomic-change-group
+    ;;     (org-memento--scaffold-day)))
     (org-memento--save-buffer)
     (org-end-of-meta-data t)
     (when (looking-at org-ts-regexp)
@@ -980,116 +846,6 @@ The point must be at the heading."
                   (when-let (ts (org-memento-block-active-ts block))
                     (org-timestamp-to-time ts)))))
 
-;;;; Inserting block entries from templates
-
-(defun org-memento-add-blocks ()
-  (org-memento-with-today-entry
-   (atomic-change-group
-     (org-memento--scaffold-day))))
-
-(defun org-memento--scaffold-day ()
-  "If the daily entry has no blocks, insert blocks from templates.
-
-The buffer must be narrowed to the day, and the point must be on
-the daily entry."
-  (unless (save-excursion
-            (goto-char (org-entry-end-position))
-            (looking-at (rx (* space) "**" blank)))
-    (let ((block (org-memento-block-entry)))
-      (if (org-memento-started-time block)
-          (org-memento--expand-templates
-           (org-memento--make-default-plan block))
-        (user-error "First please check in to the entry.")))))
-
-(defun org-memento--expand-templates (templates-with-context)
-  "Expand templates with the context.
-
-The buffer must be narrowed to the day, and the point must be on
-the daily entry."
-  (save-excursion
-    (goto-char (org-entry-end-position))
-    (dolist (item templates-with-context)
-      (let* ((template (org-memento-twc-template item))
-             (extra-data (save-current-buffer
-                           (org-with-point-at
-                               (org-find-olp
-                                (cons (org-memento-template-file template)
-                                      (org-memento-template-olp template)))
-                             (org-memento--parse-template-extra)))))
-        (insert (if (and (eolp) (not (bolp)))
-                    "\n"
-                  "")
-                "** " (org-memento-title item)
-                ;; FIXME: `org-set-tags' seems to be currently buggy, so
-                ;; insert the string literally.
-                (if-let (tags (org-memento-template-tags
-                               (org-memento-twc-template item)))
-                    (concat " :" (string-join tags ":") ":")
-                  "")
-                "\n")
-        (end-of-line 0)
-        ;; Copy the properties
-        (pcase-dolist (`(,key . ,value) (plist-get extra-data :props))
-          (org-entry-put nil key value))
-        (when-let (duration (org-memento-duration item))
-          (org-entry-put nil "Effort" (org-duration-from-minutes duration)))
-        (when-let (category (org-memento-template-category template))
-          (org-entry-put nil "memento_category" category))
-        (when (looking-at org-heading-regexp)
-          (end-of-line 0))
-        ;; Set the time
-        (let ((starting-time (org-memento-starting-time item))
-              (ending-time (org-memento-ending-time item)))
-          (when starting-time
-            (insert (if (bolp)
-                        ""
-                      "\n")
-                    (org-memento--format-active-range
-                     starting-time
-                     (pcase (org-memento-template-normal-hour
-                             (org-memento-twc-template item))
-                       ((and `(,_ ,_ ,end)
-                             (guard end))
-                        ending-time))))))
-        ;; `org-entry-put' isn't supposed to move the point, so there may be a
-        ;; property drawer after the point. Skip it.
-        (unless (bolp)
-          (beginning-of-line 2))
-        (when (looking-at org-property-drawer-re)
-          (looking-at (concat (rx (* space)) org-property-drawer-re))
-          (goto-char (match-end 0))
-          (beginning-of-line 2))
-        ;; If the point is on the next headline, go back to the next entry
-        ;; Insert the body
-        (when-let (body (plist-get extra-data :body))
-          (insert body))))))
-
-(defun org-memento--parse-template-extra ()
-  "Parse extra template data at point."
-  (let ((end (org-entry-end-position))
-        (case-fold-search t))
-    (save-excursion
-      (list :props
-            (when (re-search-forward org-property-start-re end t)
-              (let ((drawer-end (save-excursion
-                                  (re-search-forward org-property-end-re)))
-                    props)
-                (while (re-search-forward org-property-re drawer-end t)
-                  (unless (string-match-p (rx bol (or "memento_normal_"
-                                                      (and "memento_checkin_time" eol)
-                                                      (and "END" eol)))
-                                          (match-string 2))
-                    (push (cons (match-string 2)
-                                (match-string 3))
-                          props)))
-                (nreverse props)))
-            :body
-            (progn
-              (org-end-of-meta-data)
-              (let ((string (string-trim (buffer-substring (point) end))))
-                (unless (string-empty-p string)
-                  string)))))))
-
 ;;;; Agenda files
 
 ;;;###autoload
@@ -1099,20 +855,6 @@ the daily entry."
                                     (error "Currently no block"))
     (pcase org-memento-agenda-files
       ((pred functionp) (funcall org-memento-agenda-files)))))
-
-;;;; Reporting
-
-;;;;; Check-in time
-
-(defun org-memento-average-checkin-time ()
-  "Return the average check-in time of past days."
-  (let* ((entries (thread-last
-                    (org-memento-map-past-days #'org-memento--checkin-time)
-                    (delq nil)
-                    (mapcar #'org-memento--seconds-since-midnight)))
-         (seconds (/ (cl-reduce #'+ entries :initial-value 0)
-                     (length entries))))
-    (org-duration-from-minutes (/ seconds 60))))
 
 ;;;; Formatting status
 
@@ -1146,129 +888,6 @@ the daily entry."
               (org-get-heading nil nil nil nil)))
           (format-time-string "%R" (org-memento-starting-time event))))
 
-;;;; Manage templates
-
-(defun org-memento-goto-template-parent ()
-  "Return the marker to one of the template roots or its descendant."
-  (let* ((alist (nreverse (org-memento--map-template-entries
-                           (lambda (_source)
-                             (cons (org-format-outline-path
-                                    (org-get-outline-path t t)
-                                    nil (buffer-name) "/")
-                                   (point-marker)))
-                           t)))
-         (completions-sort nil)
-         (choice (completing-read "Choose a parent: " alist
-                                  nil t)))
-    (org-goto-marker-or-bmk (cdr (assoc choice alist)))))
-
-(defun org-memento-templates ()
-  "Return a list of template entries loaded from the source files."
-  (let (templates)
-    (org-memento--map-template-entries
-     (lambda (source)
-       (push (org-memento--parse-template-spec source)
-             templates)))
-    (nreverse templates)))
-
-(defun org-memento--parse-template-spec (source)
-  (let* ((level (org-outline-level))
-         (olp (org-get-outline-path t t))
-         (relative-olp (pcase source
-                         (`(file+olp ,_ . ,root-olp)
-                          (seq-drop olp (length root-olp)))
-                         (_
-                          olp))))
-    (make-org-memento-template
-     :file (buffer-file-name)
-     :olp olp
-     :relative-olp relative-olp
-     :leaf-p (save-excursion
-               (goto-char (org-entry-end-position))
-               (not (looking-at (concat "[[:space:]]*"
-                                        (regexp-quote (make-string (1+ level) ?\*))
-                                        "\\*?[[:blank:]]"))))
-     :title (org-get-heading t t t t)
-     :category (or (org-entry-get nil "memento_category" t)
-                   (car relative-olp))
-     :tags (org-get-tags)
-     :normal-hour (when-let (string (org-entry-get nil "memento_normal_hour" t))
-                    (org-memento--parse-normal-hour string))
-     :normal-dows (when-let (string (org-entry-get nil "memento_normal_dows" t))
-                    (org-memento--parse-normal-dows string))
-     :duration (when-let (string (org-entry-get nil "Effort" t))
-                 (floor (org-duration-to-minutes string))))))
-
-(defun org-memento--parse-normal-hour (string)
-  (if (string-match (rx (group (or "absolute" "relative"))
-                        (+ blank)
-                        (group (and (+ digit) ":" (+ digit)))
-                        (?  "-" (group (and (+ digit) ":" (+ digit)))))
-                    string)
-      (list (intern (match-string 1 string))
-            (floor (org-duration-to-minutes (match-string 2 string)))
-            (when-let (s (match-string 3 string))
-              (floor (org-duration-to-minutes s))))
-    (error "Failed to match an hour spec against %s" string)))
-
-(defun org-memento--parse-normal-dows (string)
-  (mapcar #'string-to-number (split-string string)))
-
-(defun org-memento--map-template-entries (func &optional include-roots)
-  "Map a function on each entry under the template roots."
-  (let (result)
-    (dolist (source org-memento-template-sources)
-      (setq result
-            (append result
-                    (pcase source
-                      (`(file+olp ,file . ,olp)
-                       (if-let (root (org-find-olp (cons (cl-etypecase file
-                                                           (symbol (symbol-value file))
-                                                           (string file))
-                                                         olp)))
-                           (save-current-buffer
-                             (org-with-point-at root
-                               (if include-roots
-                                   (org-narrow-to-subtree)
-                                 (narrow-to-region (org-entry-end-position)
-                                                   (org-end-of-subtree)))
-                               (org-map-entries
-                                `(lambda ()
-                                   (funcall ',func ',source))
-                                nil nil :archive t)))
-                         (error "Failed to find %s" source)))))))
-    result))
-
-(defun org-memento--make-default-plan (context)
-  "Return templates with contexts for the day."
-  (let* ((start-time (org-memento-started-time context))
-         (decoded-time (decode-time start-time))
-         (day-start-decoded (org-memento--start-of-day decoded-time))
-         (this-dow (nth 6 day-start-decoded)))
-    (thread-last
-      (org-memento-templates)
-      (seq-filter `(lambda (template)
-                     (and (org-memento-template-leaf-p template)
-                          (memq ,this-dow (org-memento-template-normal-dows template)))))
-      (mapcar (apply-partially #'org-memento--init-twc context))
-      (org-memento--sort-by #'org-memento-starting-time
-                            (lambda (a b)
-                              (if (and a b)
-                                  (< a b)
-                                a))))))
-
-(defun org-memento--sort-by (key pred items)
-  (cl-sort items pred :key key))
-
-;;;###autoload
-(defun org-memento-add-template ()
-  "Add a template for time block."
-  (interactive)
-  (let ((org-capture-entry '("" ""
-                             entry (function org-memento-goto-template-parent)
-                             "* %?")))
-    (org-capture)))
-
 ;;;; Completion
 
 (defun org-memento-read-category (&optional prompt)
@@ -1277,14 +896,8 @@ the daily entry."
                    (org-memento--all-categories)))
 
 (defun org-memento--all-categories ()
-  (cl-remove-duplicates
-   (thread-last
-     (org-memento-templates)
-     (mapcar #'org-memento-template-category)
-     (delq nil)
-     (append (with-current-buffer (org-memento--buffer)
-               (org-property-get-allowed-values nil "memento_category"))))
-   :test #'equal))
+  (with-current-buffer (org-memento--buffer)
+    (org-property-get-allowed-values nil "memento_category")))
 
 (cl-defun org-memento-read-title (&optional prompt &key category default)
   (completing-read (or prompt "Title: ")
@@ -1302,84 +915,7 @@ the daily entry."
            (let ((heading (org-get-heading t t t t)))
              (remove-text-properties 0 (length heading) '(face) heading)
              (push heading result))))))
-    (thread-last
-      (org-memento-templates)
-      (seq-filter `(lambda (template)
-                     (equal (org-memento-template-category template)
-                            ,category)))
-      (mapcar #'org-memento-template-title))
     (cl-remove-duplicates result :test #'equal)))
-
-(cl-defun org-memento-read-block-or-template (prompt &key start end)
-  (let* ((todayp (when start
-                   (time-equal-p (thread-last
-                                   (decode-time start)
-                                   (org-memento--start-of-day))
-                                 (thread-last
-                                   (decode-time (org-memento--current-time))
-                                   (org-memento--start-of-day)))))
-         (duration (when (and start end)
-                     (/ (- (float-time end) (float-time start)) 60)))
-         (blocks (when todayp
-                   ;; Use already generated blocks only for today
-                   (org-memento-status)
-                   (seq-filter `(lambda (block)
-                                  ;; The following two types only matter:
-                                  ;;
-                                  (cond
-                                   ;; * unfinished and unscheduled blocks
-                                   ((and (not (org-memento-starting-time block))
-                                         (not (org-memento-ended-time block)))
-                                    (or (not ,duration)
-                                        (not (org-memento-duration block))
-                                        (<= (org-memento-duration block)
-                                            ,duration)))
-                                   ;; * checked-in but unfinished blocks
-                                   ((and (org-memento-started-time block)
-                                         (not (org-memento-ended-time block)))
-                                    t)))
-                               (org-memento--blocks))))
-         ;; templates
-         (templates (if duration
-                        (thread-last
-                          (org-memento-templates)
-                          (seq-filter `(lambda (template)
-                                         (or (not (org-memento-duration template))
-                                             (<= (org-memento-duration template)
-                                                 ,duration)))))
-                      (org-memento-templates)))
-         (cache (make-hash-table :test #'equal :size (+ (length blocks)
-                                                        (length templates))))
-         items)
-    (unwind-protect
-        (cl-labels
-            ((annotation (candidate)
-               (cl-typecase (gethash candidate cache)
-                 (org-memento-block
-                  " (block)")
-                 (org-memento-template
-                  " (template)")
-                 (otherwise
-                  "")))
-             (table (string pred action)
-               (if (eq action 'metadata)
-                   (cons 'metadata
-                         (list (cons 'category 'org-memento-eventable)
-                               (cons 'annotation-function #'annotation)))
-                 (complete-with-action action items string pred))))
-          (dolist (block blocks)
-            (let ((title (org-memento-title block)))
-              (push title items)
-              (puthash title block cache)))
-          (dolist (template templates)
-            (let ((title (org-format-outline-path
-                          (org-memento-template-relative-olp template))))
-              (remove-text-properties 0 (length title) '(face) title)
-              (push title items)
-              (puthash title template cache)))
-          (let ((input (completing-read prompt #'table)))
-            (gethash input cache input)))
-      (clrhash cache))))
 
 (defvar org-memento-block-cache nil)
 
@@ -1416,58 +952,6 @@ the daily entry."
     ""))
 
 ;;;; Retrieving timing information
-
-(defun org-memento--read-past-blank-hours ()
-  (let* ((today (car org-memento-status-data))
-         (idle-hours (org-memento--idle-hours))
-         (completions-sort nil)
-         (start-string (thread-last
-                         (cdr org-memento-status-data)
-                         (mapcar #'org-memento-ended-time)
-                         (delq nil)
-                         (append (thread-last
-                                   idle-hours
-                                   (mapcar #'cdr)
-                                   (delq nil)
-                                   (mapcar #'encode-time)))
-                         (mapcar (lambda (time) (format-time-string "%F %R" time)))
-                         (cons (org-memento-started-time today))
-                         (append '("other"))
-                         ;; (seq-sort #'string-lessp)
-                         (completing-read "Start: ")))
-         (start (encode-time
-                 (if (equal start-string "other")
-                     (with-temp-buffer
-                       (org-time-stamp nil)
-                       (goto-char (point-min))
-                       (looking-at org-ts-regexp)
-                       (parse-time-string (match-string 1)))
-                   (parse-time-string start-string))))
-         (end-string (thread-last
-                       (cdr org-memento-status-data)
-                       (mapcar #'org-memento-started-time)
-                       (delq nil)
-                       (append (thread-last
-                                 idle-hours
-                                 (mapcar #'car)
-                                 (delq nil)
-                                 (mapcar #'encode-time)))
-                       (seq-filter `(lambda (time)
-                                      (time-less-p ',start time)))
-                       (cons (current-time))
-                       (mapcar (lambda (time) (format-time-string "%F %R" time)))
-                       (append '("other"))
-                       ;; (seq-sort #'string-less-p)
-                       (completing-read "End: ")))
-         (end (encode-time
-               (if (equal end-string "other")
-                   (with-temp-buffer
-                     (org-time-stamp nil)
-                     (goto-char (point-min))
-                     (looking-at org-ts-regexp)
-                     (parse-time-string (match-string 1)))
-                 (parse-time-string end-string)))))
-    (list start end)))
 
 (defun org-memento--idle-hours ()
   "Return idle hours on today."
@@ -1594,84 +1078,6 @@ marker to the time stamp, and the margin in seconds."
                  (when (memq ,dow (car cell))
                    (cdr cell)))
               org-memento-workhour-alist)))
-
-(defun org-memento--search-empty-slots (from-date to-date)
-  "Return a list of available time ranges during a period.
-
-FROM-DATE and TO-DATE must be given as decoded times.
-
-The returned value will be a list of (START . END) where START
-and END are float times."
-  (let* ((events (org-memento--agenda-events from-date to-date))
-         result)
-    (dolist (date (org-memento--date-list from-date to-date))
-      (catch 'day-end
-        (when-let* ((workhour (org-memento--normal-workhour date))
-                    (checkin (plist-get workhour :normal-checkin))
-                    (duration (plist-get workhour :normal-duration)))
-          (let* ((checkin-minutes (floor (org-duration-to-minutes checkin)))
-                 (duration-minutes (org-duration-to-minutes duration))
-                 (time (float-time (encode-time
-                                    (org-memento--set-time-of-day date
-                                                                  (floor (/ checkin-minutes 60))
-                                                                  (mod checkin-minutes 60)
-                                                                  0))))
-                 (day-end (+ time (* 60 duration-minutes))))
-            (pcase (org-memento--search-empty-slots-1 time day-end events)
-              (`(,part . ,remaining-events)
-               (setq events remaining-events)
-               (setq result (append result part))))))))
-    result))
-
-(defun org-memento--search-empty-slots-1 (initial-time day-end events)
-  (let ((time initial-time)
-        (event (pop events))
-        result)
-    (catch 'day-end
-      (while (< time day-end)
-        (cond
-         ;; No event remaining, so the entire day will be available
-         ((null event)
-          (push (cons time day-end)
-                result)
-          (throw 'day-end t))
-         ((< day-end (org-memento-starting-time event))
-          (push (cons time day-end)
-                result)
-          (throw 'day-end t))
-         ((< time (org-memento-starting-time event))
-          (push (cons time (org-memento-starting-time event))
-                result)
-          (if (< (org-memento-ending-time-default event) day-end)
-              (progn
-                (setq time (org-memento-ending-time-default event))
-                (setq event (pop events)))
-            (throw 'day-end t)))
-         ((> time (org-memento-starting-time event))
-          (cond
-           ((> time (org-memento-ending-time-default event))
-            (setq event (pop events)))
-           ((< (org-memento-ending-time-default event) day-end)
-            (setq time (org-memento-ending-time-default event))
-            (setq event (pop events)))
-           (t
-            (throw 'day-end t)))))))
-    (cons (nreverse result)
-          (if event
-              (cons event events)
-            events))))
-
-(defun org-memento-workhour-end ()
-  "Return time at which today's work ends."
-  (when-let* ((time (org-memento--current-time))
-              (decoded-time (decode-time time))
-              (plist (org-memento--normal-workhour
-                      (org-memento--start-of-day decoded-time)))
-              (duration (plist-get plist :normal-duration))
-              (checkin-time (org-memento-with-today-entry
-                             (org-memento--checkin-time))))
-    (time-add checkin-time
-              (* 60 (org-duration-to-minutes duration)))))
 
 ;;;; Collect data for analytic purposes
 
@@ -2114,13 +1520,14 @@ denoting the type of the activity. ARGS is an optional list."
 
 (defun org-memento--parse-time-range (string)
   "Return a cons cell of minutes from a string time spec."
-  (when (string-match (rx bol (group (+ digit) ":" (+ digit))
-                          (?  "-" (group (group (+ digit) ":" (+ digit))))
-                          eol)
-                      string)
-    (cons (floor (org-duration-to-minutes (match-string 1 string)))
-          (when (> (length (match-data)) 4)
-            (floor (org-duration-to-minutes (match-string 2 string)))))))
+  (save-match-data
+    (when (string-match (rx bol (group (+ digit) ":" (+ digit))
+                            (?  "-" (group (group (+ digit) ":" (+ digit))))
+                            eol)
+                        string)
+      (cons (save-match-data (floor (org-duration-to-minutes (match-string 1 string))))
+            (when (> (length (match-data)) 4)
+              (floor (org-duration-to-minutes (match-string 2 string))))))))
 
 (defun org-memento--today-string (decoded-time)
   (format-time-string "%F"
@@ -2172,42 +1579,6 @@ ACTIVE and INACTIVE specify types of timestamp to match against."
                                 (delq nil)
                                 (mapconcat #'char-to-string)))))))
 
-(defun org-memento--make-past-date-regexp (today)
-  (cl-flet
-      ((year-string (d)
-         (format "%04d" d))
-       (month-string (d)
-         (format "%02d" d))
-       (day-string (d)
-         (format "%02d" d)))
-    (let* ((this-year (nth 5 today))
-           (this-month (nth 4 today))
-           (this-day (nth 3 today))
-           (previous-year-strings (thread-last
-                                    (number-sequence 2000 (1- this-year))
-                                    (mapcar #'year-string)))
-           (previous-month-strings (thread-last
-                                     (number-sequence 1 (1- this-month))
-                                     (mapcar #'month-string)))
-           (previous-day-strings (thread-last
-                                   (number-sequence 1 (1- this-day))
-                                   (mapcar #'day-string)))
-           (all-month-strings (thread-last
-                                (number-sequence 1 12)
-                                (mapcar #'month-string)))
-           (all-day-strings (thread-last
-                              (number-sequence 1 31)
-                              (mapcar #'day-string))))
-      (rx-to-string `(or (and (or ,@previous-year-strings)
-                              "-" (or ,@all-month-strings)
-                              "-" (or ,@all-day-strings))
-                         (and ,(number-to-string this-year)
-                              "-"
-                              (or (and (or ,@previous-month-strings)
-                                       "-" (or ,@all-day-strings))
-                                  (and ,(number-to-string this-month)
-                                       "-" (or ,@previous-day-strings)))))))))
-
 (defun org-memento--seconds-since-midnight (time)
   (- (float-time time)
      (float-time (encode-time (org-memento--set-time-of-day (decode-time time) 0 0 0)))))
@@ -2257,6 +1628,22 @@ nil. If one of them is nil, the other one is returned."
         (push (parse-time-string (match-string 1)) result)))
     (nreverse result)))
 
+(defun org-memento--read-time-span ()
+  "Prompt for a time span.
+
+This function returns (START END) where START and END are time
+representations. END can be nil if the user doesn't enter a time
+range."
+  (let* ((ts (with-temp-buffer
+               (org-time-stamp nil)
+               (goto-char (point-min))
+               (org-element-timestamp-parser)))
+         (start-time (org-timestamp-to-time ts))
+         (end-time (org-timestamp-to-time ts 'end)))
+    (list start-time
+          (unless (time-equal-p start-time end-time)
+            end-time))))
+
 (defun org-memento--format-active-range (start-time end-time)
   (format (org-format-time-string "<%Y-%m-%d %a %%s%%s>" start-time)
           (org-format-time-string "%H:%M" start-time)
@@ -2284,76 +1671,98 @@ nil. If one of them is nil, the other one is returned."
             (floor (/ minutes 60))
             (mod minutes 60))))
 
-(cl-defun org-memento-read-time-of-day (&key start-time
-                                             decoded-date
-                                             past
-                                             future
-                                             initial-value)
-  "Prompt a time of day or a time range.
+;;;; Capture
 
-It returns the number of minutes since the midnight.
+;;;###autoload
+(cl-defun org-memento-add-event (&key title category start end
+                                      interactive away)
+  "Insert an block/event entry into the journal"
+  (interactive (let* ((span (org-memento--read-time-span))
+                      (title (org-memento-read-title))
+                      (away (equal current-prefix-arg '(4)))
+                      (category (unless away (org-memento-read-category nil))))
+                 (list :start (car span)
+                       :end (cadr span)
+                       :title title
+                       :category category
+                       :interactive t
+                       :away away)))
+  (let* ((date (format-time-string "%F" (thread-last
+                                          (decode-time start)
+                                          (org-memento--maybe-decrement-date)
+                                          (encode-time))))
+         (jump-fn `(lambda ()
+                     (org-memento--goto-date ,date)
+                     (when ,away
+                       (org-memento--find-or-create-idle-heading))))
+         (template (if away
+                       (org-memento--away-event-template
+                        :start start :end end :title title
+                        :interactive interactive)
+                     (org-memento--event-template
+                      :start start :end end :title title :category category
+                      :interactive interactive)))
+         (plist (unless interactive
+                  '(:immediate-finish t)))
+         (org-capture-entry `("" ""
+                              entry (file+function ,org-memento-file ,jump-fn)
+                              ,template ,@plist)))
+    (org-capture)))
 
-Optionally, it accepts h:MM-h:MM format, in which case the
-function returns a list of durations."
-  (let* ((prompt (format "%s (%sh:MM): "
-                         (if start-time
-                             "End time"
-                           "Start time")
-                         (if start-time
-                             (format-time-string "%R-" start-time)
-                           "")))
-         (input (completing-read prompt nil nil nil
-                                 (when initial-value
-                                   ;; org-duration-from-minutes returns a 1d
-                                   ;; h:mm string if the input is longer than
-                                   ;; 24 hours, which is undesirable in this case.
-                                   (format "%d:%02d"
-                                           (/ (floor initial-value) 60)
-                                           (mod (floor initial-value) 60))))))
-    (cond
-     ((string-empty-p input)
-      nil)
-     ((string-match (rx bol
-                        (group (+ digit) ":" (+ digit))
-                        "-"
-                        (group (+ digit) ":" (+ digit))
-                        eol)
-                    input)
-      (list (org-duration-to-minutes (match-string 1 input))
-            (org-duration-to-minutes (match-string 2 input))))
-     (t
-      (org-duration-to-minutes input)))))
+(cl-defun org-memento--event-template (&key title category start end interactive)
+  (let* ((started-past (time-less-p start (org-memento--current-time)))
+         (ended-past (and end (time-less-p end (org-memento--current-time))))
+         (properties (thread-last
+                       `(("memento_category"
+                          . ,(unless (and category (string-empty-p category))
+                               category))
+                         ("memento_checkin_time"
+                          . ,(when started-past
+                               (format-time-string (org-time-stamp-format t t) start))))
+                       (seq-filter #'cdr))))
+    (concat "* " (if ended-past "DONE " "")
+            (or title (user-error "Title is missing"))
+            "\n"
+            (if ended-past
+                (concat "CLOSED: "
+                        (format-time-string (org-time-stamp-format t t) end)
+                        "\n")
+              "")
+            (if properties
+                (concat ":PROPERTIES:\n"
+                        (mapconcat (lambda (cell)
+                                     (format ":%s: %s" (car cell) (cdr cell)))
+                                   properties
+                                   "\n")
+                        "\n:END:\n"))
+            (if (and start (not (and started-past ended-past)))
+                (concat (org-memento--format-active-range start end) "\n")
+              "")
+            (if interactive
+                "%?"
+              ""))))
+
+(cl-defun org-memento--away-event-template (&key title start end interactive)
+  (let ((past (time-less-p start (org-memento--current-time))))
+    (concat "* " (or title (user-error "Title is missing")) "\n"
+            (if past
+                (format ":LOGBOOK:\nCLOCK: %s--%s =>  %s\n:END:\n"
+                        (format-time-string (org-time-stamp-format t t) start)
+                        (format-time-string (org-time-stamp-format t t) end)
+                        (org-duration-from-minutes (/ (- (time-float end)
+                                                         (time-float start))
+                                                      60)))
+              "")
+            (if past
+                ""
+              (concat (org-memento--format-active-range start end) "\n"))
+            (if interactive
+                "%?"
+              ""))))
 
 ;;;; Integrations with third-party packages
 
 ;;;;; org-ql
-
-;;;###autoload
-(defun org-memento-make-agenda-block ()
-  "Return an `org-agenda' block for time blocks on today.
-
-Note that this functionality uses `org-ql-block', so you have to
-install org-ql package to use it.
-
-A recommended way to use this function is to define an
-interactive command that wraps `org-agenda' function. Otherwise,
-you would have to update the value of
-`org-agenda-custom-commands' every day before you get to work."
-  (require 'org-ql-search)
-  `(org-ql-block '(and (level 2)
-                       (parent (heading ,(org-memento--today-string
-                                          (decode-time))))
-                       (not (heading-regexp
-                             ,(rx-to-string `(or (and bol "COMMENT")
-                                                 ,org-memento-idle-heading)))))
-                 ((org-ql-block-header "Time blocks")
-                  (org-agenda-files '(,org-memento-file))
-                  (org-super-agenda-properties-inherit nil)
-                  (org-super-agenda-groups
-                   '((:name "Closed" :todo "DONE")
-                     (:name "Working on" :property "memento_checkin_time")
-                     (:auto-map org-memento--super-agenda-ts-map)
-                     (:name "Unscheduled" :anything t))))))
 
 (defun org-memento--super-agenda-ts-map (item)
   (when-let* ((marker (or (get-text-property 0 'org-marker item)

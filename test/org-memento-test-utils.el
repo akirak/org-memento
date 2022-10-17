@@ -7,9 +7,10 @@
                                         (parse-time-string ,time-string))))
          (org-memento-file ,(when file
                               `(expand-file-name ,file
-                                                 (file-name-directory
-                                                  (or load-file-name
-                                                      (buffer-file-name)))))))
+                                                 (when-let (filename
+                                                            (or load-file-name
+                                                                (buffer-file-name)))
+                                                   (file-name-directory filename))))))
      ,@progn))
 
 (defmacro org-memento-revert-modifications (&rest progn)
