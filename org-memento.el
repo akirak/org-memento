@@ -1443,23 +1443,24 @@ denoting the type of the activity. ARGS is an optional list."
              (when start
                (list start end)))))
        (parse-idle-clocks ()
-         (when (re-search-forward org-logbook-drawer-re (org-entry-end-position)
-                                  t)
-           (goto-char (match-beginning 0))
-           (let ((drawer-end (match-end 0))
-                 clocks)
-             (while (re-search-forward (rx bol (* space) "CLOCK:" (* blank))
-                                       drawer-end t)
-               (when (looking-at (concat org-ts-regexp-inactive
-                                         "--"
-                                         org-ts-regexp-inactive))
-                 (push (list (parse-time (match-string 1))
-                             (parse-time (match-string 2))
-                             org-memento-idle-heading
-                             nil
-                             'idle)
-                       clocks)))
-             clocks))))
+         (let ((hd-marker (point-marker)))
+           (when (re-search-forward org-logbook-drawer-re (org-entry-end-position)
+                                    t)
+             (goto-char (match-beginning 0))
+             (let ((drawer-end (match-end 0))
+                   clocks)
+               (while (re-search-forward (rx bol (* space) "CLOCK:" (* blank))
+                                         drawer-end t)
+                 (when (looking-at (concat org-ts-regexp-inactive
+                                           "--"
+                                           org-ts-regexp-inactive))
+                   (push (list (parse-time (match-string 1))
+                               (parse-time (match-string 2))
+                               org-memento-idle-heading
+                               hd-marker
+                               'idle)
+                         clocks)))
+               clocks)))))
     (with-current-buffer (org-memento--buffer)
       (org-save-outline-visibility t
         (widen)
