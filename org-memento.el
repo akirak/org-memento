@@ -1708,7 +1708,7 @@ range."
                                           (encode-time))))
          (jump-fn `(lambda ()
                      (org-memento--goto-date ,date)
-                     (when ,away
+                     (when ,(and away t)
                        (org-memento--find-or-create-idle-heading))))
          (title (or title (org-memento-read-title)))
          (category (unless away
