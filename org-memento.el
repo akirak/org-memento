@@ -611,31 +611,44 @@ returns nil if it creates a new heading.
 After the function is called, the point should be at the
 beginning of the entry."
   (let ((today (org-memento--today-string (decode-time (org-memento--current-time)))))
-    (or (re-search-backward (format org-complex-heading-regexp-format
-                                    (regexp-quote today))
-                            nil t)
-        (catch 'found-today
-          (goto-char (point-min))
-          (while (re-search-forward org-complex-heading-regexp nil t)
-            (let ((heading (match-string 4)))
-              (cond
-               ((equal today heading)
-                (beginning-of-line 1)
-                (throw 'found-today t))
-               ;; Past date
-               ((time-less-p (encode-time
-                              (org-memento--fill-decoded-time
-                               (parse-time-string heading)))
-                             (org-memento--current-time))
-                (beginning-of-line)
-                (insert "* " today "\n")
-                (beginning-of-line 0)
-                (throw 'found-today nil)))))
-          (insert (if (bolp) "" "\n")
-                  "* " today "\n")
-          (beginning-of-line 0)
-          ;; Explicitly return nil
-          nil))))
+    (org-memento--goto-date today)))
+
+(defun org-memento--goto-date (date)
+  "Move the point to the entry of a given date or insert a new one.
+
+DATE must be a string in ISO-8601 format.
+
+The function returns non-nil if the heading is existing. It
+returns nil if it creates a new heading.
+
+After the function is called, the point should be at the
+beginning of the entry."
+  (or (re-search-backward (format org-complex-heading-regexp-format
+                                  (regexp-quote date))
+                          nil t)
+      (catch 'found-heading
+        (goto-char (point-min))
+        (while (re-search-forward org-complex-heading-regexp nil t)
+          (let ((heading (match-string 4)))
+            (cond
+             ((equal date heading)
+              (beginning-of-line 1)
+              (throw 'found-heading t))
+             ;; Past date
+             ((and (match-string-p (rx (repeat 4 digit) "-"
+                                       (repeat 2 digit) "-"
+                                       (repeat 2 digit))
+                                   heading)
+                   (string-lessp heading date))
+              (beginning-of-line)
+              (insert "* " date "\n")
+              (beginning-of-line 0)
+              (throw 'found-heading nil)))))
+        (insert (if (bolp) "" "\n")
+                "* " date "\n")
+        (beginning-of-line 0)
+        ;; Explicitly return nil
+        nil)))
 
 (defun org-memento--checkin-time ()
   "Return the check-in time of the entry as an internal time."
