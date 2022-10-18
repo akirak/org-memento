@@ -1002,27 +1002,29 @@ marker to the time stamp, and the margin in seconds."
         (org-with-wide-buffer
          (goto-char (point-min))
          (while (re-search-forward ts-regexp nil t)
-           (when-let* ((ts (org-timestamp-from-string (match-string 0)))
-                       (time (when (org-element-property :hour-start ts)
-                               (float-time (org-timestamp-to-time ts))))
-                       ;; The default margin is 10 minutes. It would be better
-                       ;; if we had a different margin depending on the
-                       ;; task/event type.
-                       (margin 600)
-                       (mtime (- time margin)))
-             (when (and (or (not min-time)
-                            (< mtime min-time))
-                        (not (org-entry-is-done-p)))
-               (let ((marker (save-excursion
-                               (org-back-to-heading)
-                               (point-marker))))
-                 (unless (and hd-marker
-                              (equal marker hd-marker))
-                   (setq min-time mtime)
-                   (setq result (make-org-memento-org-event
-                                 :marker marker
-                                 :active-ts ts
-                                 :margin-secs margin))))))))))
+           (unless (and (equal file (expand-file-name org-memento-file))
+                        (= 1 (org-outline-level)))
+             (when-let* ((ts (org-timestamp-from-string (match-string 0)))
+                         (time (when (org-element-property :hour-start ts)
+                                 (float-time (org-timestamp-to-time ts))))
+                         ;; The default margin is 10 minutes. It would be better
+                         ;; if we had a different margin depending on the
+                         ;; task/event type.
+                         (margin 600)
+                         (mtime (- time margin)))
+               (when (and (or (not min-time)
+                              (< mtime min-time))
+                          (not (org-entry-is-done-p)))
+                 (let ((marker (save-excursion
+                                 (org-back-to-heading)
+                                 (point-marker))))
+                   (unless (and hd-marker
+                                (equal marker hd-marker))
+                     (setq min-time mtime)
+                     (setq result (make-org-memento-org-event
+                                   :marker marker
+                                   :active-ts ts
+                                   :margin-secs margin)))))))))))
     result))
 
 (defun org-memento--agenda-events (from-date to-date)
