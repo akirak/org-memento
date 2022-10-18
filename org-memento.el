@@ -421,7 +421,7 @@ Return a copy of the list."
                                         (when-let (block (org-memento-next-scheduled-block))
                                           (org-memento-title block))))))
   (org-memento-with-block-title title
-    (when (org-memento--maybe-check-in)
+    (when (org-memento--maybe-check-in :adjust t)
       (org-memento--save-buffer)))
   (setq org-memento-current-block title)
   ;; This should be moved to `org-memento-status'.
@@ -429,7 +429,7 @@ Return a copy of the list."
                   (org-memento-block-entry)))
          (ending-time (org-memento-ending-time block))
          (upnext-event (org-memento--next-agenda-event
-                      (org-memento-block-hd-marker block)))
+                        (org-memento-block-hd-marker block)))
          (ending-time-2 (cond
                          ((and upnext-event ending-time)
                           (min ending-time (org-memento-ending-time-default upnext-event)))
@@ -692,7 +692,7 @@ daily entry."
                                       (org-entry-get nil "memento_category"))))
   (org-entry-put nil "memento_category" category))
 
-(defun org-memento--maybe-check-in ()
+(cl-defun org-memento--maybe-check-in (&key adjust)
   "If the entry has no check-in time, record the current time.
 
 This function can be called both on a daily entry (at level 1)
@@ -700,9 +700,23 @@ and on a time block entry (at level 2).
 
 The function returns non-nil if the check-in is done."
   (unless (org-entry-get nil "memento_checkin_time")
-    (org-entry-put nil "memento_checkin_time" (org-memento--inactive-ts-string
-                                               (org-memento--current-time)))
+    (let ((now (org-memento--current-time)))
+      (org-entry-put nil "memento_checkin_time" (org-memento--inactive-ts-string now))
+      (when adjust
+        (org-memento--move-active-ts now)))
     t))
+
+(defun org-memento--move-active-ts (start-time)
+  "Adjust the end time of an active ts according to START-TIME."
+  (org-back-to-heading)
+  (org-end-of-meta-data)
+  (when (looking-at org-logbook-drawer-re)
+    (goto-char (match-end 0)))
+  (when-let (duration (when (looking-at org-ts-regexp)
+                        (save-match-data
+                          (org-memento--duration-secs-ts-at-point))))
+    (replace-match (org-memento--format-active-range
+                    start-time (time-add start-time duration)))))
 
 (defun org-memento--maybe-checkin-to-day ()
   "Check in to the daily entry, if it is not done yet."
@@ -1689,6 +1703,17 @@ range."
     (format "%02d:%02d"
             (floor (/ minutes 60))
             (mod minutes 60))))
+
+(defun org-memento--duration-secs-ts-at-point ()
+  "Return the duration in seconds from a timestamp at point."
+  (let ((ts (org-element-timestamp-parser)))
+    (when (and (org-element-property :hour-start ts)
+               (not (time-equal-p (org-timestamp-to-time ts)
+                                  (org-timestamp-to-time ts 'end))))
+      (let ((start (org-timestamp-to-time ts))
+            (end (org-timestamp-to-time ts 'end)))
+        (- (float-time end)
+           (float-time start))))))
 
 ;;;; Capture
 
