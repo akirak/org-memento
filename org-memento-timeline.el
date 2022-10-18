@@ -428,7 +428,12 @@ If ARG is non-nil, create an away event."
                    (user-error "No section at point"))
                   (`(,start ,end ,_title ,marker ,type . ,_)
                    (cl-case type
-                     ((block away)
+                     (block
+                      ;; Only allow adjusting time of future events.
+                      (when (and (> start now))
+                        (adjust-ts marker)
+                        t))
+                     (away
                       (adjust-ts marker)
                       t)
                      (gap
