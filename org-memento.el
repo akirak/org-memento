@@ -1719,6 +1719,39 @@ range."
         (- (float-time end)
            (float-time start))))))
 
+(defun org-memento--remove-clock (entry-marker orig-start orig-end
+                                               &optional start end)
+  (cl-flet*
+      ((format-inactive-ts (time)
+         (format-time-string (org-time-stamp-format t t) time))
+       (make-clock-line (list)
+         (pcase-exhaustive list
+           (`(,start ,end)
+            (concat org-clock-string " "
+                    (format-inactive-ts start)
+                    "--"
+                    (format-inactive-ts end)
+                    " =>  "
+                    (org-duration-from-minutes (/ (- end start) 60))
+                    "\n")))))
+    (save-current-buffer
+      (org-with-point-at entry-marker
+        (org-back-to-heading)
+        (let (entries)
+          (when (> (- start orig-start) 60)
+            (push (list orig-start start) entries))
+          (when (> (- orig-end end) 60)
+            (push (list end orig-end) entries))
+          (re-search-forward (rx-to-string `(and bol (* blank) ,org-clock-string
+                                                 (* blank)
+                                                 ,(format-inactive-ts orig-start)
+                                                 "--"
+                                                 ,(format-inactive-ts orig-end)
+                                                 (+ nonl)
+                                                 eol))
+                             (org-entry-end-position))
+          (replace-match (mapconcat #'make-clock-line entries)))))))
+
 ;;;; Capture
 
 ;;;###autoload

@@ -392,7 +392,15 @@ If ARG is non-nil, create an away event."
                              (list start end))
            (`(,start ,end)
             (org-memento-add-event :start start :end end
-                                   :interactive t :away away)))))
+                                   :interactive t :away away))))
+       (log-away-event (start-bound end-bound marker)
+         (pcase-exhaustive (thread-last
+                             (org-memento--read-time-span
+                              (org-memento--format-active-range start-bound end-bound))
+                             (mapcar #'float-time))
+           (`(,start ,end)
+            (org-memento--remove-clock marker start-bound end-bound start end)
+            (org-memento-add-event :start start :end end :interactive t :away t)))))
     (let ((now (float-time)))
       (when (catch 'updated
               ;; Has multiple selections
@@ -426,7 +434,7 @@ If ARG is non-nil, create an away event."
                      (gap
                       (add-event start end t arg))
                      (idle
-                      (add-event start end t t))
+                      (log-away-event start end marker))
                      (otherwise
                       (error "Unexpected event type %s" type))))
                   (`(,start ,end . ,_)
