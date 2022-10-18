@@ -1447,7 +1447,40 @@ denoting the type of the activity. ARGS is an optional list."
                                hd-marker
                                'idle)
                          clocks)))
-               clocks)))))
+               clocks))))
+       (parse-idle-children (include-future)
+         (let ((subtree-end (save-excursion (org-end-of-subtree)))
+               blocks)
+           ;; This is like in `org-memento--agenda-activities', but without future
+           ;; activities.
+           (while (re-search-forward org-complex-heading-regexp subtree-end t)
+             (let ((heading (match-string-no-properties 4))
+                   (hd-marker (point-marker))
+                   (bound (org-entry-end-position)))
+               (pcase (save-excursion (parse-entry include-future))
+                 (`(,start ,end)
+                  (push (list start
+                              end
+                              heading
+                              hd-marker
+                              'away)
+                        blocks)))
+               (when (re-search-forward org-logbook-drawer-re bound t)
+                 (let ((drawer-end (match-end 0)))
+                   (goto-char (match-beginning 0))
+                   (while (re-search-forward (rx bol (* space) "CLOCK:" (* blank))
+                                             drawer-end t)
+                     (when (looking-at (rx (regexp org-ts-regexp-inactive)
+                                           (?  "--" (regexp org-ts-regexp-inactive))))
+                       (let ((start (parse-time (match-string 1)))
+                             (end (parse-time (match-string 2))))
+                         (push (list start
+                                     end
+                                     heading
+                                     hd-marker
+                                     'away)
+                               blocks))))))))
+           blocks)))
     (with-current-buffer (org-memento--buffer)
       (org-save-outline-visibility t
         (widen)
@@ -1486,7 +1519,9 @@ denoting the type of the activity. ARGS is an optional list."
                                (heading (match-string-no-properties 4))
                                (hd-marker (point-marker)))
                            (if (equal heading org-memento-idle-heading)
-                               (setq blocks (append blocks (parse-idle-clocks)))
+                               (setq blocks (append blocks
+                                                    (parse-idle-clocks)
+                                                    (parse-idle-children include-future)))
                              (pcase (parse-entry include-future)
                                (`(,start ,end)
                                 (push (list start
