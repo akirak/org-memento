@@ -1736,21 +1736,22 @@ range."
                     "\n")))))
     (save-current-buffer
       (org-with-point-at entry-marker
-        (org-back-to-heading)
-        (let (entries)
-          (when (> (- start orig-start) 60)
-            (push (list orig-start start) entries))
-          (when (> (- orig-end end) 60)
-            (push (list end orig-end) entries))
-          (re-search-forward (rx-to-string `(and bol (* blank) ,org-clock-string
-                                                 (* blank)
-                                                 ,(format-inactive-ts orig-start)
-                                                 "--"
-                                                 ,(format-inactive-ts orig-end)
-                                                 (+ nonl)
-                                                 eol))
-                             (org-entry-end-position))
-          (replace-match (mapconcat #'make-clock-line entries)))))))
+        (org-with-wide-buffer
+         (org-back-to-heading)
+         (let (entries)
+           (when (> (- start orig-start) 60)
+             (push (list orig-start start) entries))
+           (when (> (- orig-end end) 60)
+             (push (list end orig-end) entries))
+           (re-search-forward (rx-to-string `(and bol (* blank) ,org-clock-string
+                                                  (* blank)
+                                                  ,(format-inactive-ts orig-start)
+                                                  "--"
+                                                  ,(format-inactive-ts orig-end)
+                                                  (+ nonl)
+                                                  "\n"))
+                              (org-entry-end-position))
+           (replace-match (mapconcat #'make-clock-line entries))))))))
 
 ;;;; Capture
 
