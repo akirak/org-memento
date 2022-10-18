@@ -498,7 +498,8 @@ point to the heading.
 ;;;; Timers and notifications
 
 (defun org-memento-block-timeout ()
-  (org-memento))
+  ;; TODO: Use alert.el
+  (message "The event has timed out"))
 
 (defun org-memento--setup-block-end-timer ()
   "Start a timer that finishes the current block."
