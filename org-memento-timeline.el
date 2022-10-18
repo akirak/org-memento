@@ -76,7 +76,7 @@ timeline as an argument."
      :background "HotPink3")
     (((class color) (min-colors 88) (background light))
      :background "LightPink")
-    (t (:inherit default :foreground "" :background "")))
+    (t (:inherit default)))
   "Face for an item at the current time.")
 
 ;;;; Display the timeline
