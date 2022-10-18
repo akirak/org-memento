@@ -438,6 +438,8 @@ If ARG is non-nil, create an away event."
                       t)
                      (gap
                       (add-event start end t arg))
+                     (anonymous
+                      (add-event start end nil nil))
                      (idle
                       (log-away-event start end marker))
                      (otherwise
