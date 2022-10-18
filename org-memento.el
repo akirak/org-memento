@@ -165,8 +165,6 @@ distractions."
 (defvar org-memento-current-time nil
   "When non-nil, use this as the current time for testing.")
 
-(defvar org-memento-next-event nil)
-
 (defvar org-memento-block-timer nil)
 
 (defvar org-memento-daily-timer nil)
@@ -424,32 +422,10 @@ Return a copy of the list."
     (when (org-memento--maybe-check-in :adjust t)
       (org-memento--save-buffer)))
   (setq org-memento-current-block title)
-  ;; This should be moved to `org-memento-status'.
-  (let* ((block (org-memento-with-current-block
-                  (org-memento-block-entry)))
-         (ending-time (org-memento-ending-time block))
-         (upnext-event (org-memento--next-agenda-event
-                        (org-memento-block-hd-marker block)))
-         (ending-time-2 (cond
-                         ((and upnext-event ending-time)
-                          (min ending-time (org-memento-ending-time-default upnext-event)))
-                         (upnext-event
-                          (org-memento-ending-time-default upnext-event))
-                         (t
-                          ending-time))))
-    (setq org-memento-current-category
-          (org-memento-block-category block)
-          org-memento-next-event upnext-event)
-    (setq org-memento-title-string (when ending-time-2
-                                     (format-time-string " (until %R)" ending-time-2)))
-    (org-memento--cancel-block-timer)
-    (setq org-memento-block-timer
-          (when ending-time-2
-            (run-with-timer (- ending-time-2 (float-time))
-                            nil
-                            #'org-memento-block-timeout)))
-    (org-memento-setup-daily-timer)
-    (run-hooks 'org-memento-block-start-hook)))
+  ;; (org-memento-setup-daily-timer)
+  (org-memento-status)
+  (run-hooks 'org-memento-block-start-hook)
+  (org-memento--setup-block-end-timer))
 
 (defun org-memento-finish-block ()
   "Mark the current block as done."
@@ -523,6 +499,16 @@ point to the heading.
 
 (defun org-memento-block-timeout ()
   (org-memento))
+
+(defun org-memento--setup-block-end-timer ()
+  "Start a timer that finishes the current block."
+  (org-memento--cancel-block-timer)
+  (let ((time (org-memento-ending-time (org-memento--current-block)))
+        (now (float-time (org-memento--current-time))))
+    (when (and time (> time now))
+      (setq org-memento-block-timer
+            (run-with-timer (- time now)
+                            nil #'org-memento-block-timeout)))))
 
 (defun org-memento--cancel-block-timer ()
   (when org-memento-block-timer
@@ -746,9 +732,10 @@ The point must be at the heading."
                                  (not (org-memento-ended-time block)))
                         (org-memento-title block)))
                     (org-memento--blocks))))
-  (when-let (event (org-memento--next-agenda-event
-                    (car org-memento-status-data)))
-    (setq org-memento-next-event event))
+  (let* ((block (org-memento--current-block))
+         (category (when block (org-memento-block-category block)))
+         (ending-time (when block (org-memento-ending-time block))))
+    (setq org-memento-current-category category))
   (run-hooks 'org-memento-status-hook))
 
 (defun org-memento--block-data (&optional check-in)
