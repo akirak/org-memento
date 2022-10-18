@@ -381,6 +381,10 @@ If ARG is non-nil, create an away event."
                  (replace-match (format-inactive end) nil nil nil 1)
                  (setq updated (or updated t)))
                updated))))
+       (adjust-ts (marker)
+         (save-current-buffer
+           (org-with-point-at marker
+             (org-memento-adjust-time))))
        (add-event (start end &optional moderate-time away)
          (pcase-exhaustive (if moderate-time
                                (org-memento--read-time-span
@@ -414,10 +418,11 @@ If ARG is non-nil, create an away event."
                 (pcase (oref (magit-current-section) value)
                   (`nil
                    (user-error "No section at point"))
-                  (`(,start ,end ,_title ,_marker ,type . ,_)
+                  (`(,start ,end ,_title ,marker ,type . ,_)
                    (cl-case type
                      ((block away)
-                      (user-error "No action is defined on type %s" type))
+                      (adjust-ts marker)
+                      t)
                      (gap
                       (add-event start end t arg))
                      (idle

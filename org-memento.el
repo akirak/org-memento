@@ -538,6 +538,18 @@ point to the heading.
    (setq org-memento-block-idle-logging t)
    (run-hooks 'org-memento-checkout-hook)))
 
+(defun org-memento-adjust-time ()
+  "Adjust the active timestamp of the entry."
+  (interactive)
+  (save-excursion
+    (org-back-to-heading)
+    (org-end-of-meta-data)
+    (when (looking-at org-logbook-drawer-re)
+      (goto-char (match-end 0)))
+    (let ((has-ts (looking-at org-ts-regexp)))
+      (when (org-time-stamp nil)
+        (unless has-ts (insert "\n"))))))
+
 (defun org-memento-schedule-away-time (start end)
   (interactive (org-memento--read-time-span))
   (let* ((title (completing-read "Title: " org-memento-schedule-away-alist))
