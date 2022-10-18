@@ -389,23 +389,32 @@ Return a copy of the list."
 ;;;; Commands
 
 ;;;###autoload
-(defun org-memento ()
-  "Display the current block status or select the next block."
+(defun org-memento-next-action ()
+  "Pick an action depending on the current status."
   (interactive)
+  (when (org-clocking-p)
+    (user-error "Please finish your clock first."))
   (org-memento-status)
-  (if org-memento-current-block
-      (progn
-        (pcase (read-char-choice (concat (org-memento--format-block-status)
-                                         "\n[f]inish, [s]top, or co[n]tinue? ")
-                                 (string-to-list "fsn"))
-          (?f
-           (org-memento-finish-block)
-           (org-memento))
-          (?s
-           (org-memento-stop-block)
-           (org-memento)))
-        (message nil))
-    (call-interactively #'org-memento-start-block)))
+  (if-let (block (org-memento--current-block))
+      (when (yes-or-no-p "Finish the current block?")
+        (org-memento-finish-block))
+    ;; It is hard to decide on the next action. Below is only an example.
+    (let* ((upnext-event (org-memento--next-agenda-event))
+           (time (when upnext-event (org-memento-starting-time upnext-event))))
+      (cond
+       ;; If there is an upcoming event that should be started within 10
+       ;; minutes, display it.
+       ((and time
+             (< (- time (float-time (org-memento--current-time)))
+                (* 10 60)))
+        (org-goto-marker-or-bmk (org-memento-org-event-marker upnext-event)))
+       ;; Start working on one of the remaining blocks.
+       ((seq-find #'org-memento-block-not-closed-p (org-memento--blocks))
+        (call-interactively #'org-memento-start-block))
+       (t
+        ;; Otherwise, I have no idea what would be the best thing to do in
+        ;; general. Just display the status.
+        (org-agenda))))))
 
 ;;;###autoload
 (defun org-memento-start-block (title)
