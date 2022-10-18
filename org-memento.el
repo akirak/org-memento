@@ -474,37 +474,6 @@ Return a copy of the list."
     (run-hooks 'org-memento-block-exit-hook)))
 
 ;;;###autoload
-(defun org-memento-log (start end)
-  "Log a past time block to the today's entry."
-  (interactive (org-memento--read-time-span))
-  (let* ((category (org-memento-read-category))
-         (title (org-memento-read-title nil :category category))
-         (donep (and end (time-less-p (current-time) end)))
-         (checkin (format-time-string (org-time-stamp-format t t)
-                                      start))
-         (closed (if donep
-                     (concat org-closed-string " "
-                             (format-time-string (org-time-stamp-format t t)
-                                                 end)
-                             "\n")
-                   ""))
-         (active (if donep
-                     ""
-                   (concat (org-memento--format-active-range start end)
-                           "\n")))
-         (org-capture-entry `("" ""
-                              entry #'org-memento-goto-today
-                              ,(concat "* " (if donep "DONE " "") title "\n"
-                                       closed
-                                       ":PROPERTIES:\n"
-                                       ":memento_checkin_time: " checkin "\n"
-                                       ":memento_category: " category "\n"
-                                       ":END:\n"
-                                       active
-                                       "%?"))))
-    (org-capture)))
-
-;;;###autoload
 (defun org-memento-open-today ()
   "Open the subtree of today.
 
@@ -549,18 +518,6 @@ point to the heading.
     (let ((has-ts (looking-at org-ts-regexp)))
       (when (org-time-stamp nil)
         (unless has-ts (insert "\n"))))))
-
-(defun org-memento-schedule-away-time (start end)
-  (interactive (org-memento--read-time-span))
-  (let* ((title (completing-read "Title: " org-memento-schedule-away-alist))
-         (org-capture-entry `("" ""
-                              entry (function org-memento-goto-idle)
-                              ,(concat "* " title "\n"
-                                       (org-format-time-string
-                                        (org-memento--format-active-range
-                                         start end))
-                                       "\n%?"))))
-    (org-capture)))
 
 ;;;; Timers and notifications
 
