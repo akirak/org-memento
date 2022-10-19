@@ -419,7 +419,7 @@ If ARG is non-nil, create an away event."
                        (if (and (< start now)
                                 (< end now))
                            (add-event start end t)
-                         (error "Creating an event is supported for future slices")))
+                         (add-event start end t arg)))
                       (_
                        (error "There are multiple time blocks"))))
                 ;; No selection
@@ -439,7 +439,9 @@ If ARG is non-nil, create an away event."
                      (gap
                       (add-event start end t arg))
                      (anonymous
-                      (add-event start end nil nil))
+                      (if (> end now)
+                          (add-event start end t arg)
+                        (add-event start end nil nil)))
                      (idle
                       (log-away-event start end marker))
                      (otherwise
