@@ -265,14 +265,14 @@ Return a copy of the list."
     (float-time (org-timestamp-to-time ts))))
 
 (cl-defmethod org-memento-ending-time ((x org-memento-block))
-  (if-let (ts (org-memento-block-active-ts x))
-      (let ((end-time (org-timestamp-to-time ts 'end)))
-        (unless (time-equal-p (org-timestamp-to-time ts) end-time)
-          (float-time end-time)))
-    (when-let* ((duration (org-memento-duration x))
-                (start (or (org-memento-started-time x)
-                           (org-memento-starting-time x))))
-      (+ start (* 60 duration)))))
+  (or (when-let (ts (org-memento-block-active-ts x))
+        (let ((end-time (org-timestamp-to-time ts 'end)))
+          (unless (time-equal-p (org-timestamp-to-time ts) end-time)
+            (float-time end-time))))
+      (when-let* ((duration (org-memento-duration x))
+                  (start (or (org-memento-started-time x)
+                             (org-memento-starting-time x))))
+        (+ start (* 60 duration)))))
 
 ;;;;; org-memento-org-event
 
