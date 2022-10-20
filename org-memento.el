@@ -1730,11 +1730,20 @@ range."
                (org-time-stamp nil)
                (goto-char (point-min))
                (org-element-timestamp-parser)))
-         (start-time (org-timestamp-to-time ts))
-         (end-time (org-timestamp-to-time ts 'end)))
+         (start-time (org-memento--timestamp-to-time ts))
+         (end-time (org-memento--timestamp-to-time ts 'end)))
     (list start-time
           (unless (time-equal-p start-time end-time)
             end-time))))
+
+(defun org-memento--timestamp-to-time (ts &optional end)
+  (encode-time (make-decoded-time
+                :year (org-element-property (if end :year-end :year-start) ts)
+                :month (org-element-property (if end :month-end :month-start) ts)
+                :day (org-element-property (if end :day-end :day-start) ts)
+                :hour (org-element-property (if end :hour-end :hour-start) ts)
+                :minute (org-element-property (if end :minute-end :minute-start) ts)
+                :second 0)))
 
 (defun org-memento--format-active-range (start-time end-time)
   (format (org-format-time-string "<%Y-%m-%d %a %%s%%s>" start-time)
