@@ -87,6 +87,13 @@ than `org-clock-idle-time'."
   "Hook run after starting a block."
   :type 'hook)
 
+(defcustom org-memento-block-before-exit-hook nil
+  "Hook run just before finishing or stopping a block.
+
+This hook is called in the initial buffer before performing any
+modification on the current entry."
+  :type 'hook)
+
 (defcustom org-memento-block-exit-hook nil
   "Hook run after finishing or stopping a block."
   :type 'hook)
@@ -440,6 +447,7 @@ Return a copy of the list."
   "Mark the current block as done."
   (interactive)
   (when org-memento-current-block
+    (run-hooks 'org-memento-block-before-exit-hook)
     (org-memento-with-current-block
       (org-todo 'done)
       (org-memento--save-buffer))
@@ -451,6 +459,7 @@ Return a copy of the list."
   "Change the state of the current block to a done keyword."
   (interactive)
   (when org-memento-current-block
+    (run-hooks 'org-memento-block-before-exit-hook)
     (org-memento-with-current-block
       (org-todo (completing-read "Change the state: " org-done-keywords))
       (org-memento--save-buffer))
