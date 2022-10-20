@@ -45,19 +45,9 @@
 
 ;;;; Custom variables
 
-(defcustom org-memento-timeline-pre-hook
-  nil
-  "Hook run before the timeline sections are inserted.
-
-The hook is run inside the timeline buffer.
-
-Each function in the hook takes the taxy representing the
-timeline as an argument."
-  :type 'hook)
-
-(defcustom org-memento-timeline-post-hook
-  nil
-  "Hook run after the timeline sections are inserted.
+(defcustom org-memento-timeline-hook
+  '(org-memento-timeline-insert)
+  "Hook run every time the buffer is refreshed.
 
 The hook is run inside the timeline buffer.
 
@@ -105,11 +95,9 @@ timeline as an argument."
                      org-memento-timeline-date-range)))
     (let ((inhibit-read-only t))
       (erase-buffer)
-      (run-hook-with-args 'org-memento-timeline-pre-hook taxy)
-      (org-memento-timeline--insert taxy)
-      (run-hook-with-args 'org-memento-timeline-post-hook taxy))))
+      (run-hook-with-args 'org-memento-timeline-hook taxy))))
 
-(defun org-memento-timeline--insert (root-taxy)
+(defun org-memento-timeline-insert (root-taxy)
   ;; TODO: Maybe set magit-section-set-visibility-hook
   (let ((now (float-time (org-memento--current-time))))
     (cl-labels
