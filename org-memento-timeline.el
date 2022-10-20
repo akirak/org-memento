@@ -373,6 +373,8 @@ If ARG is non-nil, create an away event."
          (save-current-buffer
            (org-with-point-at marker
              (org-memento-adjust-time))))
+       (schedule-new-block (start end-bound)
+         (org-memento-schedule-block start end-bound))
        (add-event (start end &optional moderate-time away)
          (pcase-exhaustive (if moderate-time
                                (org-memento--read-time-span
@@ -434,10 +436,12 @@ If ARG is non-nil, create an away event."
                       (log-away-event start end marker))
                      (otherwise
                       (error "Unexpected event type %s" type))))
+                  ;; Gap between blocks
                   (`(,start ,end . ,_)
                    (if (> end now)
-                       (add-event (max start (float-time))
-                                  end t arg)
+                       (if arg
+                           (add-event (max start (float-time)) end t t)
+                         (schedule-new-block (max start (float-time)) end))
                      (add-event start end t arg)))
                   (_
                    (user-error "Don't know what to do for the section")))))

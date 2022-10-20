@@ -760,6 +760,11 @@ The point must be at the heading."
     (setq org-memento-current-category category))
   (run-hooks 'org-memento-status-hook))
 
+(defun org-memento--status ()
+  "Only update `org-memento-status-data'."
+  (interactive)
+  (setq org-memento-status-data (org-memento--block-data)))
+
 (defun org-memento--block-data (&optional check-in)
   ;; The first item will always be the day itself.
   (org-memento-with-today-entry
@@ -911,39 +916,76 @@ The point must be at the heading."
              (push heading result))))))
     (cl-remove-duplicates result :test #'equal)))
 
-(defvar org-memento-block-cache nil)
-
-(defun org-memento-block-completion ()
-  (let ((items (thread-last
-                 (org-memento--blocks)
-                 (seq-filter #'org-memento-block-not-closed-p))))
-    (if org-memento-block-cache
-        (clrhash org-memento-block-cache)
-      (setq org-memento-block-cache
-            (make-hash-table :test #'equal :size (length items))))
-    (dolist (block items)
-      (puthash (org-memento-title block) block org-memento-block-cache))
-    `(lambda (string pred action)
-       (if (eq action 'metadata)
-           '(metadata . ((category . org-memento-block)
-                         (annotation-function . org-memento-block-annotator)))
-         (complete-with-action action ',(mapcar #'org-memento-title items)
-                               string pred)))))
-
-(defun org-memento-block-annotator (title)
-  (if-let (block (gethash title org-memento-block-cache))
-      (concat (when-let (time (org-memento-starting-time block))
-                (propertize (format " %s, in %d minutes"
-                                    (format-time-string "%R" time)
-                                    (org-memento-minutes-from-now time))
-                            'face 'font-lock-warning-face))
-              (when-let (duration (org-memento-duration block))
-                (propertize (format " (%s)" (org-duration-from-minutes duration))
-                            'face 'font-lock-doc-face))
-              (when-let (time (org-memento-started-time block))
-                (propertize (format-time-string " already checked in at %R" time)
-                            'face 'font-lock-comment-face)))
-    ""))
+(defun org-memento-read-future-event (start end-bound)
+  (org-memento--status)
+  (let* ((now (float-time (org-memento--current-time)))
+         (cache (make-hash-table :test #'equal :size 100))
+         (duration-limit (/ (- end-bound start) 60))
+         (prompt (format "Thing to do in %s-%s (%d min): "
+                         (format-time-string "%R" start)
+                         (format-time-string "%R" end-bound)
+                         duration-limit))
+         candidates)
+    (cl-labels
+        ((annotator (title)
+           (pcase (gethash title cache)
+             ((and (pred org-memento-block-p)
+                   block)
+              (let* ((time (org-memento-starting-time block))
+                     (ending-time (org-memento-ending-time block))
+                     (duration (or (org-memento-duration block)
+                                   (when (and ending-time time)
+                                     (/ (- ending-time time) 60))))
+                     (category (org-memento-block-category block)))
+                (concat (when time
+                          (propertize (format " scheduled %s-%s"
+                                              (format-time-string "%R" time)
+                                              (format-time-string "%R" ending-time))
+                                      'face 'font-lock-doc-face))
+                        (when (and time (< time now))
+                          (propertize (format " (should have started %.f minutes ago)"
+                                              (/ (- now time) 60))
+                                      'face 'font-lock-warning-face))
+                        (when category
+                          (propertize (concat " " category)
+                                      'face 'font-lock-doc-face))
+                        (when duration
+                          (propertize (concat " " (org-duration-from-minutes duration))
+                                      'face 'font-lock-doc-face)))))
+             (_
+              "")))
+         (completions (string pred action)
+           (if (eq action 'metadata)
+               (cons 'metadata
+                     (list (cons 'category 'org-memento-block)
+                           (cons 'annotation-function #'annotator)))
+             (complete-with-action action candidates string pred))))
+      (progn
+        (let ((blocks (thread-last
+                        (org-memento--blocks)
+                        (seq-filter #'org-memento-block-not-closed-p)
+                        (seq-filter `(lambda (block)
+                                       (if-let (duration (org-memento-duration block))
+                                           (< duration ,duration-limit)
+                                         (if-let* ((starting (org-memento-starting-time block))
+                                                   (ending (org-memento-ending-time block)))
+                                             (< (/ (- ending starting) 60)
+                                                ,duration-limit)
+                                           t)))))))
+          (dolist (block (append (seq-filter `(lambda (block)
+                                                (and (org-memento-starting-time block)
+                                                     (< (org-memento-starting-time block) ',now)))
+                                             blocks)
+                                 (seq-filter `(lambda (block)
+                                                (not (org-memento-starting-time block)))
+                                             blocks)))
+            (puthash (org-memento-title block) block cache)
+            (push (org-memento-title block) candidates)))
+        (setq candidates (nreverse candidates))
+        (unwind-protect
+            (let ((input (completing-read prompt #'completions)))
+              (gethash input cache input))
+          (clrhash cache))))))
 
 ;;;; Retrieving timing information
 
@@ -1809,6 +1851,42 @@ range."
                               entry (file+function ,org-memento-file ,jump-fn)
                               ,template ,@plist)))
     (org-capture)))
+
+(defun org-memento-schedule-block (start end-bound)
+  "Schedule a block."
+  (let ((event (org-memento-read-future-event start end-bound)))
+    (cl-etypecase event
+      (org-memento-block
+       (save-current-buffer
+         (org-memento-with-block-title (org-memento-title event)
+           (org-end-of-meta-data)
+           (when (looking-at org-logbook-drawer-re)
+             (goto-char (match-end 0)))
+           (atomic-change-group
+             (if (looking-at org-ts-regexp)
+                 (replace-match "")
+               (insert "\n")
+               (beginning-of-line 0))
+             (let ((had-duration (org-memento-duration event))
+                   (starting (org-memento-starting-time event))
+                   (ending (org-memento-ending-time event)))
+               (insert (org-memento--format-active-range
+                        start
+                        (when (and (not had-duration)
+                                   ending)
+                          (+ start (- ending starting)))))
+               (beginning-of-line 1)
+               (unless had-duration
+                 (org-time-stamp nil)))))))
+      (string
+       (pcase-exhaustive (org-memento--read-time-span
+                          (org-memento--format-active-range
+                           start end-bound))
+         (`(,start ,end)
+          (org-memento-add-event :title event
+                                 :start start
+                                 :end end
+                                 :interactive t)))))))
 
 (cl-defun org-memento--event-template (&key title category start end interactive)
   (let* ((started-past (time-less-p start (org-memento--current-time)))
