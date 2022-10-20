@@ -1419,13 +1419,17 @@ denoting the type of the activity. ARGS is an optional list."
          (when (and float
                     (> float (float-time (org-memento--current-time))))
            float))
-       (parse-entry (include-future)
-         (if include-future
+       (parse-entry (include-future &optional away)
+         (if (or include-future away)
              (let* ((block (org-memento-block-entry))
                     (start (or (org-memento-started-time block)
-                               (only-future (org-memento-starting-time block))))
+                               (if away
+                                   (org-memento-starting-time block)
+                                 (only-future (org-memento-starting-time block)))))
                     (end (or (org-memento-ended-time block)
-                             (only-future (org-memento-ending-time block))
+                             (if away
+                                 (org-memento-ending-time block)
+                               (only-future (org-memento-ending-time block)))
                              (when (equal (org-memento-title block)
                                           org-memento-current-block)
                                (float-time (org-memento--current-time))))))
@@ -1468,7 +1472,7 @@ denoting the type of the activity. ARGS is an optional list."
              (let ((heading (match-string-no-properties 4))
                    (hd-marker (point-marker))
                    (bound (org-entry-end-position)))
-               (pcase (save-excursion (parse-entry include-future))
+               (pcase (save-excursion (parse-entry nil 'away))
                  (`(,start ,end)
                   (push (list start
                               end
