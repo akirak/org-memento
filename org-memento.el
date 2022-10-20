@@ -382,6 +382,8 @@ Return a copy of the list."
 
 (defun org-memento-idle ()
   (unless org-memento-block-idle-logging
+    (message "Idle is detected by org-memento [%s]"
+             (format-time-string "%F %R"))
     (let ((time-user-left (time-subtract (org-memento--current-time)
                                          (* 60 org-memento-idle-time))))
       (org-memento-with-today-entry
@@ -391,6 +393,7 @@ Return a copy of the list."
 
 (defun org-memento-unidle ()
   (remove-hook 'pre-command-hook #'org-memento-unidle)
+  (message "Idle finished [%s]" (format-time-string "%F %R"))
   (org-clock-out))
 
 ;;;; Commands
