@@ -1059,7 +1059,7 @@ marker to the time stamp, and the margin in seconds."
            (unless (and (equal file (expand-file-name org-memento-file))
                         (= 1 (org-outline-level)))
              (when-let* ((ts (org-timestamp-from-string (match-string 0)))
-                         (time (when (org-element-property :hour-start ts)
+                         (time (when (org-timestamp-has-time-p ts)
                                  (float-time (org-timestamp-to-time ts))))
                          ;; The default margin is 10 minutes. It would be better
                          ;; if we had a different margin depending on the
@@ -1379,8 +1379,6 @@ denoting the type of the activity. ARGS is an optional list."
              (encode-time)
              (float-time)
              (floor)))
-         (has-time (ts)
-           (org-element-property :hour-start ts))
          (scan ()
            (let ((hd-marker (point-marker))
                  (heading (when (looking-at org-complex-heading-regexp)
@@ -1419,7 +1417,7 @@ denoting the type of the activity. ARGS is an optional list."
                                (goto-char (pos-bol))
                                (looking-at org-planning-line-re)))
                      (let ((ts (org-timestamp-from-string (match-string 0))))
-                       (when (has-time ts)
+                       (when (org-timestamp-has-time-p ts)
                          (let ((event (make-org-memento-org-event :marker hd-marker
                                                                   :active-ts ts)))
                            (when-let* ((starting-time (org-memento-starting-time event))
@@ -1768,7 +1766,7 @@ range."
 (defun org-memento--duration-secs-ts-at-point ()
   "Return the duration in seconds from a timestamp at point."
   (let ((ts (org-element-timestamp-parser)))
-    (when (and (org-element-property :hour-start ts)
+    (when (and (org-timestamp-has-time-p ts)
                (not (time-equal-p (org-timestamp-to-time ts)
                                   (org-timestamp-to-time ts 'end))))
       (let ((start (org-timestamp-to-time ts))
