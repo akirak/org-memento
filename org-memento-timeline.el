@@ -46,7 +46,7 @@
 ;;;; Custom variables
 
 (defcustom org-memento-timeline-pre-hook
-  '(org-memento-timeline-insert-insights)
+  nil
   "Hook run before the timeline sections are inserted.
 
 The hook is run inside the timeline buffer.
@@ -459,6 +459,7 @@ If ARG is non-nil, create an away event."
 
 ;;;;; Overview
 
+;; This needs rewrite.
 (defun org-memento-timeline-insert-insights (taxy)
   (magit-insert-section (overview (taxy-name taxy) nil)
     (magit-insert-heading "Insights")
