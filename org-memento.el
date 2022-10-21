@@ -168,6 +168,31 @@ distractions."
   ""
   :type 'sexp)
 
+(defcustom org-memento-group-function
+  (lambda (element)
+    (list (org-element-property :MEMENTO_CATEGORY element)))
+  "Function that determines the group of the entry.
+
+It is called at the heading of the entry without arguments.
+
+It should return a list, and the group equality is compared using
+`equal' on the entire list."
+  :type 'function)
+
+(defcustom org-memento-group-formatters
+  '(identity)
+  "List of functions used to format each level of the group."
+  :type '(repeat function))
+
+(defcustom org-memento-unique-properties
+  '("CATEGORY"
+    "MEMENTO_CHECKIN_TIME"
+    "ID")
+  "List of Org entry properties that should not be copied.
+
+Note that all property names should be upper-cased."
+  :type '(repeat string))
+
 ;;;; Variables
 
 (defvar org-memento-status-data nil)
@@ -957,13 +982,24 @@ The point must be at the heading."
                         (when duration
                           (propertize (concat " " (org-duration-from-minutes duration))
                                       'face 'font-lock-doc-face)))))
+             (`(group . ,group-with-entries)
+              (org-memento--group-annotator group-with-entries))
              (_
               "")))
+         (group (candidate transform)
+           (if transform
+               candidate
+             (pcase (gethash candidate cache)
+               ((pred org-memento-block-p)
+                "Blocks to (re)allocate")
+               (`(group . ,_)
+                "Groups"))))
          (completions (string pred action)
            (if (eq action 'metadata)
                (cons 'metadata
                      (list (cons 'category 'org-memento-block)
-                           (cons 'annotation-function #'annotator)))
+                           (cons 'annotation-function #'annotator)
+                           (cons 'group-function #'group)))
              (complete-with-action action candidates string pred))))
       (progn
         (let ((blocks (thread-last
@@ -986,11 +1022,134 @@ The point must be at the heading."
                                              blocks)))
             (puthash (org-memento-title block) block cache)
             (push (org-memento-title block) candidates)))
+        (dolist (group-with-entries (org-memento--group-alist-1))
+          (let ((group-title (org-memento--format-group (car group-with-entries))))
+            (puthash group-title (cons 'group group-with-entries) cache)
+            (push group-title candidates)))
         (setq candidates (nreverse candidates))
         (unwind-protect
-            (let ((input (completing-read prompt #'completions)))
-              (gethash input cache input))
+            (let* ((completions-sort nil)
+                   (input (completing-read prompt #'completions))
+                   (entry (gethash input cache input)))
+              (pcase entry
+                (`(group . ,group-with-entries)
+                 (org-memento--read-group-entry (cdr group-with-entries) start end-bound))
+                (_
+                 entry)))
           (clrhash cache))))))
+
+(defun org-memento--read-group-entry (entries start end-bound)
+  (let ((cache (make-hash-table :test #'equal :size (length entries)))
+        candidates)
+    (cl-labels
+        ((annotator (candidate)
+           (pcase (gethash candidate cache)
+             (`(,start ,end ,_date ,_title . ,plist)
+              (format " %s %s"
+                      (plist-get plist :todo-keyword)
+                      (org-duration-from-minutes (/ (- end start) 60))))))
+         (sort-candidates (candidates)
+           (cl-sort candidates #'string>))
+         (completions (string pred action)
+           (if (eq action 'metadata)
+               (cons 'metadata
+                     (list (cons 'annotation-function #'annotator)
+                           (cons 'display-sort-function #'sort-candidates)))
+             (complete-with-action action candidates string pred))))
+      (progn
+        (dolist (entry entries)
+          (pcase-exhaustive entry
+            (`(,start ,end ,date ,heading . ,plist)
+             (let ((title (string-join (list date heading)
+                                       "/")))
+               (puthash title entry cache)
+               (push title candidates)))))
+        (let ((input (completing-read (format "Thing to do in %s-%s (%.f min): "
+                                              (format-time-string "%R" start)
+                                              (format-time-string "%R" end-bound)
+                                              (/ (- end-bound start) 60))
+                                      #'completions nil t)))
+          (pcase-exhaustive (gethash input cache)
+            (`(,start1 ,end1 ,date ,headline . ,_)
+             (list 'copy-entry
+                   (org-find-olp (list org-memento-file date headline))
+                   :title
+                   (read-from-minibuffer "Title: " headline nil nil nil nil 'input-method)
+                   :time
+                   (org-memento--read-time-span
+                    (org-memento--format-active-range
+                     start (+ start (- end1 start1))))))))))))
+
+(defun org-memento--group-alist-1 ()
+  (thread-last
+    (org-memento--collect-groups-1)
+    (seq-group-by #'car)
+    (cl-remove-if (lambda (group-with-entries)
+                    (seq-every-p #'null (car group-with-entries))))
+    (mapcar (lambda (group)
+              (cons (car group)
+                    (nreverse (mapcar #'cdr (cdr group))))))))
+
+(defun org-memento--group-annotator (group-with-entries)
+  (let* ((days (ceiling (/ (- (float-time (org-memento--current-time))
+                              (caadr group-with-entries))
+                           (* 3600 24))))
+         (days (if (and (= days 1)
+                        (> (caadr group-with-entries)
+                           (thread-first
+                             (org-memento--current-time)
+                             (decode-time)
+                             (org-memento--start-of-day)
+                             (encode-time)
+                             (float-time))))
+                   0
+                 days))
+         (days-formatted (pcase days
+                           (0 "today")
+                           (1 "yesterday")
+                           ((pred numberp) (format "%d days ago" days))
+                           (_ (error "days: %s" days))))
+         (durations (org-memento--group-durations group-with-entries)))
+    (format-spec " %d (%D)"
+                 `((?d . ,days-formatted)
+                   (?D . ,(mapconcat #'org-duration-from-minutes durations " "))))))
+
+(defun org-memento--group-durations (group-with-entries)
+  (thread-last
+    (cdr group-with-entries)
+    (mapcar (lambda (list)
+              (/ (- (nth 1 list)
+                    (nth 0 list))
+                 60)))
+    (mapcar (lambda (minutes)
+              (when-let (round (cond
+                                ((< minutes 30)
+                                 5)
+                                ((< minutes 60)
+                                 10)
+                                ((< minutes 90)
+                                 15)
+                                ((< minutes 180)
+                                 30)
+                                ((<= minutes 300)
+                                 60)
+                                (t
+                                 nil)))
+                (* (ceiling (/ minutes round)) round))))
+    (delq nil)
+    (seq-sort #'<)
+    (seq-uniq)))
+
+(defun org-memento--format-group (group)
+  (let ((fns (copy-sequence org-memento-group-formatters))
+        (values (copy-sequence group))
+        fn
+        strings)
+    (while (setq fn (pop fns))
+      (when-let (string (funcall fn (pop values)))
+        (push string
+              strings)))
+    (string-join (nreverse strings) " > ")))
 
 ;;;; Retrieving timing information
 
@@ -1592,6 +1751,48 @@ denoting the type of the activity. ARGS is an optional list."
                        (push (cons day blocks) dates))))))))
           dates)))))
 
+;;;; Grouping
+
+(cl-defun org-memento--collect-groups-1 (&optional start-date-string end-date-string)
+  (with-current-buffer (org-memento--buffer)
+    (org-with-wide-buffer
+     (org-memento--find-today)
+     (let (result)
+       (catch 'finish-scan
+         (while (re-search-forward (format org-complex-heading-regexp-format
+                                           org-memento-date-regexp)
+                                   nil t)
+           (if (and end-date-string (string-lessp end-date-string (match-string 4)))
+               (org-end-of-subtree)
+             (let ((date (match-string-no-properties 4))
+                   (bound (save-excursion
+                            (org-end-of-subtree))))
+               (when (and start-date-string
+                          (string-lessp date start-date-string))
+                 (throw 'finish-scan t))
+               (while (re-search-forward org-complex-heading-regexp bound t)
+                 (when (and (equal (match-string 1) "**")
+                            (not (or (equal (match-string 4) org-memento-idle-heading)
+                                     (string-prefix-p org-comment-string (match-string 4))))
+                            (org-entry-is-done-p))
+                   ;; Drop invalid entries using when-let
+                   (when-let ((block (org-memento-block-entry))
+                              (started (org-memento-started-time block))
+                              (ended (org-memento-ended-time block)))
+                     (push (list (save-excursion
+                                   (funcall org-memento-group-function
+                                            (org-memento-block-headline block)))
+                                 started
+                                 ended
+                                 date
+                                 (org-memento-title block)
+                                 :todo-keyword
+                                 (org-element-property :todo-keyword
+                                                       (org-memento-headline-element block)))
+                           result)))
+                 (org-end-of-subtree))))))
+       result))))
+
 ;;;; Utility functions for time representations and Org timestamps
 
 (defun org-memento--fill-decoded-time (decoded-time)
@@ -1821,7 +2022,7 @@ range."
 ;;;; Capture
 
 ;;;###autoload
-(cl-defun org-memento-add-event (&key title category start end
+(cl-defun org-memento-add-event (&key title category start end copy-from
                                       interactive away)
   "Insert an block/event entry into the journal"
   (interactive (let* ((span (org-memento--read-time-span))
@@ -1843,16 +2044,26 @@ range."
                      (when ,(and away t)
                        (org-memento--find-or-create-idle-heading))))
          (title (or title (org-memento-read-title)))
-         (category (unless away
+         (category (unless (or away copy-from)
                      (or category
                          (org-memento-read-category nil))))
          (template (if away
                        (org-memento--away-event-template
                         :start start :end end :title title
                         :interactive interactive)
-                     (org-memento--event-template
-                      :start start :end end :title title :category category
-                      :interactive interactive)))
+                     (apply #'org-memento--event-template
+                            :start start :end end :title title :category category
+                            :interactive interactive
+                            (when copy-from
+                              (save-current-buffer
+                                (org-with-point-at copy-from
+                                  (list :tags (org-get-tags nil t)
+                                        :properties
+                                        (cl-remove-if
+                                         (lambda (key)
+                                           (member key org-memento-unique-properties))
+                                         (org-entry-properties nil 'standard)
+                                         :key #'car))))))))
          (plist (unless interactive
                   '(:immediate-finish t)))
          (org-capture-entry `("" ""
@@ -1863,8 +2074,8 @@ range."
 (defun org-memento-schedule-block (start end-bound)
   "Schedule a block."
   (let ((event (org-memento-read-future-event start end-bound)))
-    (cl-etypecase event
-      (org-memento-block
+    (pcase-exhaustive event
+      ((pred org-memento-block-p)
        (save-current-buffer
          (org-memento-with-block-title (org-memento-title event)
            (org-end-of-meta-data)
@@ -1886,7 +2097,13 @@ range."
                (beginning-of-line 1)
                (unless had-duration
                  (org-time-stamp nil)))))))
-      (string
+      (`(copy-entry ,marker . ,plist)
+       (org-memento-add-event :title (plist-get plist :title)
+                              :start (nth 0 (plist-get plist :time))
+                              :end (nth 1 (plist-get plist :time))
+                              :interactive t
+                              :copy-from marker))
+      ((pred stringp)
        (pcase-exhaustive (org-memento--read-time-span
                           (org-memento--format-active-range
                            start end-bound))
@@ -1896,19 +2113,26 @@ range."
                                  :end end
                                  :interactive t)))))))
 
-(cl-defun org-memento--event-template (&key title category start end interactive)
-  (let* ((started-past (time-less-p start (org-memento--current-time)))
-         (ended-past (and end (time-less-p end (org-memento--current-time))))
-         (properties (thread-last
-                       `(("memento_category"
-                          . ,(unless (and category (string-empty-p category))
-                               category))
-                         ("memento_checkin_time"
-                          . ,(when started-past
-                               (format-time-string (org-time-stamp-format t t) start))))
-                       (seq-filter #'cdr))))
+(cl-defun org-memento--event-template (&key title category start end interactive
+                                            tags properties)
+  (let ((started-past (time-less-p start (org-memento--current-time)))
+        (ended-past (and end (time-less-p end (org-memento--current-time)))))
+    (pcase-dolist (`(,key . ,value)
+                   `(("memento_category"
+                      . ,(unless (and category (string-empty-p category))
+                           category))
+                     ("memento_checkin_time"
+                      . ,(when started-past
+                           (format-time-string (org-time-stamp-format t t) start)))))
+      (when value
+        (if-let (cell (assoc key properties))
+            (setcdr cell value)
+          (setq properties (cons (cons key value) properties)))))
     (concat "* " (if ended-past "DONE " "")
             (or title (user-error "Title is missing"))
+            (if tags
+                (concat " " (org-make-tag-string tags))
+              "")
             "\n"
             (if ended-past
                 (concat "CLOSED: "
