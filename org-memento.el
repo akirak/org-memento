@@ -53,6 +53,14 @@
   "Time blocking with Org mode."
   :group 'org)
 
+;;;; Constants
+
+(defconst org-memento-date-regexp
+  (rx (repeat 4 digit) "-"
+      (repeat 2 digit) "-"
+      (repeat 2 digit))
+  "Regexp that matches date headings.")
+
 ;;;; Custom variables
 
 (defcustom org-memento-file (locate-user-emacs-file "memento.org")
@@ -612,10 +620,7 @@ beginning of the entry."
               (beginning-of-line 1)
               (throw 'found-heading t))
              ;; Past date
-             ((and (string-match-p (rx (repeat 4 digit) "-"
-                                       (repeat 2 digit) "-"
-                                       (repeat 2 digit))
-                                   heading)
+             ((and (string-match-p org-memento-date-regexp heading)
                    (string-lessp heading date))
               (beginning-of-line)
               (insert "* " date "\n")
@@ -1445,9 +1450,7 @@ denoting the type of the activity. ARGS is an optional list."
                        (parse-time-string string)
                        0 0 0)))
        (parse-date-at-point ()
-         (when (looking-at (rx (repeat 4 digit) "-"
-                               (repeat 2 digit) "-"
-                               (repeat 2 digit)))
+         (when (looking-at org-memento-date-regexp)
            (parse-date (match-string 0))))
        (parse-time (string)
          (thread-last
@@ -1543,9 +1546,7 @@ denoting the type of the activity. ARGS is an optional list."
         (outline-show-all)
         (let (dates)
           (while (re-search-forward (rx bol "*" blank) nil t)
-            (when-let (date-string (and (re-search-forward (rx (repeat 4 digit) "-"
-                                                               (repeat 2 digit) "-"
-                                                               (repeat 2 digit))
+            (when-let (date-string (and (re-search-forward org-memento-date-regexp
                                                            (pos-eol)
                                                            t)
                                         (match-string-no-properties 0)))
