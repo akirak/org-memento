@@ -86,7 +86,10 @@ Each function in this hook takes a taxy as an argument."
              (dolist (child (taxy-taxys taxy))
                (insert-group (1+ level) path child))))))
     (magit-insert-section (magit-section)
-      (magit-insert-heading)
+      (magit-insert-heading
+        (nth 0 org-memento-group-date-range)
+        "/"
+        (nth 1 org-memento-group-date-range))
       (dolist (taxy (taxy-taxys root-taxy))
         (insert-group 0 nil taxy)))))
 
