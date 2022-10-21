@@ -1974,6 +1974,12 @@ range."
             (floor (/ minutes 60))
             (mod minutes 60))))
 
+(defun org-memento--format-duration (minutes)
+  "An alternative function for formatting a duration."
+  (format "%d:%02d"
+          (floor (/ minutes 60))
+          (mod minutes 60)))
+
 (defun org-memento--duration-secs-ts-at-point ()
   "Return the duration in seconds from a timestamp at point."
   (let ((ts (org-element-timestamp-parser)))

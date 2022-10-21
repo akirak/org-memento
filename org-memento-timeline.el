@@ -123,7 +123,7 @@ timeline as an argument."
                      "")
                    (if (and end start)
                        (format " (%s)"
-                               (org-duration-from-minutes
+                               (org-memento--format-duration
                                 (/ (- end start) 60)))
                      "")))
          (unfinished-clock-p (item)
@@ -150,7 +150,7 @@ timeline as an argument."
                          (when (cadr (car group))
                            (propertize "Gap" 'face 'font-lock-comment-face)))
                        (format " (%s)\n"
-                               (org-duration-from-minutes
+                               (org-memento--format-duration
                                 (/ (- (cadr (car group))
                                       (car (car group)))
                                    60))))
@@ -229,7 +229,7 @@ timeline as an argument."
                                    'face 'font-lock-comment-face)))
                    (if (and start end)
                        (format " (%s)"
-                               (org-duration-from-minutes
+                               (org-memento--format-duration
                                 (/ (- (end-time taxy)
                                       (start-time taxy))
                                    60)))
@@ -258,7 +258,7 @@ timeline as an argument."
                                    (format-time-string "%F (%a)"))
                                  'face 'magit-section-heading)
                    (propertize (format "(%s between the days)"
-                                       (org-duration-from-minutes
+                                       (org-memento--format-duration
                                         (/ (- (end-time taxy)
                                               (start-time taxy))
                                            60)))
@@ -280,7 +280,7 @@ timeline as an argument."
                              (format (if (< end-time now)
                                          " Checked out (%s)\n"
                                        " Checking out (%s)\n")
-                                     (org-duration-from-minutes
+                                     (org-memento--format-duration
                                       (/ (- (end-time taxy)
                                             (start-time taxy))
                                          60)))
@@ -498,8 +498,8 @@ If ARG is non-nil, create an away event."
                                                (let ((sum (cl-reduce #'+ (mapcar #'cdr alist)
                                                                      :initial-value 0)))
                                                  (list category
-                                                       (org-duration-from-minutes sum)
-                                                       (org-duration-from-minutes
+                                                       (org-memento--format-duration sum)
+                                                       (org-memento--format-duration
                                                         (/ sum ndays))))))))
                        (heading1 "Category")
                        (width1 (thread-last
