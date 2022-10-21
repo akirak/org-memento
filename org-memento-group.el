@@ -15,6 +15,13 @@
   ""
   :type 'number)
 
+(defcustom org-memento-group-hook
+  '(org-memento-group-insert-groups)
+  "Hook run to insert contents into the buffer.
+
+Each function in this hook takes a taxy as an argument."
+  :type 'hook)
+
 (defvar org-memento-group-date-range nil)
 
 ;;;###autoload
@@ -39,6 +46,13 @@
     (pop-to-buffer (current-buffer))))
 
 (defun org-memento-group-revert (&rest _args)
+  (let ((inhibit-read-only t))
+    (erase-buffer)
+    (run-hook-with-args 'org-memento-group-hook
+                        (apply #'org-memento-group-taxy org-memento-group-date-range)))
+  (goto-char (point-min)))
+
+(defun org-memento-group-insert-groups (root-taxy)
   (cl-labels
       ((item-date (item)
          (nth 2 item))
@@ -71,14 +85,10 @@
                          "\n")))
              (dolist (child (taxy-taxys taxy))
                (insert-group (1+ level) path child))))))
-    (let ((inhibit-read-only t))
-      (erase-buffer)
-      (magit-insert-section (magit-section)
-        (magit-insert-heading)
-        (dolist (taxy (taxy-taxys (apply #'org-memento-group-taxy
-                                         org-memento-group-date-range)))
-          (insert-group 0 nil taxy))))
-    (goto-char (point-min))))
+    (magit-insert-section (magit-section)
+      (magit-insert-heading)
+      (dolist (taxy (taxy-taxys root-taxy))
+        (insert-group 0 nil taxy)))))
 
 (defun org-memento-group-taxy (start-day end-day &optional depth)
   (let ((depth (or depth (length org-memento-group-formatters))))
