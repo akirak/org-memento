@@ -2177,6 +2177,61 @@ range."
                 "%?"
               ""))))
 
+;;;; Exporting
+
+;;;###autoload
+(defun org-memento-export-groups-to-csv (file &optional append
+                                              start-date end-date)
+  "Export the data to CSV."
+  (let ((groups (mapcar (lambda (section)
+                          (oref section value))
+                        (magit-region-sections)))
+        (data (org-memento--collect-groups-1 start-date end-date)))
+    (when groups
+      (cl-delete-if `(lambda (x) (member (caar x) ',groups))
+                    data))
+    (cl-flet*
+        ((escape-quote (text)
+           (replace-regexp-in-string "\"" "\\\"" text))
+         (escape-backslash (text)
+           (replace-regexp-in-string "\\\\" "\\\\" text))
+         (wrap-quote (text)
+           (if (string-match-p "," text)
+               (format "\"%s\"" text)
+             text))
+         (escape-cell (text)
+           (thread-last
+             text
+             escape-backslash
+             escape-quote
+             wrap-quote))
+         (write-record (cells)
+           (insert (mapconcat #'escape-cell cells ",") "\n"))
+         (format-groups (groups)
+           (let ((i 0)
+                 result)
+             (dolist (group groups)
+               (push (funcall (nth i org-memento-group-formatters) group)
+                     result)
+               (cl-incf i))
+             (nreverse result))))
+      (with-temp-buffer
+        (unless append
+          (write-record (append (mapcar (lambda (i)
+                                          (format "Group %d" i))
+                                        (number-sequence 1 (length org-memento-group-formatters)))
+                                (list "Date")
+                                (list "Title")
+                                (list "Start")
+                                (list "End"))))
+        (dolist (record data)
+          (write-record (append (format-groups (car record))
+                                (list (nth 2 (cdr record))
+                                      (nth 3 (cdr record))
+                                      (format-time-string "%FT%R" (nth 0 (cdr record)))
+                                      (format-time-string "%FT%R" (nth 1 (cdr record)))))))
+        (write-region (point-min) (point-max) file append)))))
+
 ;;;; Integrations with third-party packages
 
 ;;;;; org-ql

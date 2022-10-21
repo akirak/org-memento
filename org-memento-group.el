@@ -151,5 +151,12 @@ Each function in this hook takes a taxy as an argument."
           (org-find-olp (list org-memento-file date title))
           #'display-buffer))))))
 
+(defun org-memento-group-export (file &optional append)
+  "Export the data to CSV."
+  (interactive "FOutput file: ")
+  (unless (derived-mode-p 'org-memento-group-mode)
+    (user-error "You must run this command from inside org-memento-group-mode"))
+  (org-memento-export-groups-to-csv file append org-memento-group-date-range))
+
 (provide 'org-memento-group)
 ;;; org-memento-group.el ends here
