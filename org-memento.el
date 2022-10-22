@@ -445,7 +445,8 @@ Return a copy of the list."
     (if (org-clocking-p)
         (call-interactively #'org-memento-start-block)
       ;; It is hard to decide on the next action. Below is only an example.
-      (let* ((upnext-event (org-memento--next-agenda-event))
+      (let* ((upnext-event (org-memento--next-agenda-event nil nil
+                                                           :include-memento-file t))
              (time (when upnext-event (org-memento-starting-time upnext-event))))
         (cond
          ;; If there is an upcoming event that should be started within 10
@@ -1251,7 +1252,8 @@ The point must be at the heading."
   (or (org-memento--designated-end-time block)
       (org-memento--calculated-end-time block)))
 
-(defun org-memento--next-agenda-event (&optional hd-marker bound-time)
+(defun org-memento--next-agenda-event (&optional hd-marker bound-time
+                                                 &key include-memento-file)
   "Return an Org entry that has the earliest time stamp.
 
 If BOUND-TIME is an internal time, time stamps later than the
@@ -1271,7 +1273,11 @@ marker to the time stamp, and the margin in seconds."
          (min-time (when bound-time
                      (float-time bound-time)))
          result)
-    (dolist (file (org-agenda-files))
+    (dolist (file (if include-memento-file
+                      (org-agenda-files)
+                    (cl-delete (expand-file-name org-memento-file)
+                               (org-agenda-files)
+                               :test #'equal)))
       (with-current-buffer (or (find-buffer-visiting file)
                                (find-file-noselect file))
         (org-with-wide-buffer
