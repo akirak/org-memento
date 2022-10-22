@@ -46,8 +46,8 @@
 ;;;; Custom variables
 
 (defcustom org-memento-timeline-hook
-  '(org-memento-timeline-insert-planning
-    org-memento-timeline-insert)
+  '(org-memento-timeline-planning-sections
+    org-memento-timeline-section)
   "Hook run every time the buffer is refreshed.
 
 The hook is run inside the timeline buffer.
@@ -57,10 +57,10 @@ timeline as an argument."
   :type 'hook)
 
 (defcustom org-memento-timeline-planning-hook
-  '(org-memento-timeline-insert-late-blocks
-    org-memento-timeline-insert-next-event
-    org-memento-timeline-insert-unscheduled-blocks)
-  "Hook run inside `org-memento-timeline-insert-planning'."
+  '(org-memento-timeline-late-blocks-section
+    org-memento-timeline-next-event-section
+    org-memento-timeline-unscheduled-blocks-section)
+  "Hook run inside `org-memento-timeline-planning-sections'."
   :type 'hook)
 
 ;;;; Faces
@@ -107,7 +107,8 @@ timeline as an argument."
       (erase-buffer)
       (run-hook-with-args 'org-memento-timeline-hook taxy))))
 
-(defun org-memento-timeline-insert (root-taxy)
+(defun org-memento-timeline-section (root-taxy)
+  "Insert the timeline section."
   ;; TODO: Maybe set magit-section-set-visibility-hook
   (let ((now (float-time (org-memento--current-time))))
     (cl-labels
@@ -477,11 +478,11 @@ If ARG is non-nil, create an away event."
 
 ;;;; Extra hooks
 
-(defun org-memento-timeline-insert-planning (taxy)
+(defun org-memento-timeline-planning-sections (taxy)
   (unless org-memento-current-block
     (run-hook-with-args 'org-memento-timeline-planning-hook taxy)))
 
-(defun org-memento-timeline-insert-late-blocks (taxy)
+(defun org-memento-timeline-late-blocks-section (taxy)
   (when (org-memento-timeline--within-range-p taxy)
     (let* ((now (float-time (org-memento--current-time))))
       (cl-flet
@@ -501,7 +502,7 @@ If ARG is non-nil, create an away event."
               (org-memento-timeline--insert-block 1 block)))
           (insert ?\n))))))
 
-(defun org-memento-timeline-insert-next-event (taxy)
+(defun org-memento-timeline-next-event-section (taxy)
   "Insert information on the next event(s) on the day.
 
 You should update the status before you call this function."
@@ -527,7 +528,7 @@ You should update the status before you call this function."
               (org-memento-timeline--insert-block 1 (or event next-block)))))
         (insert ?\n)))))
 
-(defun org-memento-timeline-insert-unscheduled-blocks (taxy)
+(defun org-memento-timeline-unscheduled-blocks-section (taxy)
   (when (org-memento-timeline--within-range-p taxy)
     (cl-flet
         ((block-unscheduled-p (block)
