@@ -438,6 +438,9 @@ If ARG is non-nil, create an away event."
                    (user-error "No section at point"))
                   (`(,start ,end ,_title ,marker ,type . ,_)
                    (cl-case type
+                     (dismissed
+                      (adjust-ts marker)
+                      t)
                      (block
                       ;; Only allow adjusting time of future events.
                       (when (and (> start now))
@@ -499,7 +502,7 @@ If ARG is non-nil, create an away event."
             (insert (make-string 2 ?\s)
                     "There are overdue events.\n")
             (dolist (block blocks)
-              (org-memento-timeline--insert-block 1 block)))
+              (org-memento-timeline--insert-block 1 block :type 'dismissed)))
           (insert ?\n))))))
 
 (defun org-memento-timeline-next-event-section (taxy)
@@ -540,10 +543,10 @@ You should update the status before you call this function."
         (magit-insert-section (magit-section)
           (magit-insert-heading "Blocks without time")
           (dolist (block blocks)
-            (org-memento-timeline--insert-block 1 block 'omit-time)))
+            (org-memento-timeline--insert-block 1 block :omit-time t)))
         (insert ?\n)))))
 
-(defun org-memento-timeline--insert-block (level block &optional omit-time)
+(cl-defun org-memento-timeline--insert-block (level block &key omit-time type)
   (let ((start (org-memento-starting-time block))
         (end (org-memento-ending-time block))
         (title (org-memento-title block))
@@ -551,11 +554,12 @@ You should update the status before you call this function."
                   (org-memento-block
                    (org-memento-block-hd-marker block))
                   (org-memento-org-event
-                   (org-memento-org-event-marker block)))))
-    (magit-insert-section (block (list start end title marker
-                                       (cl-typecase block
-                                         (org-memento-block 'block)
-                                         (org-memento-org-event 'org-event))))
+                   (org-memento-org-event-marker block))))
+        (type (or type
+                  (cl-typecase block
+                    (org-memento-block 'block)
+                    (org-memento-org-event 'org-event)))))
+    (magit-insert-section (block (list start end title marker type))
       (magit-insert-heading
         (make-string (* 2 level) ?\s)
         (unless omit-time
