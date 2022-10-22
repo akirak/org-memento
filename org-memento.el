@@ -946,6 +946,40 @@ The point must be at the heading."
              (push heading result))))))
     (cl-remove-duplicates result :test #'equal)))
 
+(defvar org-memento-block-cache nil)
+
+(defun org-memento-block-completion ()
+  (let ((items (thread-last
+                 (org-memento--blocks)
+                 (seq-filter #'org-memento-block-not-closed-p))))
+    (if org-memento-block-cache
+        (clrhash org-memento-block-cache)
+      (setq org-memento-block-cache
+            (make-hash-table :test #'equal :size (length items))))
+    (dolist (block items)
+      (puthash (org-memento-title block) block org-memento-block-cache))
+    `(lambda (string pred action)
+       (if (eq action 'metadata)
+           '(metadata . ((category . org-memento-block)
+                         (annotation-function . org-memento-block-annotator)))
+         (complete-with-action action ',(mapcar #'org-memento-title items)
+                               string pred)))))
+
+(defun org-memento-block-annotator (title)
+  (if-let (block (gethash title org-memento-block-cache))
+      (concat (when-let (time (org-memento-starting-time block))
+                (propertize (format " %s, in %d minutes"
+                                    (format-time-string "%R" time)
+                                    (org-memento-minutes-from-now time))
+                            'face 'font-lock-warning-face))
+              (when-let (duration (org-memento-duration block))
+                (propertize (format " (%s)" (org-duration-from-minutes duration))
+                            'face 'font-lock-doc-face))
+              (when-let (time (org-memento-started-time block))
+                (propertize (format-time-string " already checked in at %R" time)
+                            'face 'font-lock-comment-face)))
+    ""))
+
 (defun org-memento-read-future-event (start end-bound)
   (org-memento--status)
   (let* ((now (float-time (org-memento--current-time)))
