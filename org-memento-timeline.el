@@ -93,6 +93,8 @@ timeline as an argument."
   (interactive)
   (let ((taxy (apply #'org-memento-activity-taxy
                      org-memento-timeline-date-range)))
+    (when (org-memento-timeline--within-range-p taxy)
+      (org-memento--status))
     (let ((inhibit-read-only t))
       (erase-buffer)
       (run-hook-with-args 'org-memento-timeline-hook taxy))))
@@ -449,6 +451,15 @@ If ARG is non-nil, create an away event."
                   (_
                    (user-error "Don't know what to do for the section")))))
         (org-memento-timeline-revert)))))
+
+;;;; Utility functions
+
+(defun org-memento-timeline--within-range-p (taxy)
+  (let ((now (org-memento--current-time)))
+    (and (time-less-p (car (taxy-name taxy))
+                      now)
+         (time-less-p now
+                      (cadr (taxy-name taxy))))))
 
 ;;;; Extra hooks
 
