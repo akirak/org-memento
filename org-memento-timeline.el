@@ -384,7 +384,8 @@ If ARG is non-nil, create an away event."
             (org-memento-schedule-block (float-time modified-start)
                                         (if end
                                             (float-time end)
-                                          end-bound)))))
+                                          end-bound)
+                                        :confirmed-time t))))
        (add-event (start end &optional moderate-time away)
          (pcase-exhaustive (if moderate-time
                                (org-memento--read-time-span

@@ -982,7 +982,7 @@ The point must be at the heading."
 
 (cl-defun org-memento-read-future-event (start &optional end-bound
                                                &key (reschedule t) (reuse t)
-                                               title)
+                                               title no-ask-time)
   (org-memento--status)
   (let* ((now (float-time (org-memento--current-time)))
          (cache (make-hash-table :test #'equal :size 100))
@@ -1078,13 +1078,13 @@ The point must be at the heading."
               (pcase entry
                 (`(group . ,group-with-entries)
                  (org-memento--read-group-entry (cdr group-with-entries) start end-bound
-                                                :title title))
+                                                :title title :no-ask-time no-ask-time))
                 (_
                  entry)))
           (clrhash cache))))))
 
 (cl-defun org-memento--read-group-entry (entries start end-bound
-                                                 &key title)
+                                                 &key title no-ask-time)
   (let ((cache (make-hash-table :test #'equal :size (length entries)))
         (prompt (if title
                     (format "Pick a prototype of \"%s\" (empty input to select none): "
@@ -1130,9 +1130,10 @@ The point must be at the heading."
                    (or title
                        (read-from-minibuffer "Title: " headline nil nil nil nil 'input-method))
                    :time
-                   (org-memento--read-time-span
-                    (org-memento--format-active-range
-                     start (+ start (- end1 start1))))))
+                   (unless no-ask-time
+                     (org-memento--read-time-span
+                      (org-memento--format-active-range
+                       start (+ start (- end1 start1)))))))
             (""
              nil)))))))
 
@@ -2173,9 +2174,11 @@ range."
                               :interactive nil
                               :start start)))))
 
-(defun org-memento-schedule-block (start end-bound)
+(cl-defun org-memento-schedule-block (start end-bound
+                                            &key confirmed-time)
   "Schedule a block."
-  (let ((event (org-memento-read-future-event start end-bound)))
+  (let ((event (org-memento-read-future-event start end-bound
+                                              :no-ask-time confirmed-time)))
     (pcase-exhaustive event
       ((pred org-memento-block-p)
        (save-current-buffer
@@ -2201,19 +2204,28 @@ range."
                  (org-time-stamp nil)))))))
       (`(copy-entry ,marker . ,plist)
        (org-memento-add-event :title (plist-get plist :title)
-                              :start (nth 0 (plist-get plist :time))
-                              :end (nth 1 (plist-get plist :time))
+                              :start (if confirmed-time
+                                         start
+                                       (nth 0 (plist-get plist :time)))
+                              :end (if confirmed-time
+                                       end-bound
+                                     (nth 1 (plist-get plist :time)))
                               :interactive t
                               :copy-from marker))
       ((pred stringp)
-       (pcase-exhaustive (org-memento--read-time-span
-                          (org-memento--format-active-range
-                           start end-bound))
-         (`(,start ,end)
-          (org-memento-add-event :title event
-                                 :start start
-                                 :end end
-                                 :interactive t)))))))
+       (if confirmed-time
+           (org-memento-add-event :title event
+                                  :start start
+                                  :end end-bound
+                                  :interactive t)
+         (pcase-exhaustive (org-memento--read-time-span
+                            (org-memento--format-active-range
+                             start end-bound))
+           (`(,start ,end)
+            (org-memento-add-event :title event
+                                   :start start
+                                   :end end
+                                   :interactive t))))))))
 
 (cl-defun org-memento--event-template (&key title category start end interactive
                                             tags properties)
