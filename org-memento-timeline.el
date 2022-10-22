@@ -527,8 +527,10 @@ You should update the status before you call this function."
                          nil
                          (when next-block
                            (org-memento-starting-time next-block)))))
-            (when (or event next-block)
-              (org-memento-timeline--insert-block 1 (or event next-block)))))
+            (if (or event next-block)
+                (org-memento-timeline--insert-block 1 (or event next-block))
+              (insert (make-string 2 ?\s)
+                      "No next event.\n"))))
         (insert ?\n)))))
 
 (defun org-memento-timeline-unscheduled-blocks-section (taxy)
