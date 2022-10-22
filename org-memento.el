@@ -353,6 +353,14 @@ Return a copy of the list."
                         (org-timestamp-from-string (match-string 1)))))))
     (float-time (org-timestamp-to-time ts))))
 
+;;;;; org-memento-planning-item
+
+(cl-defstruct org-memento-planning-item hd-marker id heading effort)
+
+(cl-defmethod org-memento-duration ((x org-memento-planning-item))
+  (when-let (effort (org-memento-planning-item-effort x))
+    (org-duration-to-minutes effort)))
+
 ;;;; Macros
 
 (defmacro org-memento-with-today-entry (&rest progn)
@@ -1393,6 +1401,136 @@ marker to the time stamp, and the margin in seconds."
                  (when (memq ,dow (car cell))
                    (cdr cell)))
               org-memento-workhour-alist)))
+
+;;;; Planning
+
+(defconst org-memento-planning-drawer "planning")
+
+(defun org-memento-get-planning-items (block-or-marker)
+  (save-current-buffer
+    (org-with-point-at (cl-etypecase block-or-marker
+                         (org-memento-block
+                          (org-memento-block-hd-marker block-or-marker))
+                         (marker
+                          block-or-marker))
+      (let ((bound (org-entry-end-position)))
+        (catch 'planning
+          (while (re-search-forward org-drawer-regexp bound t)
+            (when (string-equal-ignore-case (match-string 1)
+                                            org-memento-planning-drawer)
+              (let ((start (point))
+                    (end (save-excursion
+                           (re-search-forward org-drawer-regexp bound)))
+                    links)
+                (while (re-search-forward org-link-bracket-re end t)
+                  (let ((href (match-string 1)))
+                    (when-let (id (save-match-data
+                                    (when (string-match (rx bol "id:") href)
+                                      (substring-no-properties href (match-end 0)))))
+                      (push (cons id (match-string 2))
+                            links))))
+                (throw 'planning links)))))))))
+
+(defun org-memento-add-planning-items (block items)
+  (save-current-buffer
+    (org-with-point-at (org-memento-block-hd-marker block)
+      (let ((bound (org-entry-end-position)))
+        (catch 'planning
+          (while (re-search-forward org-drawer-regexp bound t)
+            (when (string-equal-ignore-case (match-string 1)
+                                            org-memento-planning-drawer)
+              (insert "\n")
+              (throw 'planning t)))
+          (org-end-of-meta-data)
+          (when (looking-at org-ts-regexp)
+            (forward-line))
+          (org-insert-drawer nil "planning"))
+        (insert (mapconcat (lambda (item)
+                             (org-link-make-string
+                              (concat "id:" (org-memento-planning-item-id item))
+                              (org-memento-planning-item-heading item)))
+                           items
+                           "\n"))))))
+
+(defun org-memento-schedule-planning-items (items)
+  (let ((file (thread-last
+                (car items)
+                (org-memento-planning-item-hd-marker)
+                (marker-buffer)
+                (buffer-file-name)))
+        (blocks (thread-last
+                  (org-memento--blocks)
+                  (seq-filter #'org-memento-block-not-closed-p))))
+    (cl-labels
+        ((capable-p (block)
+           (save-current-buffer
+             (org-with-point-at (org-memento-block-hd-marker block)
+               (member file (funcall org-memento-agenda-files))))))
+      (let* ((alist (mapcar (lambda (block)
+                              (cons (org-memento-title block)
+                                    block))
+                            (or (seq-filter #'capable-p blocks)
+                                blocks)))
+             (title (completing-read "Block: " alist)))
+        (org-memento-add-planning-items (cdr (assoc title alist))
+                                        items)
+        t))))
+
+(defun org-memento--planning-items ()
+  "Collect planning items from the agenda files."
+  (let (result)
+    (cl-labels
+        ;; Faster version of `org-in-archived-heading-p'.
+        ((archivedp ()
+           (save-match-data
+             (save-excursion
+               (catch 'archived
+                 (while (looking-at org-complex-heading-regexp)
+                   (when (and (nth 10 (match-data))
+                              (string-match-p (regexp-quote (concat ":" org-archive-tag ":"))
+                                              (match-string 5)))
+                     (throw 'archived t))
+                   (when (= 1 (length (match-string 1)))
+                     (throw 'archived nil))
+                   (org-up-heading-all 1))))))
+         (has-future-time ()
+           (save-match-data
+             (save-excursion
+               (org-end-of-meta-data)
+               (when (re-search-forward org-stamp-time-of-day-regexp
+                                        (org-entry-end-position)
+                                        t)
+                 (time-less-p (org-memento--current-time)
+                              (thread-last
+                                (match-string 0)
+                                (org-timestamp-from-string)
+                                (org-timestamp-to-time))))))))
+      (dolist (file (org-agenda-files))
+        (with-current-buffer (or (find-buffer-visiting file)
+                                 (find-file-noselect file))
+          (org-with-wide-buffer
+           (goto-char (point-min))
+           (while (re-search-forward org-planning-line-re nil t)
+             (when (catch 'today
+                     (while (re-search-forward org-ts-regexp (pos-eol) t)
+                       (when (time-less-p (org-timestamp-to-time
+                                           (org-timestamp-from-string (match-string 0)))
+                                          (current-time))
+                         (throw 'today t))))
+               (save-excursion
+                 (org-back-to-heading)
+                 (looking-at org-complex-heading-regexp)
+                 (unless (or (member (match-string 2) org-done-keywords)
+                             (archivedp)
+                             (has-future-time))
+                   (push (make-org-memento-planning-item
+                          :hd-marker (point-marker)
+                          :heading (match-string-no-properties 4)
+                          :effort (org-entry-get nil "Effort")
+                          :id (org-id-get-create))
+                         result)))
+               (re-search-forward org-heading-regexp nil t)))))))
+    result))
 
 ;;;; Collect data for analytic purposes
 

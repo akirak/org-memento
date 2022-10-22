@@ -57,11 +57,27 @@ timeline as an argument."
   :type 'hook)
 
 (defcustom org-memento-timeline-planning-hook
-  '(org-memento-timeline-late-blocks-section
+  '(org-memento-timeline-agenda-section
+    org-memento-timeline-late-blocks-section
     org-memento-timeline-next-event-section
+    org-memento-timeline-feasibility-section
     org-memento-timeline-unscheduled-blocks-section)
   "Hook run inside `org-memento-timeline-planning-sections'."
   :type 'hook)
+
+(defcustom org-memento-timeline-edit-hook
+  '(org-memento-timeline-edit-planning)
+  ""
+  :type 'hook)
+
+(defcustom org-memento-timeline-multiple-edit-hook
+  '(org-memento-timeline-edit-multi-planning)
+  ""
+  :type 'hook)
+
+(defcustom org-memento-timeline-hide-planning t
+  "Whether to hide the planning section when in a block."
+  :type 'boolean)
 
 ;;;; Faces
 
@@ -122,6 +138,8 @@ timeline as an argument."
            (cadr (get-record item)))
          (title (item)
            (caddr (get-record item)))
+         (marker (item)
+           (cadddr (get-record item)))
          (sort-trees (items)
            (cl-sort items #'< :key #'start-time))
          (format-time-range (start end)
@@ -415,25 +433,31 @@ If ARG is non-nil, create an away event."
       (when (catch 'updated
               ;; Has multiple selections
               (if-let (values (magit-region-values))
-                  (pcase-let ((`(,start ,end) (time-range values)))
-                    (pcase (seq-count #'block-p values)
-                      (1
-                       (if (< end now)
-                           (let ((the-block (seq-find #'block-p values)))
-                             (when (yes-or-no-p (format "Expand the time range of\
+                  (or (run-hook-with-args-until-success
+                       'org-memento-timeline-multiple-edit-hook values)
+                      (pcase-let ((`(,start ,end) (time-range values)))
+                        (pcase (seq-count #'block-p values)
+                          (1
+                           (if (< end now)
+                               (let ((the-block (seq-find #'block-p values)))
+                                 (when (yes-or-no-p (format "Expand the time range of\
  the block \"%s\"?"
-                                                        (nth 2 the-block)))
-                               (throw 'updated (set-new-past-range the-block start end))))
-                         (error "Merging is not supported for future slices")))
-                      (0
-                       (if (and (< start now)
-                                (< end now))
-                           (add-event start end t)
-                         (add-event start end t arg)))
-                      (_
-                       (error "There are multiple time blocks"))))
+                                                            (nth 2 the-block)))
+                                   (throw 'updated (set-new-past-range the-block start end))))
+                             (error "Merging is not supported for future slices")))
+                          (0
+                           (if (and (< start now)
+                                    (< end now))
+                               (add-event start end t)
+                             (add-event start end t arg)))
+                          (_
+                           (error "There are multiple time blocks")))))
                 ;; No selection
                 (pcase (oref (magit-current-section) value)
+                  ((and value
+                        (guard (run-hook-with-args-until-success
+                                'org-memento-timeline-edit-hook
+                                value))))
                   (`nil
                    (user-error "No section at point"))
                   (`(,start ,end ,_title ,marker ,type . ,_)
@@ -482,8 +506,52 @@ If ARG is non-nil, create an away event."
 ;;;; Extra hooks
 
 (defun org-memento-timeline-planning-sections (taxy)
-  (unless org-memento-current-block
+  (unless (and org-memento-timeline-hide-planning
+               org-memento-current-block)
     (run-hook-with-args 'org-memento-timeline-planning-hook taxy)))
+
+(defun org-memento-timeline-agenda-section (taxy)
+  (when (org-memento-timeline--within-range-p taxy)
+    (let ((planned-items (thread-last
+                           (org-memento--blocks)
+                           (seq-filter #'org-memento-block-not-closed-p)
+                           (mapcar #'org-memento-get-planning-items)
+                           (apply #'append))))
+      (cl-labels
+          ((file (item)
+             (buffer-name (marker-buffer (org-memento-planning-item-hd-marker item))))
+           (take-file (item taxy)
+             (taxy-take-keyed
+               (list #'file)
+               item taxy))
+           (planned (item)
+             (assoc (org-memento-planning-item-id item) planned-items)))
+        (when-let (planning-items
+                   (cl-remove-if #'planned (org-memento--planning-items)))
+          (magit-insert-section (magit-section)
+            (magit-insert-heading "Planning Items")
+            (dolist (taxy (taxy-taxys (thread-last
+                                        (make-taxy :take #'take-file)
+                                        (taxy-emptied)
+                                        (taxy-fill planning-items))))
+              (magit-insert-section (planning-group)
+                (magit-insert-heading
+                  (make-string 2 ?\s)
+                  (taxy-name taxy))
+                (dolist (item (taxy-items taxy))
+                  (magit-insert-section (planning item)
+                    (magit-insert-heading
+                      (make-string 4 ?\s)
+                      (org-memento-planning-item-heading item))))))))
+        (insert ?\n)))))
+
+(defun org-memento-timeline-edit-planning (value)
+  (when (org-memento-planning-item-p value)
+    (org-memento-schedule-planning-items (list value))))
+
+(defun org-memento-timeline-edit-multi-planning (values)
+  (when (seq-find #'org-memento-planning-item-p values)
+    (org-memento-schedule-planning-items values)))
 
 (defun org-memento-timeline-late-blocks-section (taxy)
   (when (org-memento-timeline--within-range-p taxy)
@@ -538,7 +606,8 @@ You should update the status before you call this function."
     (cl-flet
         ((block-unscheduled-p (block)
            (and (org-memento-block-not-closed-p block)
-                (not (org-memento-starting-time block)))))
+                (not (org-memento-starting-time block))
+                (not (org-memento-started-time block)))))
       (when-let (blocks (thread-last
                           (org-memento--blocks)
                           (seq-filter #'block-unscheduled-p)))
@@ -573,6 +642,82 @@ You should update the status before you call this function."
                     (make-string 5 ?\s))
                   " "))
         (propertize title 'face 'magit-section-heading)))))
+
+(defun org-memento-timeline-feasibility-section (taxy)
+  (when (org-memento-timeline--within-range-p taxy)
+    (let ((planning-items (org-memento--planning-items)))
+      (cl-labels
+          ((block-not-started-p (block)
+             (not (org-memento-started-time block)))
+           (duration-from-time (block)
+             (when-let* ((starting (org-memento-starting-time block))
+                         (ending (org-memento-ending-time block)))
+               (/ (- ending starting) 60)))
+           (find-planning-item (cell)
+             (or (cl-find (car cell) planning-items
+                          :key #'org-memento-planning-item-id
+                          :test #'equal)
+                 (error "Cannot find an item \"%s\" by its ID" (cdr cell))))
+           (insert-block (block)
+             (let* ((duration (or (org-memento-duration block)
+                                  (duration-from-time block)))
+                    (items (thread-last
+                             (org-memento-get-planning-items
+                              (org-memento-block-hd-marker block))
+                             (mapcar #'find-planning-item)))
+                    (effort-values (when (seq-every-p #'org-memento-planning-item-effort
+                                                      items)
+                                     ;; Some of the effort property values can be in an
+                                     ;; invalid form. In that case, the resulting value
+                                     ;; will be nil.
+                                     (ignore-errors
+                                       (mapcar #'org-memento-duration items))))
+                    (effort-sum (when effort-values
+                                  (-sum effort-values))))
+               (magit-insert-section (block-feasibility block)
+                 (magit-insert-heading
+                   (make-string 2 ?\s)
+                   (format "%4s / %4s "
+                           (propertize (if effort-sum
+                                           (org-duration-from-minutes effort-sum)
+                                         "??")
+                                       'face
+                                       (if (and effort-sum
+                                                duration
+                                                (<= effort-sum duration))
+                                           'font-lock-constant-face
+                                         'font-lock-warning-face))
+                           (propertize (if duration
+                                           (org-duration-from-minutes duration)
+                                         "??")
+                                       'face
+                                       (if duration
+                                           'default
+                                         'font-lock-warning-face)))
+                   (propertize (org-memento-title block)
+                               'face 'magit-section-heading))
+                 (dolist (item items)
+                   (magit-insert-section (planning-item item)
+                     (magit-insert-heading
+                       (make-string 2 ?\s)
+                       (format "%4s"
+                               (if-let (duration (org-memento-planning-item-effort item))
+                                   duration
+                                 "??"))
+                       (make-string 8 ?\s)
+                       (propertize (org-memento-planning-item-heading item)
+                                   'face 'default))))
+                 (insert ?\n)))))
+        (when-let (blocks (thread-last
+                            (org-memento--blocks)
+                            (seq-filter #'block-not-started-p)))
+          (magit-insert-section (magit-section)
+            (magit-insert-heading
+              "Feasibility")
+            (dolist (block (seq-sort-by #'org-memento-starting-time
+                                        #'< blocks))
+              (insert-block block)))
+          (insert ?\n))))))
 
 ;;;;; Overview
 
