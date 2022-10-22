@@ -473,7 +473,10 @@ Return a copy of the list."
    (org-narrow-to-subtree)
    (unless (re-search-forward (format org-complex-heading-regexp-format title)
                               nil t)
-     (org-memento--add-immediate-block title))
+     (save-excursion
+       (org-memento--add-immediate-block title))
+     (re-search-forward (format org-complex-heading-regexp-format title)
+                        nil t))
    (when (org-memento--maybe-check-in :adjust t)
      (org-memento--save-buffer)))
   (setq org-memento-current-block title)
