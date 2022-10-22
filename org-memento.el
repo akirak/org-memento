@@ -480,7 +480,7 @@ Return a copy of the list."
    (when (org-memento--maybe-check-in :adjust t)
      (org-memento--save-buffer)))
   (setq org-memento-current-block title)
-  ;; (org-memento-setup-daily-timer)
+  (org-memento-setup-daily-timer)
   (org-memento-status)
   (run-hooks 'org-memento-block-start-hook)
   (org-memento--setup-block-end-timer))
