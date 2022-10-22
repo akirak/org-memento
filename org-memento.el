@@ -980,15 +980,18 @@ The point must be at the heading."
           (push title candidates)))
       (completing-read "Start a block: " #'completions))))
 
-(defun org-memento-read-future-event (start end-bound)
+(defun org-memento-read-future-event (start &optional end-bound)
   (org-memento--status)
   (let* ((now (float-time (org-memento--current-time)))
          (cache (make-hash-table :test #'equal :size 100))
-         (duration-limit (/ (- end-bound start) 60))
-         (prompt (format "Thing to do in %s-%s (%d min): "
-                         (format-time-string "%R" start)
-                         (format-time-string "%R" end-bound)
-                         duration-limit))
+         (duration-limit (when end-bound
+                           (/ (- end-bound start) 60)))
+         (prompt (if end-bound
+                     (format "Thing to do in %s-%s (%d min): "
+                             (format-time-string "%R" start)
+                             (format-time-string "%R" end-bound)
+                             duration-limit)
+                   (format "Thing to do at %s: " (format-time-string "%R" start))))
          candidates)
     (cl-labels
         ((annotator (title)
@@ -1040,13 +1043,15 @@ The point must be at the heading."
                         (org-memento--blocks)
                         (seq-filter #'org-memento-block-not-closed-p)
                         (seq-filter `(lambda (block)
-                                       (if-let (duration (org-memento-duration block))
-                                           (< duration ,duration-limit)
-                                         (if-let* ((starting (org-memento-starting-time block))
-                                                   (ending (org-memento-ending-time block)))
-                                             (< (/ (- ending starting) 60)
-                                                ,duration-limit)
-                                           t)))))))
+                                       (if duration-limit
+                                           (if-let (duration (org-memento-duration block))
+                                               (< duration ,duration-limit)
+                                             (if-let* ((starting (org-memento-starting-time block))
+                                                       (ending (org-memento-ending-time block)))
+                                                 (< (/ (- ending starting) 60)
+                                                    ,duration-limit)
+                                               t))
+                                         t))))))
           (dolist (block (append (seq-filter `(lambda (block)
                                                 (and (org-memento-starting-time block)
                                                      (< (org-memento-starting-time block) ',now)))
@@ -1098,10 +1103,13 @@ The point must be at the heading."
                                        "/")))
                (puthash title entry cache)
                (push title candidates)))))
-        (let ((input (completing-read (format "Thing to do in %s-%s (%.f min): "
-                                              (format-time-string "%R" start)
-                                              (format-time-string "%R" end-bound)
-                                              (/ (- end-bound start) 60))
+        (let ((input (completing-read (if end-bound
+                                          (format "Thing to do in %s-%s (%.f min): "
+                                                  (format-time-string "%R" start)
+                                                  (format-time-string "%R" end-bound)
+                                                  (/ (- end-bound start) 60))
+                                        (format "Thing to do at %s: "
+                                                (format-time-string "%R" start)))
                                       #'completions nil t)))
           (pcase-exhaustive (gethash input cache)
             (`(,start1 ,end1 ,date ,headline . ,_)
