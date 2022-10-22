@@ -390,6 +390,44 @@ Return a copy of the list."
   `(org-memento-with-block-title org-memento-current-block
      ,@progn))
 
+;; This is not a macro but serves a similar purpose, so it's put here.
+(defun org-memento-map-past-blocks (fn &optional
+                                       start-date-string
+                                       end-date-string)
+  "Call a function on every block entry performed in the past.
+
+The function takes two arguments: the date string and an
+`org-memento-block' struct."
+  (with-current-buffer (org-memento--buffer)
+    (org-with-wide-buffer
+     (org-memento--find-today)
+     (let (result)
+       (catch 'finish-scan
+         (while (re-search-forward (format org-complex-heading-regexp-format
+                                           org-memento-date-regexp)
+                                   nil t)
+           (if (and end-date-string (string-lessp end-date-string (match-string 4)))
+               (org-end-of-subtree)
+             (let ((date (match-string-no-properties 4))
+                   (bound (save-excursion
+                            (org-end-of-subtree))))
+               (when (and start-date-string
+                          (string-lessp date start-date-string))
+                 (throw 'finish-scan t))
+               (while (re-search-forward org-complex-heading-regexp bound t)
+                 (when (and (equal (match-string 1) "**")
+                            (not (or (equal (match-string 4) org-memento-idle-heading)
+                                     (string-prefix-p org-comment-string (match-string 4))))
+                            (org-entry-is-done-p))
+                   ;; Drop invalid entries using when-let
+                   (when-let* ((block (org-memento-block-entry))
+                               (started (org-memento-started-time block))
+                               (ended (org-memento-ended-time block)))
+                     (push (funcall fn date block)
+                           result)))
+                 (org-end-of-subtree))))))
+       result))))
+
 ;;;; Predicates on blocks
 
 (defsubst org-memento-block-not-closed-p (block)
@@ -1821,45 +1859,20 @@ denoting the type of the activity. ARGS is an optional list."
 
 ;;;; Grouping
 
-(cl-defun org-memento--collect-groups-1 (&optional start-date-string end-date-string)
-  (with-current-buffer (org-memento--buffer)
-    (org-with-wide-buffer
-     (org-memento--find-today)
-     (let (result)
-       (catch 'finish-scan
-         (while (re-search-forward (format org-complex-heading-regexp-format
-                                           org-memento-date-regexp)
-                                   nil t)
-           (if (and end-date-string (string-lessp end-date-string (match-string 4)))
-               (org-end-of-subtree)
-             (let ((date (match-string-no-properties 4))
-                   (bound (save-excursion
-                            (org-end-of-subtree))))
-               (when (and start-date-string
-                          (string-lessp date start-date-string))
-                 (throw 'finish-scan t))
-               (while (re-search-forward org-complex-heading-regexp bound t)
-                 (when (and (equal (match-string 1) "**")
-                            (not (or (equal (match-string 4) org-memento-idle-heading)
-                                     (string-prefix-p org-comment-string (match-string 4))))
-                            (org-entry-is-done-p))
-                   ;; Drop invalid entries using when-let
-                   (when-let ((block (org-memento-block-entry))
-                              (started (org-memento-started-time block))
-                              (ended (org-memento-ended-time block)))
-                     (push (list (save-excursion
-                                   (funcall org-memento-group-function
-                                            (org-memento-block-headline block)))
-                                 started
-                                 ended
-                                 date
-                                 (org-memento-title block)
-                                 :todo-keyword
-                                 (org-element-property :todo-keyword
-                                                       (org-memento-headline-element block)))
-                           result)))
-                 (org-end-of-subtree))))))
-       result))))
+(defun org-memento--collect-groups-1 (&optional start-date-string end-date-string)
+  (org-memento-map-past-blocks
+   (lambda (date block)
+     (list (save-excursion
+             (funcall org-memento-group-function
+                      (org-memento-block-headline block)))
+           (org-memento-started-time block)
+           (org-memento-ended-time block)
+           date
+           (org-memento-title block)
+           :todo-keyword
+           (org-element-property :todo-keyword
+                                 (org-memento-headline-element block))))
+   start-date-string end-date-string))
 
 ;;;; Utility functions for time representations and Org timestamps
 
