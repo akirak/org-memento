@@ -462,17 +462,14 @@ Return a copy of the list."
 ;;;###autoload
 (defun org-memento-start-block (title)
   "Start working on a time block you have planned."
-  (interactive (list (progn
-                       (org-memento-status 'check-in)
-                       (completing-read "Start a block: "
-                                        (org-memento-block-completion)
-                                        nil t
-                                        nil nil
-                                        (when-let (block (org-memento-next-scheduled-block))
-                                          (org-memento-title block))))))
-  (org-memento-with-block-title title
-    (when (org-memento--maybe-check-in :adjust t)
-      (org-memento--save-buffer)))
+  (interactive (list (org-memento--read-block-to-start)))
+  (org-memento-with-today-entry
+   (org-narrow-to-subtree)
+   (unless (re-search-forward (format org-complex-heading-regexp-format title)
+                              nil t)
+     (org-memento--add-immediate-block title))
+   (when (org-memento--maybe-check-in :adjust t)
+     (org-memento--save-buffer)))
   (setq org-memento-current-block title)
   ;; (org-memento-setup-daily-timer)
   (org-memento-status)
@@ -981,7 +978,8 @@ The point must be at the heading."
       (completing-read "Start a block: " #'completions))))
 
 (cl-defun org-memento-read-future-event (start &optional end-bound
-                                               &key (reschedule t) (reuse t))
+                                               &key (reschedule t) (reuse t)
+                                               title)
   (org-memento--status)
   (let* ((now (float-time (org-memento--current-time)))
          (cache (make-hash-table :test #'equal :size 100))
@@ -1076,13 +1074,25 @@ The point must be at the heading."
                    (entry (gethash input cache input)))
               (pcase entry
                 (`(group . ,group-with-entries)
-                 (org-memento--read-group-entry (cdr group-with-entries) start end-bound))
+                 (org-memento--read-group-entry (cdr group-with-entries) start end-bound
+                                                :title title))
                 (_
                  entry)))
           (clrhash cache))))))
 
-(defun org-memento--read-group-entry (entries start end-bound)
+(cl-defun org-memento--read-group-entry (entries start end-bound
+                                                 &key title)
   (let ((cache (make-hash-table :test #'equal :size (length entries)))
+        (prompt (if title
+                    (format "Pick a prototype of \"%s\" (empty input to select none): "
+                            title)
+                  (if end-bound
+                      (format "Thing to do in %s-%s (%.f min): "
+                              (format-time-string "%R" start)
+                              (format-time-string "%R" end-bound)
+                              (/ (- end-bound start) 60))
+                    (format "Thing to do at %s: "
+                            (format-time-string "%R" start)))))
         candidates)
     (cl-labels
         ((annotator (candidate)
@@ -1107,24 +1117,21 @@ The point must be at the heading."
                                        "/")))
                (puthash title entry cache)
                (push title candidates)))))
-        (let ((input (completing-read (if end-bound
-                                          (format "Thing to do in %s-%s (%.f min): "
-                                                  (format-time-string "%R" start)
-                                                  (format-time-string "%R" end-bound)
-                                                  (/ (- end-bound start) 60))
-                                        (format "Thing to do at %s: "
-                                                (format-time-string "%R" start)))
-                                      #'completions nil t)))
-          (pcase-exhaustive (gethash input cache)
+        (let ((input (completing-read prompt #'completions nil
+                                      (not title))))
+          (pcase-exhaustive (gethash input cache input)
             (`(,start1 ,end1 ,date ,headline . ,_)
              (list 'copy-entry
                    (org-find-olp (list org-memento-file date headline))
                    :title
-                   (read-from-minibuffer "Title: " headline nil nil nil nil 'input-method)
+                   (or title
+                       (read-from-minibuffer "Title: " headline nil nil nil nil 'input-method))
                    :time
                    (org-memento--read-time-span
                     (org-memento--format-active-range
-                     start (+ start (- end1 start1))))))))))))
+                     start (+ start (- end1 start1))))))
+            (""
+             nil)))))))
 
 (defun org-memento--group-alist-1 ()
   (thread-last
@@ -2122,6 +2129,31 @@ range."
                               entry (file+function ,org-memento-file ,jump-fn)
                               ,template ,@plist)))
     (org-capture)))
+
+(defun org-memento--add-immediate-block (title)
+  "Add a block that has just started."
+  (let* ((start (float-time (org-memento--current-time)))
+         (limit (thread-last
+                  (org-memento--blocks)
+                  (seq-filter `(lambda (block)
+                                 (when-let (time (org-memento-starting-time block))
+                                   (< ,start time))))
+                  (apply #'min)))
+         (limit (if-let (event (org-memento--next-agenda-event nil limit))
+                    (org-memento-starting-time event)
+                  limit)))
+    (pcase-exhaustive (org-memento-read-future-event start limit
+                                                     :reschedule nil :reuse t
+                                                     :title title)
+      (`(copy-entry ,olp . ,plist)
+       (org-memento-add-event :title title
+                              :copy-from (org-find-olp (cons org-memento-file olp))
+                              :interactive nil
+                              :start start))
+      (`nil
+       (org-memento-add-event :title title
+                              :interactive nil
+                              :start start)))))
 
 (defun org-memento-schedule-block (start end-bound)
   "Schedule a block."
