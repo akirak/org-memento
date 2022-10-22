@@ -46,13 +46,21 @@
 ;;;; Custom variables
 
 (defcustom org-memento-timeline-hook
-  '(org-memento-timeline-insert)
+  '(org-memento-timeline-insert-planning
+    org-memento-timeline-insert)
   "Hook run every time the buffer is refreshed.
 
 The hook is run inside the timeline buffer.
 
 Each function in the hook takes the taxy representing the
 timeline as an argument."
+  :type 'hook)
+
+(defcustom org-memento-timeline-planning-hook
+  '(org-memento-timeline-insert-late-blocks
+    org-memento-timeline-insert-next-event
+    org-memento-timeline-insert-unscheduled-blocks)
+  "Hook run inside `org-memento-timeline-insert-planning'."
   :type 'hook)
 
 ;;;; Faces
@@ -468,6 +476,96 @@ If ARG is non-nil, create an away event."
                       (cadr (taxy-name taxy))))))
 
 ;;;; Extra hooks
+
+(defun org-memento-timeline-insert-planning (taxy)
+  (unless org-memento-current-block
+    (run-hook-with-args 'org-memento-timeline-planning-hook taxy)))
+
+(defun org-memento-timeline-insert-late-blocks (taxy)
+  (when (org-memento-timeline--within-range-p taxy)
+    (let* ((now (float-time (org-memento--current-time))))
+      (cl-flet
+          ((block-due-p (block)
+             (and (org-memento-block-not-closed-p block)
+                  (not (org-memento-started-time block))
+                  (when-let (starting (org-memento-starting-time block))
+                    (< starting now)))))
+        (when-let (blocks (thread-last
+                            (org-memento--blocks)
+                            (seq-filter #'block-due-p)))
+          (magit-insert-section (magit-section)
+            (magit-insert-heading "Late blocks")
+            (insert (make-string 2 ?\s)
+                    "There are overdue events.\n")
+            (dolist (block blocks)
+              (org-memento-timeline--insert-block 1 block)))
+          (insert ?\n))))))
+
+(defun org-memento-timeline-insert-next-event (taxy)
+  "Insert information on the next event(s) on the day.
+
+You should update the status before you call this function."
+  (when (org-memento-timeline--within-range-p taxy)
+    (let* ((now (float-time (org-memento--current-time))))
+      (cl-flet
+          ((block-scheduled-future-p (block)
+             (and (org-memento-block-not-closed-p block)
+                  (org-memento-starting-time block)
+                  (> (org-memento-starting-time block) now))))
+        (magit-insert-section (magit-section)
+          (magit-insert-heading "Next Event")
+          (let* ((next-block (thread-last
+                               (org-memento--blocks)
+                               (seq-filter #'block-scheduled-future-p)
+                               (seq-sort-by #'org-memento-starting-time #'<)
+                               (car)))
+                 (event (org-memento--next-agenda-event
+                         nil
+                         (when next-block
+                           (org-memento-starting-time next-block)))))
+            (when (or event next-block)
+              (org-memento-timeline--insert-block 1 (or event next-block)))))
+        (insert ?\n)))))
+
+(defun org-memento-timeline-insert-unscheduled-blocks (taxy)
+  (when (org-memento-timeline--within-range-p taxy)
+    (cl-flet
+        ((block-unscheduled-p (block)
+           (and (org-memento-block-not-closed-p block)
+                (not (org-memento-starting-time block)))))
+      (when-let (blocks (thread-last
+                          (org-memento--blocks)
+                          (seq-filter #'block-unscheduled-p)))
+        (magit-insert-section (magit-section)
+          (magit-insert-heading "Blocks without time")
+          (dolist (block blocks)
+            (org-memento-timeline--insert-block 1 block 'omit-time)))
+        (insert ?\n)))))
+
+(defun org-memento-timeline--insert-block (level block &optional omit-time)
+  (let ((start (org-memento-starting-time block))
+        (end (org-memento-ending-time block))
+        (title (org-memento-title block))
+        (marker (cl-typecase block
+                  (org-memento-block
+                   (org-memento-block-hd-marker block))
+                  (org-memento-org-event
+                   (org-memento-org-event-marker block)))))
+    (magit-insert-section (block (list start end title marker
+                                       (cl-typecase block
+                                         (org-memento-block 'block)
+                                         (org-memento-org-event 'org-event))))
+      (magit-insert-heading
+        (make-string (* 2 level) ?\s)
+        (unless omit-time
+          (concat (propertize (format-time-string "%R-" start)
+                              'face 'font-lock-warning-face)
+                  (if end
+                      (propertize (format-time-string "%R" end)
+                                  'face 'font-lock-warning-face)
+                    (make-string 5 ?\s))
+                  " "))
+        (propertize title 'face 'magit-section-heading)))))
 
 ;;;;; Overview
 
