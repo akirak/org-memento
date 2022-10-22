@@ -444,7 +444,9 @@ Return a copy of the list."
           (org-memento-finish-block)))
     (if (org-clocking-p)
         (call-interactively #'org-memento-start-block)
-      ;; It is hard to decide on the next action. Below is only an example.
+      ;; It is hard to decide on the next action. `org-memento-timeline' is
+      ;; supposed to properly address the issue. I am not sure if it is possible
+      ;; to make the decision deterministically.
       (let* ((upnext-event (org-memento--next-agenda-event nil nil
                                                            :include-memento-file t))
              (time (when upnext-event (org-memento-starting-time upnext-event))))
