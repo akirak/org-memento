@@ -110,7 +110,12 @@ timeline as an argument."
     (setq-local org-memento-timeline-date-range (list start-day end-day)
                 revert-buffer-function #'org-memento-timeline-revert)
     (org-memento-timeline-revert)
-    (pop-to-buffer (current-buffer))))
+    (pop-to-buffer (current-buffer))
+    (dolist (hook '(org-clock-in-hook
+                    org-clock-out-hook
+                    org-memento-block-start-hook
+                    org-memento-block-exit-hook))
+      (add-hook hook 'org-memento-timeline-refresh))))
 
 (defun org-memento-timeline-revert (&rest _args)
   (interactive)
@@ -122,6 +127,11 @@ timeline as an argument."
       (delete-all-overlays)
       (erase-buffer)
       (run-hook-with-args 'org-memento-timeline-hook taxy))))
+
+(defun org-memento-timeline-refresh ()
+  (when-let (buffer (get-buffer org-memento-timeline-ms-buffer))
+    (with-current-buffer buffer
+      (org-memento-timeline-revert))))
 
 (defun org-memento-timeline-section (root-taxy)
   "Insert the timeline section."
