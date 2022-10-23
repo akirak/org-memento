@@ -645,6 +645,11 @@ You should update the status before you call this function."
                   " "))
         (propertize title 'face 'magit-section-heading)))))
 
+(defvar org-memento-timeline-feasibility-map
+  (let ((map (make-sparse-keymap)))
+    (define-key map "e" #'org-memento-timeline-edit-feasibility)
+    map))
+
 (defun org-memento-timeline-feasibility-section (taxy)
   (when (org-memento-timeline--within-range-p taxy)
     (let ((planning-items (org-memento--planning-items)))
@@ -676,7 +681,7 @@ You should update the status before you call this function."
                                        (mapcar #'org-memento-duration items))))
                     (effort-sum (when effort-values
                                   (-sum effort-values))))
-               (magit-insert-section (block-feasibility block)
+               (magit-insert-section (block-feasibility (cons block effort-sum))
                  (magit-insert-heading
                    (make-string 2 ?\s)
                    (format "%4s / %4s "
@@ -716,10 +721,31 @@ You should update the status before you call this function."
           (magit-insert-section (magit-section)
             (magit-insert-heading
               "Feasibility")
-            (dolist (block (seq-sort-by #'org-memento-starting-time
-                                        #'< blocks))
-              (insert-block block)))
+            (org-memento-timeline-with-overlay
+             ((keymap . org-memento-timeline-feasibility-map))
+             (dolist (block (seq-sort-by #'org-memento-starting-time
+                                         #'< blocks))
+               (insert-block block))))
           (insert ?\n))))))
+
+(defun org-memento-timeline-edit-feasibility ()
+  (interactive)
+  (let ((value (oref (magit-current-section) value)))
+    (when (cl-ecase (oref (magit-current-section) type)
+            (block-feasibility
+             (let* ((block (car value))
+                    (effort-sum (cdr value)))
+               (save-current-buffer
+                 (org-with-point-at (org-memento-block-hd-marker block)
+                   (if (org-memento-ending-time block)
+                       (org-memento-adjust-time)
+                     (org-set-effort))))))
+            (planning-item
+             (save-current-buffer
+               (org-with-point-at (org-memento-planning-item-hd-marker value)
+                 (org-set-effort)
+                 t))))
+      (org-memento-timeline-revert))))
 
 ;;;;; Overview
 
