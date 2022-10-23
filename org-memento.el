@@ -311,7 +311,17 @@ Return a copy of the list."
 
 (cl-defstruct org-memento-org-event
   "Object representing an Org entry with an active timestamp."
-  marker active-ts ending-time got-ending-time margin-secs)
+  marker active-ts ending-time got-ending-time margin-secs title)
+
+(cl-defmethod org-memento-title ((x org-memento-org-event))
+  (or (org-memento-org-event-title x)
+      (save-match-data
+        (save-current-buffer
+          (org-with-point-at (org-memento-org-event-marker x)
+            (org-back-to-heading)
+            (when (looking-at org-complex-heading-regexp)
+              (setf (org-memento-org-event-title x)
+                    (match-string-no-properties 4))))))))
 
 (cl-defmethod org-memento-active-ts ((x org-memento-org-event))
   (org-memento-org-event-active-ts x))
