@@ -387,8 +387,15 @@ Return a copy of the list."
 
 (defmacro org-memento-with-current-block (&rest progn)
   (declare (indent 0))
-  `(org-memento-with-block-title org-memento-current-block
-     ,@progn))
+  `(org-memento-with-today-entry
+    (org-narrow-to-subtree)
+    (if (re-search-forward (format org-complex-heading-regexp-format
+                                   org-memento-current-block)
+                           nil t)
+        (progn
+          ,@progn)
+      (setq org-memento-current-block nil)
+      (error "Failed to find a heading for the current block"))))
 
 ;; This is not a macro but serves a similar purpose, so it's put here.
 (defun org-memento-map-past-blocks (fn &optional
