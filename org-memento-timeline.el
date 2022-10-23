@@ -254,7 +254,10 @@ timeline as an argument."
                                     ((< end (float-time))
                                      "Gap")
                                     (t
-                                     "Remaining"))
+                                     (if (or org-memento-current-block
+                                             (org-clocking-p))
+                                         "Remaining"
+                                       "Empty slot")))
                                    'face 'font-lock-comment-face)))
                    (if (and start end)
                        (format " (%s)"
