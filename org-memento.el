@@ -443,6 +443,23 @@ The function takes two arguments: the date string and an
                  (org-end-of-subtree))))))
        result))))
 
+(defun org-memento-map-away-events (fn)
+  (with-current-buffer (org-memento--buffer)
+    (org-with-wide-buffer
+     (goto-char (point-min))
+     (let (result
+           (regexp (format org-complex-heading-regexp-format
+                           org-memento-idle-heading)))
+       (while (re-search-forward regexp nil t)
+         (let ((bound (save-excursion
+                        (org-end-of-subtree))))
+           (while (re-search-forward org-complex-heading-regexp bound t)
+             (beginning-of-line)
+             (push (save-excursion (funcall fn)) result)
+             (org-end-of-subtree))
+           (goto-char bound)))
+       result))))
+
 ;;;; Predicates on blocks
 
 (defsubst org-memento-block-not-closed-p (block)
@@ -1004,6 +1021,13 @@ The point must be at the heading."
              (remove-text-properties 0 (length heading) '(face) heading)
              (push heading result))))))
     (cl-remove-duplicates result :test #'equal)))
+
+(defun org-memento-read-away-title (&optional prompt)
+  (completing-read (or prompt "Title: ")
+                   (org-memento-map-away-events
+                    (lambda ()
+                      (when (looking-at org-complex-heading-regexp)
+                        (match-string-no-properties 4))))))
 
 (defun org-memento--read-block-to-start ()
   (org-memento-status 'check-in)
@@ -2295,7 +2319,9 @@ range."
                      (org-memento--goto-date ,date)
                      (when ,(and away t)
                        (org-memento--find-or-create-idle-heading))))
-         (title (or title (org-memento-read-title)))
+         (title (or title (if away
+                              (org-memento-read-away-title)
+                            (org-memento-read-title))))
          (category (unless (or away copy-from)
                      (or category
                          (org-memento-read-category nil))))
