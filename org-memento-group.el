@@ -69,7 +69,8 @@ Each function in this hook takes a taxy as an argument."
              (magit-insert-heading
                (make-string (* 2 level) ?\s)
                (if-let (depth (car (taxy-name taxy)))
-                   (if-let (fn (nth depth org-memento-group-formatters))
+                   (if-let (fn (plist-get (nth depth org-memento-group-taxonomy)
+                                          :format))
                        (funcall fn (cdr (taxy-name taxy)))
                      (cdr (taxy-name taxy)))
                  (cdr (taxy-name taxy)))
@@ -94,7 +95,7 @@ Each function in this hook takes a taxy as an argument."
         (insert-group 0 nil taxy)))))
 
 (defun org-memento-group-taxy (start-day end-day &optional depth)
-  (let ((depth (or depth (length org-memento-group-formatters))))
+  (let ((depth (or depth (length org-memento-group-taxonomy))))
     (cl-labels
         ((nth-key (n)
            `(lambda (item)

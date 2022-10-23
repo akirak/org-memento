@@ -168,21 +168,47 @@ distractions."
   ""
   :type 'sexp)
 
-(defcustom org-memento-group-function
-  (lambda (element)
-    (list (org-element-property :MEMENTO_CATEGORY element)))
-  "Function that determines the group of the entry.
+(defcustom org-memento-group-taxonomy
+  '((:read
+     (lambda (element)
+       (list (org-element-property :MEMENTO_CATEGORY element)))
+     :format
+     identity
+     :template
+     (lambda (category)
+       (when category
+         (list :properties `(("MEMENTO_CATEGORY" . ,category)))))))
+  "List of group definitions.
 
-It is called at the heading of the entry without arguments.
+Each entry in the list corresponds to a level in a group.
 
-It should return a list, and the group equality is compared using
-`equal' on the entire list."
-  :type 'function)
+An entry is a plist that contain the following properties:
 
-(defcustom org-memento-group-formatters
-  '(identity)
-  "List of functions used to format each level of the group."
-  :type '(repeat function))
+ * :read is a function that determines the group of an entry. It
+is called at the heading of the entry with an org-element of the
+entry as an argument. The returned value can be any sexp, and
+values are compared using `equal'.
+
+ * :format is a function that formats the value. It takes the
+   value returned by the :read function as an argument and must
+   return a string or nil. If it returns nil, the level is
+   usually omitted in presentation.
+
+ * :template is a function used to build an entry from a group
+  value. It takes the group value as an argument and must return
+  a plist. The plist can contain :properties which is an alist of
+  strings which will become the properties of the Org entry and
+  :tags which is a list of strings.
+
+The results of :template functions are merged to build an input
+to an entry template."
+  :type '(repeat (plist :options
+                        (((const :init)
+                          function)
+                         ((const :format)
+                          function)
+                         ((const :expand)
+                          function)))))
 
 (defcustom org-memento-unique-properties
   '("CATEGORY"
@@ -216,7 +242,7 @@ Note that all property names should be upper-cased."
 
 (defvar org-memento-title-string nil)
 
-;;;; Substs
+;;;; Substs and small utility functions
 
 (defsubst org-memento--current-time ()
   (or org-memento-current-time (current-time)))
@@ -231,6 +257,19 @@ Note that all property names should be upper-cased."
 Return a copy of the list."
   (append (list sec minute hour)
           (cdddr decoded-time)))
+
+(defun org-memento--zip (keys values)
+  (let ((keys (copy-sequence keys))
+        (values (copy-sequence values))
+        items)
+    (while (and keys values)
+      (push (list (pop keys) (pop values))
+            items))
+    (nreverse items)))
+
+(defmacro org-memento--plist-get (key)
+  `(lambda (plist)
+     (plist-get plist ,key)))
 
 ;;;; Generics and structs
 
@@ -1291,15 +1330,17 @@ The point must be at the heading."
     (seq-uniq)))
 
 (defun org-memento--format-group (group)
-  (let ((fns (copy-sequence org-memento-group-formatters))
-        (values (copy-sequence group))
-        fn
-        strings)
-    (while (setq fn (pop fns))
-      (when-let (string (funcall fn (pop values)))
-        (push string
-              strings)))
-    (string-join (nreverse strings) " > ")))
+  (string-join (org-memento--format-group-entries group) " > "))
+
+(defun org-memento--format-group-entries (group)
+  (let (strings)
+    (pcase-dolist (`(,fn ,value)
+                   (org-memento--zip (mapcar (org-memento--plist-get :format)
+                                             org-memento-group-taxonomy)
+                                     group))
+      (when-let (string (funcall fn value))
+        (push string strings)))
+    (nreverse strings)))
 
 ;;;; Retrieving timing information
 
@@ -2041,9 +2082,7 @@ denoting the type of the activity. ARGS is an optional list."
 (defun org-memento--collect-groups-1 (&optional start-date-string end-date-string)
   (org-memento-map-past-blocks
    (lambda (date block)
-     (list (save-excursion
-             (funcall org-memento-group-function
-                      (org-memento-block-headline block)))
+     (list (org-memento--get-group (org-memento-block-headline block))
            (org-memento-started-time block)
            (org-memento-ended-time block)
            date
@@ -2052,6 +2091,13 @@ denoting the type of the activity. ARGS is an optional list."
            (org-element-property :todo-keyword
                                  (org-memento-headline-element block))))
    start-date-string end-date-string))
+
+(defun org-memento--get-group (element)
+  (let (result)
+    (save-excursion
+      (dolist (plist org-memento-group-taxonomy)
+        (push (funcall (plist-get plist :read) element) result)))
+    (nreverse result)))
 
 ;;;; Utility functions for time representations and Org timestamps
 
@@ -2524,26 +2570,18 @@ range."
              escape-quote
              wrap-quote))
          (write-record (cells)
-           (insert (mapconcat #'escape-cell cells ",") "\n"))
-         (format-groups (groups)
-           (let ((i 0)
-                 result)
-             (dolist (group groups)
-               (push (funcall (nth i org-memento-group-formatters) group)
-                     result)
-               (cl-incf i))
-             (nreverse result))))
+           (insert (mapconcat #'escape-cell cells ",") "\n")))
       (with-temp-buffer
         (unless append
           (write-record (append (mapcar (lambda (i)
                                           (format "Group %d" i))
-                                        (number-sequence 1 (length org-memento-group-formatters)))
+                                        (number-sequence 1 (length org-memento-group-taxonomy)))
                                 (list "Date")
                                 (list "Title")
                                 (list "Start")
                                 (list "End"))))
         (dolist (record data)
-          (write-record (append (format-groups (car record))
+          (write-record (append (org-memento--format-group-entries (car record))
                                 (list (nth 2 (cdr record))
                                       (nth 3 (cdr record))
                                       (format-time-string "%FT%R" (nth 0 (cdr record)))
