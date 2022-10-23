@@ -92,6 +92,14 @@ timeline as an argument."
          (pcase-dolist (`(,prop . ,value) ',props)
            (overlay-put ov prop (eval value)))))))
 
+(defmacro org-memento-timeline-with-marker-point (&rest progn)
+  `(when-let* ((section (magit-current-section))
+               (value (oref section value))
+               (marker (org-memento-timeline--marker value)))
+     (save-current-buffer
+       (org-with-point-at (org-memento-planning-item-hd-marker value)
+         ,@progn))))
+
 ;;;; Display the timeline
 
 (defvar org-memento-timeline-date-range nil)
@@ -356,16 +364,14 @@ timeline as an argument."
   (interactive)
   (when-let* ((section (magit-current-section))
               (value (oref section value))
-              (marker (and (listp value)
-                           (nth 3 value))))
+              (marker (org-memento-timeline--marker value)))
     (org-memento-timeline--display-entry marker #'pop-to-buffer)))
 
 (defun org-memento-timeline-show-entry ()
   (interactive)
   (when-let* ((section (magit-current-section))
               (value (oref section value))
-              (marker (and (listp value)
-                           (nth 3 value))))
+              (marker (org-memento-timeline--marker value)))
     (org-memento-timeline--display-entry marker #'display-buffer)))
 
 (defun org-memento-timeline--display-entry (marker fn)
@@ -380,6 +386,11 @@ timeline as an argument."
     (org-narrow-to-subtree)
     (org-show-context 'agenda)
     (funcall fn (current-buffer))))
+
+(defun org-memento-timeline-schedule ()
+  (interactive)
+  (org-memento-timeline-with-marker-point
+   (org-schedule nil)))
 
 (defun org-memento-timeline-edit-dwim (&optional arg)
   "Adjust the time slice(s) at point.
@@ -510,6 +521,15 @@ If ARG is non-nil, create an away event."
          (time-less-p now
                       (cadr (taxy-name taxy))))))
 
+(defun org-memento-timeline--marker (value)
+  (cl-etypecase value
+    (org-memento-planning-item
+     (org-memento-planning-item-hd-marker value))
+    (list
+     (pcase value
+       (`(,_ ,_ ,_ ,marker . ,_)
+        marker)))))
+
 ;;;; Extra hooks
 
 (defun org-memento-timeline-planning-sections (taxy)
@@ -520,6 +540,8 @@ If ARG is non-nil, create an away event."
 (defvar org-memento-timeline-planning-map
   (let ((map (make-sparse-keymap)))
     (define-key map "e" #'org-memento-timeline-edit-agenda-item)
+    (define-key map (kbd "C-c C-s") #'org-memento-timeline-schedule)
+    ;; (define-key map (kbd "C-c C-d") #'org-memento-timeline-deadline)
     map))
 
 (defun org-memento-timeline-agenda-section (taxy)
