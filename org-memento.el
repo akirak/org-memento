@@ -2044,18 +2044,23 @@ range."
                 :second 0)))
 
 (defun org-memento--format-active-range (start-time end-time)
-  (format (org-format-time-string "<%Y-%m-%d %a %%s%%s>" start-time)
-          (org-format-time-string "%H:%M" start-time)
+  (format (org-format-time-string "<%Y-%m-%d %a %%s>" start-time)
           (if end-time
-              (org-format-time-string "-%H:%M" end-time)
-            "")))
+              (org-memento--format-army-time-range start-time end-time)
+            (org-format-time-string "%H:%M" start-time))))
 
 (defun org-memento--format-army-time-range (start end)
-  (let ((midnight (thread-first
-                    (org-memento--start-of-day (decode-time start))
-                    (org-memento--set-time-of-day 0 0 0)
-                    (encode-time)
-                    (float-time))))
+  (let* ((start (cl-etypecase start
+                  (number (time-convert start 'list))
+                  (list start)))
+         (end (cl-etypecase end
+                (number (time-convert end 'list))
+                (list end)))
+         (midnight (thread-first
+                     (org-memento--start-of-day (decode-time start))
+                     (org-memento--set-time-of-day 0 0 0)
+                     (encode-time)
+                     (float-time))))
     (concat (org-memento--format-army-time start midnight)
             (unless (time-equal-p start end)
               (format "-%s" (org-memento--format-army-time end midnight))))))
