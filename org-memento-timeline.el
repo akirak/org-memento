@@ -408,10 +408,10 @@ timeline as an argument."
     (org-show-context 'agenda)
     (funcall fn (current-buffer))))
 
-(defun org-memento-timeline-schedule ()
-  (interactive)
+(defun org-memento-timeline-schedule (&optional arg)
+  (interactive "P")
   (org-memento-timeline-with-marker-point
-   (org-schedule nil)))
+   (org-schedule arg)))
 
 (defun org-memento-timeline-edit-dwim (&optional arg)
   "Adjust the time slice(s) at point.
