@@ -65,16 +65,6 @@ timeline as an argument."
   "Hook run inside `org-memento-timeline-planning-sections'."
   :type 'hook)
 
-(defcustom org-memento-timeline-edit-hook
-  '(org-memento-timeline-edit-planning)
-  ""
-  :type 'hook)
-
-(defcustom org-memento-timeline-multiple-edit-hook
-  '(org-memento-timeline-edit-multi-planning)
-  ""
-  :type 'hook)
-
 (defcustom org-memento-timeline-hide-planning t
   "Whether to hide the planning section when in a block."
   :type 'boolean)
@@ -92,6 +82,15 @@ timeline as an argument."
      :background "LightPink")
     (t (:inherit default)))
   "Face for an item at the current time.")
+
+;;;; Macros
+
+(defmacro org-memento-timeline-with-overlay (props &rest progn)
+  `(let ((start (point)))
+     (prog1 (progn ,@progn)
+       (let ((ov (make-overlay start (point))))
+         (pcase-dolist (`(,prop . ,value) ',props)
+           (overlay-put ov prop (eval value)))))))
 
 ;;;; Display the timeline
 
@@ -120,6 +119,7 @@ timeline as an argument."
     (when (org-memento-timeline--within-range-p taxy)
       (org-memento--status))
     (let ((inhibit-read-only t))
+      (delete-all-overlays)
       (erase-buffer)
       (run-hook-with-args 'org-memento-timeline-hook taxy))))
 
@@ -433,31 +433,25 @@ If ARG is non-nil, create an away event."
       (when (catch 'updated
               ;; Has multiple selections
               (if-let (values (magit-region-values))
-                  (or (run-hook-with-args-until-success
-                       'org-memento-timeline-multiple-edit-hook values)
-                      (pcase-let ((`(,start ,end) (time-range values)))
-                        (pcase (seq-count #'block-p values)
-                          (1
-                           (if (< end now)
-                               (let ((the-block (seq-find #'block-p values)))
-                                 (when (yes-or-no-p (format "Expand the time range of\
+                  (pcase-let ((`(,start ,end) (time-range values)))
+                    (pcase (seq-count #'block-p values)
+                      (1
+                       (if (< end now)
+                           (let ((the-block (seq-find #'block-p values)))
+                             (when (yes-or-no-p (format "Expand the time range of\
  the block \"%s\"?"
-                                                            (nth 2 the-block)))
-                                   (throw 'updated (set-new-past-range the-block start end))))
-                             (error "Merging is not supported for future slices")))
-                          (0
-                           (if (and (< start now)
-                                    (< end now))
-                               (add-event start end t)
-                             (add-event start end t arg)))
-                          (_
-                           (error "There are multiple time blocks")))))
+                                                        (nth 2 the-block)))
+                               (throw 'updated (set-new-past-range the-block start end))))
+                         (error "Merging is not supported for future slices")))
+                      (0
+                       (if (and (< start now)
+                                (< end now))
+                           (add-event start end t)
+                         (add-event start end t arg)))
+                      (_
+                       (error "There are multiple time blocks"))))
                 ;; No selection
                 (pcase (oref (magit-current-section) value)
-                  ((and value
-                        (guard (run-hook-with-args-until-success
-                                'org-memento-timeline-edit-hook
-                                value))))
                   (`nil
                    (user-error "No section at point"))
                   (`(,start ,end ,_title ,marker ,type . ,_)
@@ -510,6 +504,11 @@ If ARG is non-nil, create an away event."
                org-memento-current-block)
     (run-hook-with-args 'org-memento-timeline-planning-hook taxy)))
 
+(defvar org-memento-timeline-planning-map
+  (let ((map (make-sparse-keymap)))
+    (define-key map "e" #'org-memento-timeline-edit-agenda-item)
+    map))
+
 (defun org-memento-timeline-agenda-section (taxy)
   (when (org-memento-timeline--within-range-p taxy)
     (let ((planned-items (thread-last
@@ -530,28 +529,31 @@ If ARG is non-nil, create an away event."
                    (cl-remove-if #'planned (org-memento--planning-items)))
           (magit-insert-section (magit-section)
             (magit-insert-heading "Planning Items")
-            (dolist (taxy (taxy-taxys (thread-last
-                                        (make-taxy :take #'take-file)
-                                        (taxy-emptied)
-                                        (taxy-fill planning-items))))
-              (magit-insert-section (planning-group)
-                (magit-insert-heading
-                  (make-string 2 ?\s)
-                  (taxy-name taxy))
-                (dolist (item (taxy-items taxy))
-                  (magit-insert-section (planning item)
-                    (magit-insert-heading
-                      (make-string 4 ?\s)
-                      (org-memento-planning-item-heading item))))))))
+            (org-memento-timeline-with-overlay
+             ((keymap . org-memento-timeline-planning-map))
+             (dolist (taxy (taxy-taxys (thread-last
+                                         (make-taxy :take #'take-file)
+                                         (taxy-emptied)
+                                         (taxy-fill planning-items))))
+               (magit-insert-section (planning-group)
+                 (magit-insert-heading
+                   (make-string 2 ?\s)
+                   (taxy-name taxy))
+                 (dolist (item (taxy-items taxy))
+                   (magit-insert-section (planning item)
+                     (magit-insert-heading
+                       (make-string 4 ?\s)
+                       (org-memento-planning-item-heading item)))))))))
         (insert ?\n)))))
 
-(defun org-memento-timeline-edit-planning (value)
-  (when (org-memento-planning-item-p value)
-    (org-memento-schedule-planning-items (list value))))
-
-(defun org-memento-timeline-edit-multi-planning (values)
-  (when (seq-find #'org-memento-planning-item-p values)
-    (org-memento-schedule-planning-items values)))
+(defun org-memento-timeline-edit-agenda-item ()
+  (interactive)
+  (if-let (values (magit-region-values))
+      (when-let (values (seq-filter #'org-memento-planning-item-p values))
+        (org-memento-schedule-planning-items values))
+    (let ((value (oref (magit-current-section) value)))
+      (when (org-memento-planning-item-p value)
+        (org-memento-schedule-planning-items (list value))))))
 
 (defun org-memento-timeline-late-blocks-section (taxy)
   (when (org-memento-timeline--within-range-p taxy)
