@@ -69,6 +69,10 @@ timeline as an argument."
   "Whether to hide the planning section when in a block."
   :type 'boolean)
 
+(defcustom org-memento-timeline-refresh-interval 180
+  "Interval in seconds to refresh the timeline."
+  :type '(choice (const nil) number))
+
 ;;;; Faces
 
 (defface org-memento-timeline-time-face
@@ -82,6 +86,10 @@ timeline as an argument."
      :background "LightPink")
     (t (:inherit default)))
   "Face for an item at the current time.")
+
+;;;; Variables
+
+(defvar org-memento-timeline-refresh-timer nil)
 
 ;;;; Macros
 
@@ -123,7 +131,13 @@ timeline as an argument."
                     org-clock-out-hook
                     org-memento-block-start-hook
                     org-memento-block-exit-hook))
-      (add-hook hook 'org-memento-timeline-refresh))))
+      (add-hook hook 'org-memento-timeline-refresh)))
+  (when org-memento-timeline-refresh-timer
+    (cancel-timer org-memento-timeline-refresh-timer))
+  (when org-memento-timeline-refresh-interval
+    (setq org-memento-timeline-refresh-timer
+          (run-with-timer org-memento-timeline-refresh-interval t
+                          #'org-memento-timeline-refresh-1))))
 
 (defun org-memento-timeline-revert (&rest _args)
   (interactive)
@@ -140,6 +154,13 @@ timeline as an argument."
   (when-let (buffer (get-buffer org-memento-timeline-ms-buffer))
     (with-current-buffer buffer
       (org-memento-timeline-revert))))
+
+(defun org-memento-timeline-refresh-1 ()
+  (when-let (buffer (get-buffer org-memento-timeline-ms-buffer))
+    (unless (or org-memento-block-idle-logging
+                (org-clocking-p))
+      (with-current-buffer buffer
+        (org-memento-timeline-revert)))))
 
 (defun org-memento-timeline-section (root-taxy)
   "Insert the timeline section."
