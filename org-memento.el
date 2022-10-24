@@ -632,6 +632,27 @@ The function takes two arguments: the date string and an
     (run-hooks 'org-memento-block-exit-hook)))
 
 ;;;###autoload
+(defun org-memento-open-journal (&optional arg)
+  "Open the current block or the daily entry."
+  (interactive "P")
+  (cond
+   ((equal arg '(4))
+    (org-memento-open-today))
+   (org-memento-current-block
+    (with-current-buffer (org-memento--buffer)
+      (widen)
+      (org-memento--find-today)
+      (org-narrow-to-subtree)
+      (re-search-forward (format org-complex-heading-regexp-format
+                                 org-memento-current-block))
+      (org-back-to-heading)
+      (org-narrow-to-subtree)
+      (org-show-subtree)
+      (pop-to-buffer (current-buffer))))
+   (t
+    (org-memento-open-today))))
+
+;;;###autoload
 (defun org-memento-open-today ()
   "Open the subtree of today.
 
