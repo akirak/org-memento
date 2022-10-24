@@ -1077,11 +1077,26 @@ The point must be at the heading."
   (with-current-buffer (org-memento--buffer)
     (delq nil (org-property-values "MEMENTO_CATEGORY"))))
 
-(cl-defun org-memento-read-title (&optional prompt &key category default)
-  (completing-read (or prompt "Title: ")
-                   (when category
-                     (org-memento--titles-in-category category))
-                   nil nil nil nil default 'inherit-input-method))
+(cl-defun org-memento-read-title (&optional prompt &key category default date)
+  (let* ((date (or date (org-memento--today-string (decode-time (org-memento--current-time)))))
+         (prompt (or prompt "Title: "))
+         existing-titles
+         input)
+    (org-memento-maybe-with-date-entry date
+      (let ((bound (save-excursion
+                     (org-end-of-subtree))))
+        (while (re-search-forward org-complex-heading-regexp bound t)
+          (when (= 2 (length (match-string 1)))
+            (push (match-string 4) existing-titles)))))
+    (catch 'input
+      (while (setq input (string-trim
+                          (completing-read prompt
+                                           (when category
+                                             (org-memento--titles-in-category category))
+                                           nil nil nil nil default 'inherit-input-method)))
+        (if (member input existing-titles)
+            (setq prompt (format "Title (\"%s\" is a duplicate): " input))
+          (throw 'input input))))))
 
 (defun org-memento--titles-in-category (category)
   (let (result)
@@ -2401,7 +2416,12 @@ range."
                        (org-memento--find-or-create-idle-heading))))
          (title (or title (if away
                               (org-memento-read-away-title)
-                            (org-memento-read-title))))
+                            (org-memento-read-title
+                             nil :date (when start
+                                         (thread-last
+                                           (decode-time start)
+                                           (org-memento--start-of-day)
+                                           (format-time-string "%F")))))))
          (category (unless (or away copy-from)
                      (or category
                          (org-memento-read-category nil))))
