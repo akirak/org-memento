@@ -429,6 +429,7 @@ Return a copy of the list."
                                                        (number (format-time-string "%F" ,date))
                                                        (string ,date))))
                                nil t)
+        (org-back-to-heading)
         ,@progn))))
 
 (defmacro org-memento-with-block-title (title &rest progn)
@@ -439,6 +440,7 @@ Return a copy of the list."
                                    ,title)
                            nil t)
         (progn
+          (org-back-to-heading)
           ,@progn)
       (error "Failed to find a heading %s" ,title))))
 
@@ -450,6 +452,7 @@ Return a copy of the list."
                                    org-memento-current-block)
                            nil t)
         (progn
+          (org-back-to-heading)
           ,@progn)
       (setq org-memento-current-block nil)
       (error "Failed to find a heading for the current block"))))
