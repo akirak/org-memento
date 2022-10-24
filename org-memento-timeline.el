@@ -433,7 +433,7 @@ If ARG is non-nil, create an away event."
            (org-with-point-at (nth 3 record)
              (let (updated)
                (when start
-                 (org-entry-put nil "memento_checkin_time" (format-inactive start))
+                 (org-entry-put nil "MEMENTO_CHECKIN_TIME" (format-inactive start))
                  (setq updated t))
                (when end
                  ;; Throw an error if there is no closed time string

@@ -329,7 +329,7 @@ Return a copy of the list."
     (when-let* ((marker (org-memento-block-hd-marker x))
                 (str (save-current-buffer
                        (org-with-point-at marker
-                         (org-entry-get nil "memento_checkin_time")))))
+                         (org-entry-get nil "MEMENTO_CHECKIN_TIME")))))
       (float-time (org-timestamp-to-time (org-timestamp-from-string str))))))
 
 (cl-defmethod org-memento-starting-time ((x org-memento-block))
@@ -784,7 +784,7 @@ beginning of the entry."
 
 (defun org-memento--checkin-time ()
   "Return the check-in time of the entry as an internal time."
-  (when-let (string (org-entry-get nil "memento_checkin_time"))
+  (when-let (string (org-entry-get nil "MEMENTO_CHECKIN_TIME"))
     (org-timestamp-to-time (org-timestamp-from-string string))))
 
 (defun org-memento-goto-idle ()
@@ -821,8 +821,8 @@ daily entry."
   (interactive (list (completing-read "Category: "
                                       (org-memento--all-categories)
                                       nil nil nil nil
-                                      (org-entry-get nil "memento_category"))))
-  (org-entry-put nil "memento_category" category))
+                                      (org-entry-get nil "MEMENTO_CATEGORY"))))
+  (org-entry-put nil "MEMENTO_CATEGORY" category))
 
 (cl-defun org-memento--maybe-check-in (&key adjust)
   "If the entry has no check-in time, record the current time.
@@ -831,9 +831,9 @@ This function can be called both on a daily entry (at level 1)
 and on a time block entry (at level 2).
 
 The function returns non-nil if the check-in is done."
-  (unless (org-entry-get nil "memento_checkin_time")
+  (unless (org-entry-get nil "MEMENTO_CHECKIN_TIME")
     (let ((now (org-memento--current-time)))
-      (org-entry-put nil "memento_checkin_time" (org-memento--inactive-ts-string now))
+      (org-entry-put nil "MEMENTO_CHECKIN_TIME" (org-memento--inactive-ts-string now))
       (when adjust
         (org-memento--move-active-ts now)))
     t))
@@ -1051,7 +1051,7 @@ The point must be at the heading."
 
 (defun org-memento--all-categories ()
   (with-current-buffer (org-memento--buffer)
-    (delq nil (org-property-values "memento_category"))))
+    (delq nil (org-property-values "MEMENTO_CATEGORY"))))
 
 (cl-defun org-memento-read-title (&optional prompt &key category default)
   (completing-read (or prompt "Title: ")
@@ -1062,7 +1062,7 @@ The point must be at the heading."
 (defun org-memento--titles-in-category (category)
   (let (result)
     (with-current-buffer (org-memento--buffer)
-      (let ((regexp (org-re-property "memento_category" nil nil category)))
+      (let ((regexp (org-re-property "MEMENTO_CATEGORY" nil nil category)))
         (org-with-wide-buffer
          (goto-char (point-min))
          (while (re-search-forward regexp nil t)
@@ -1792,7 +1792,7 @@ marker to the time stamp, and the margin in seconds."
          taxy))
     (let* ((now (float-time (org-memento--current-time)))
            (start-time (or (org-memento-maybe-with-date-entry start-day
-                             (when-let (string (org-entry-get nil "memento_checkin_time"))
+                             (when-let (string (org-entry-get nil "MEMENTO_CHECKIN_TIME"))
                                (thread-last
                                  (org-timestamp-from-string string)
                                  (org-timestamp-to-time))))
@@ -1967,7 +1967,7 @@ denoting the type of the activity. ARGS is an optional list."
            (let* ((entry-end (org-entry-end-position))
                   (end (when (re-search-forward org-closed-time-regexp entry-end t)
                          (parse-time (match-string 1))))
-                  (start (when-let (string (org-entry-get nil "memento_checkin_time"))
+                  (start (when-let (string (org-entry-get nil "MEMENTO_CHECKIN_TIME"))
                            (when (string-match org-ts-regexp-inactive string)
                              (parse-time (match-string 1 string))))))
              (when start
@@ -2488,10 +2488,10 @@ range."
   (let ((started-past (time-less-p start (org-memento--current-time)))
         (ended-past (and end (time-less-p end (org-memento--current-time)))))
     (pcase-dolist (`(,key . ,value)
-                   `(("memento_category"
+                   `(("MEMENTO_CATEGORY"
                       . ,(unless (and category (string-empty-p category))
                            category))
-                     ("memento_checkin_time"
+                     ("MEMENTO_CHECKIN_TIME"
                       . ,(when started-past
                            (format-time-string (org-time-stamp-format t t) start)))))
       (when value
@@ -2615,7 +2615,7 @@ you would have to update the value of
                   (org-super-agenda-properties-inherit nil)
                   (org-super-agenda-groups
                    '((:name "Closed" :todo "DONE")
-                     (:name "Working on" :property "memento_checkin_time")
+                     (:name "Working on" :property "MEMENTO_CHECKIN_TIME")
                      (:auto-map org-memento--super-agenda-ts-map)
                      (:name "Unscheduled" :anything t))))))
 
