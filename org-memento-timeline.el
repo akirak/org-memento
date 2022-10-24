@@ -613,7 +613,7 @@ If ARG is non-nil, create an away event."
 
 (defun org-memento-timeline-late-blocks-section (taxy)
   (when (org-memento-timeline--within-range-p taxy)
-    (let* ((now (float-time (org-memento--current-time))))
+    (let ((now (float-time (org-memento--current-time))))
       (cl-flet
           ((block-due-p (block)
              (and (org-memento-block-not-closed-p block)
@@ -636,7 +636,7 @@ If ARG is non-nil, create an away event."
 
 You should update the status before you call this function."
   (when (org-memento-timeline--within-range-p taxy)
-    (let* ((now (float-time (org-memento--current-time))))
+    (let ((now (float-time (org-memento--current-time))))
       (cl-flet
           ((block-scheduled-future-p (block)
              (and (org-memento-block-not-closed-p block)
