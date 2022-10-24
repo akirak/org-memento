@@ -633,24 +633,34 @@ The function takes two arguments: the date string and an
 
 ;;;###autoload
 (defun org-memento-open-journal (&optional arg)
-  "Open the current block or the daily entry."
+  "Open the current block, the next block, or the daily entry."
   (interactive "P")
-  (cond
-   ((equal arg '(4))
-    (org-memento-open-today))
-   (org-memento-current-block
-    (with-current-buffer (org-memento--buffer)
-      (widen)
-      (org-memento--find-today)
-      (org-narrow-to-subtree)
-      (re-search-forward (format org-complex-heading-regexp-format
-                                 org-memento-current-block))
-      (org-back-to-heading)
-      (org-narrow-to-subtree)
-      (org-show-subtree)
-      (pop-to-buffer (current-buffer))))
-   (t
-    (org-memento-open-today))))
+  (cl-flet
+      ((show-block (title &optional narrow)
+         (with-current-buffer (org-memento--buffer)
+           (widen)
+           (org-memento--find-today)
+           (org-narrow-to-subtree)
+           (pop-to-buffer (current-buffer))
+           (org-show-entry)
+           (re-search-forward (format org-complex-heading-regexp-format title))
+           (org-back-to-heading)
+           (when narrow
+             (org-narrow-to-subtree))
+           (org-show-subtree))))
+    (cond
+     (org-memento-current-block
+      (show-block org-memento-current-block t))
+     (t
+      (org-memento--status)
+      (if-let (block (thread-last
+                       (org-memento--blocks)
+                       (seq-filter #'org-memento-block-not-closed-p)
+                       (seq-filter #'org-memento-starting-time)
+                       (seq-sort-by #'org-memento-starting-time #'<)
+                       (car)))
+          (show-block (org-memento-title block))
+        (org-memento-open-today))))))
 
 ;;;###autoload
 (defun org-memento-open-today ()
