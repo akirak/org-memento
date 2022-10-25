@@ -886,6 +886,8 @@ The function returns non-nil if the check-in is done."
 
 (defun org-memento--maybe-checkin-to-day ()
   "Check in to the daily entry, if it is not done yet."
+  (when org-memento-idle-timer
+    (cancel-timer org-memento-idle-timer))
   (setq org-memento-block-idle-logging nil)
   (when (org-memento--maybe-check-in)
     ;; The point should be moved to the heading to call scaffolding
