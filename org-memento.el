@@ -643,14 +643,19 @@ The function takes two arguments: the date string and an
            (org-narrow-to-subtree)
            (pop-to-buffer (current-buffer))
            (org-show-entry)
-           (re-search-forward (format org-complex-heading-regexp-format title))
+           (with-demoted-errors "The heading for the current block does not exist. Possibly renamed?"
+             (re-search-forward (format org-complex-heading-regexp-format title)))
            (org-back-to-heading)
            (when narrow
              (org-narrow-to-subtree))
            (org-show-subtree))))
     (cond
      (org-memento-current-block
-      (show-block org-memento-current-block t))
+      (condition-case _
+          (show-block org-memento-current-block t)
+        (error (progn
+                 (setq org-memento-current-block nil)
+                 (org-memento-open-journal arg)))))
      (t
       (org-memento--status)
       (if-let (block (thread-last
