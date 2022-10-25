@@ -202,15 +202,192 @@
   (describe "If the date range contains past dates")
   (describe "If the date range contains future dates"))
 
+;;;; Date spans
+
+(describe "org-memento-date-within-span-p"
+  (describe "With org-memento-date-span-1"
+    (it "returns non-nil if the second argument is within the range"
+      (expect (org-memento-date-within-span-p (parse-time-string "2022-10-10")
+                                              (org-memento-date-span-parse "2022-10"))
+              :to-be-truthy))
+    (it "returns nil if the second argument is out of the range"
+      (expect (org-memento-date-within-span-p (parse-time-string "2022-09-30")
+                                              (org-memento-date-span-parse "2022-10"))
+              :not :to-be-truthy)
+
+      (expect (org-memento-date-within-span-p (parse-time-string "2022-11-01")
+                                              (org-memento-date-span-parse "2022-10"))
+              :not :to-be-truthy)))
+
+  (describe "With org-memento-date-span-2"
+    (it "returns non-nil if the second argument is within the range"
+      (expect (org-memento-date-within-span-p (parse-time-string "2022-11-01")
+                                              (org-memento-date-span-parse '("2022-10" .
+                                                                             "2022-12")))
+              :to-be-truthy)
+      (expect (org-memento-date-within-span-p (parse-time-string "2023-01-01")
+                                              (org-memento-date-span-parse '("2022" .
+                                                                             "2024")))
+              :to-be-truthy)
+      (expect (org-memento-date-within-span-p (parse-time-string "2022-10-10")
+                                              (org-memento-date-span-parse '("2022-10-01" .
+                                                                             "2022-10-20")))
+              :to-be-truthy))
+    (it "returns nil if the second argument is out of the range"
+      (expect (org-memento-date-within-span-p (parse-time-string "2022-09-30")
+                                              (org-memento-date-span-parse '("2022-10" .
+                                                                             "2022-12")))
+              :not :to-be-truthy)
+      (expect (org-memento-date-within-span-p (parse-time-string "2023-10-01")
+                                              (org-memento-date-span-parse '("2022-10" .
+                                                                             "2022-12")))
+              :not :to-be-truthy)
+      (expect (org-memento-date-within-span-p (parse-time-string "2021-12-31")
+                                              (org-memento-date-span-parse '("2022" .
+                                                                             "2024")))
+              :not :to-be-truthy)
+      (expect (org-memento-date-within-span-p (parse-time-string "2025-01-01")
+                                              (org-memento-date-span-parse '("2022" .
+                                                                             "2024")))
+              :not :to-be-truthy))
+    (it "allows omitting one of the bounds"
+      (expect (org-memento-date-within-span-p (parse-time-string "2022-10-10")
+                                              (org-memento-date-span-parse '("2022-10" .
+                                                                             nil)))
+              :to-be-truthy)
+      (expect (org-memento-date-within-span-p (parse-time-string "2022-09-30")
+                                              (org-memento-date-span-parse '("2022-10" .
+                                                                             nil)))
+              :not :to-be-truthy)
+      (expect (org-memento-date-within-span-p (parse-time-string "2022-09-30")
+                                              (org-memento-date-span-parse '(nil . "2022-10")))
+              :to-be-truthy)
+      (expect (org-memento-date-within-span-p (parse-time-string "2022-10-30")
+                                              (org-memento-date-span-parse '(nil . "2022-10")))
+              :to-be-truthy)
+      (expect (org-memento-date-within-span-p (parse-time-string "2022-11-01")
+                                              (org-memento-date-span-parse '(nil . "2022-10")))
+              :not :to-be-truthy))))
+
+(describe "org-memento-date-intersection-p"
+  (describe "With org-memento-date-span-1"
+    (it "returns non-nil if the two ranges have an intersection"
+      (expect (org-memento-date-intersection-p (parse-time-string "2022-10-10")
+                                               (parse-time-string "2022-10-20")
+                                               (org-memento-date-span-parse "2022-10"))
+              :to-be-truthy)
+      (expect (org-memento-date-intersection-p (parse-time-string "2022-09-30")
+                                               (parse-time-string "2022-10-01")
+                                               (org-memento-date-span-parse "2022-10"))
+              :to-be-truthy)
+      (expect (org-memento-date-intersection-p (parse-time-string "2022-10-20")
+                                               (parse-time-string "2022-11-05")
+                                               (org-memento-date-span-parse "2022-10"))
+              :to-be-truthy)
+      (expect (org-memento-date-intersection-p (parse-time-string "2022-10-01")
+                                               (parse-time-string "2022-10-05")
+                                               (org-memento-date-span-parse "2022"))
+              :to-be-truthy))
+    (org-memento-date--final-date (parse-time-string "2022-10"))
+
+    (it "returns nil if there is no intersection between the two ranges"
+      (expect (org-memento-date-intersection-p (parse-time-string "2022-09-01")
+                                               (parse-time-string "2022-09-30")
+                                               (org-memento-date-span-parse "2022-10"))
+              :not :to-be-truthy)
+      (expect (org-memento-date-intersection-p (parse-time-string "2023-01-01")
+                                               (parse-time-string "2023-10-10")
+                                               (org-memento-date-span-parse "2022-10"))
+              :not :to-be-truthy)
+      (expect (org-memento-date-intersection-p (parse-time-string "2021-01-01")
+                                               (parse-time-string "2021-10-10")
+                                               (org-memento-date-span-parse "2022"))
+              :not :to-be-truthy)
+      (expect (org-memento-date-intersection-p (parse-time-string "2023-01-01")
+                                               (parse-time-string "2023-01-02")
+                                               (org-memento-date-span-parse "2022"))
+              :not :to-be-truthy)))
+
+  (describe "With org-memento-date-span-2"
+    (it "returns non-nil if the two ranges have an intersection"
+      (expect (org-memento-date-intersection-p (parse-time-string "2022-10-01")
+                                               (parse-time-string "2022-11-01")
+                                               (org-memento-date-span-parse '("2022-10" .
+                                                                              "2022-12")))
+              :to-be-truthy)
+      (expect (org-memento-date-intersection-p (parse-time-string "2024-12-01")
+                                               (parse-time-string "2024-12-31")
+                                               (org-memento-date-span-parse '("2022" .
+                                                                              "2024")))
+              :to-be-truthy)
+      (expect (org-memento-date-intersection-p (parse-time-string "2022-10-10")
+                                               (parse-time-string "2022-10-11")
+                                               (org-memento-date-span-parse '("2022-10-01" .
+                                                                              "2022-10-20")))
+              :to-be-truthy))
+    (it "returns nil if there is no intersection betweeh the two date ranges"
+      (expect (org-memento-date-intersection-p (parse-time-string "2022-09-01")
+                                               (parse-time-string "2022-09-30")
+                                               (org-memento-date-span-parse '("2022-10" .
+                                                                              "2022-12")))
+              :not :to-be-truthy)
+      (expect (org-memento-date-intersection-p (parse-time-string "2023-10-01")
+                                               (parse-time-string "2023-10-10")
+                                               (org-memento-date-span-parse '("2022-10" .
+                                                                              "2022-12")))
+              :not :to-be-truthy)
+      (expect (org-memento-date-intersection-p (parse-time-string "2021-12-01")
+                                               (parse-time-string "2021-12-31")
+                                               (org-memento-date-span-parse '("2022" .
+                                                                              "2024")))
+              :not :to-be-truthy)
+      (expect (org-memento-date-intersection-p (parse-time-string "2025-01-01")
+                                               (parse-time-string "2025-02-01")
+                                               (org-memento-date-span-parse '("2022" .
+                                                                              "2024")))
+              :not :to-be-truthy))
+    (it "allows omitting one of the bounds"
+      (expect (org-memento-date-intersection-p (parse-time-string "2022-10-10")
+                                               (parse-time-string "2022-10-20")
+                                               (org-memento-date-span-parse '("2022-10" .
+                                                                              nil)))
+              :to-be-truthy)
+      (expect (org-memento-date-intersection-p (parse-time-string "2022-09-01")
+                                               (parse-time-string "2022-09-30")
+                                               (org-memento-date-span-parse '("2022-10" .
+                                                                              nil)))
+              :not :to-be-truthy)
+      (expect (org-memento-date-intersection-p (parse-time-string "2021-12-01")
+                                               (parse-time-string "2021-12-31")
+                                               (org-memento-date-span-parse '(nil . "2022-10")))
+              :to-be-truthy)
+      (expect (org-memento-date-intersection-p (parse-time-string "2022-10-20")
+                                               (parse-time-string "2022-10-30")
+                                               (org-memento-date-span-parse '(nil . "2022-10")))
+              :to-be-truthy)
+      (expect (org-memento-date-intersection-p (parse-time-string "2022-11-01")
+                                               (parse-time-string "2022-11-05")
+                                               (org-memento-date-span-parse '(nil . "2022-10")))
+              :not :to-be-truthy))))
+
+(describe "org-memento-policy-load"
+  (it "loads a policy file"
+    (let* ((org-memento-file org-memento-test-policy-file)
+           (policies (org-memento-policy-load)))
+      (expect (taxy-p policies)
+              :to-be-truthy)
+      (expect (length (taxy-flatten policies))
+              :to-be-greater-than 0))))
+
 ;;;; Other functions
 
 (describe "org-memento-goto-today"
   (it "goes to the start of the current date"
     (expect (org-memento-with-test-context "memento1.org" "2020-01-01 12:00:00"
-              (save-window-excursion
-                (save-current-buffer
-                  (org-memento-goto-today)
-                  (buffer-substring (point) (pos-eol)))))
+                                           (save-window-excursion
+                                             (save-current-buffer
+                                               (org-memento-goto-today)
+                                               (buffer-substring (point) (pos-eol)))))
             :to-equal "* 2020-01-01")))
 
 (provide 'org-memento-test)

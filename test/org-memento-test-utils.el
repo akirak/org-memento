@@ -1,5 +1,9 @@
 ;;; org-memento-test-utils.el ---  -*- lexical-binding: t -*-
 
+(defconst org-memento-test-policy-file
+  (expand-file-name "policies" (file-name-directory (or load-file-name
+                                                        (buffer-file-name)))))
+
 (defmacro org-memento-with-test-context (file time-string &rest progn)
   (declare (indent 2))
   `(let ((org-memento-current-time ,(when time-string

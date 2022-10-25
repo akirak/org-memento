@@ -32,6 +32,7 @@
 ;;; Code:
 
 (require 'org-memento)
+(require 'org-memento-policy)
 (require 'taxy)
 (require 'dash)
 (require 'magit-section)
@@ -57,7 +58,8 @@ timeline as an argument."
   :type 'hook)
 
 (defcustom org-memento-timeline-planning-hook
-  '(org-memento-timeline-agenda-section
+  '(org-memento-timeline-policies-section
+    org-memento-timeline-agenda-section
     org-memento-timeline-late-blocks-section
     org-memento-timeline-next-event-section
     org-memento-timeline-feasibility-section
@@ -649,6 +651,54 @@ If ARG is non-nil, create an away event."
            (parse-time-string (cadr org-memento-timeline-date-range))
            (or org-extend-today-until 0) 0 0)
           (make-decoded-time :hour 23 :minute 59)))))
+
+;;;; Display policies
+
+(defun org-memento-timeline-policies-section (taxy)
+  (org-memento-policy-maybe-load)
+  (let ((rules (org-memento-policy-rules
+                :span org-memento-timeline-span
+                :start-date (car org-memento-timeline-date-range)
+                :end-date (cadr org-memento-timeline-date-range))))
+    (cl-labels
+        ((insert-rule (level rule)
+           (magit-insert-section (policy-rule rule nil)
+             (magit-insert-heading
+               (make-string (* 2 (1+ level)) ?\s)
+               (cl-etypecase rule
+                 (org-memento-policy-budget-rule "Budget rule")))
+             (cl-etypecase rule
+               (org-memento-policy-budget-rule
+                (dolist (spec (oref rule specs))
+                  (magit-insert-section (budget-spec spec nil)
+                    (magit-insert-heading
+                      (make-string (* 2 (+ 2 level)) ?\s)
+                      (propertize (format "%s %s: "
+                                          (cl-ecase (oref spec span)
+                                            (day "Daily")
+                                            (week "Weekly")
+                                            (month "Monthly"))
+                                          (symbol-name (oref spec level)))
+                                  'face 'magit-section-heading)
+                      (org-duration-from-minutes (oref spec duration-minutes)))))))))
+         (insert-group (level taxy)
+           (magit-insert-section (policy-group (list (taxy-name taxy)
+                                                     :level level))
+             (magit-insert-heading
+               (make-string (* 2 (1+ level)) ?\s)
+               (funcall (plist-get (nth level org-memento-group-taxonomy)
+                                   :format)
+                        (taxy-name taxy)))
+             (dolist (rule (taxy-items taxy))
+               (insert-rule (1+ level) rule))
+             (dolist (subtaxy (taxy-taxys taxy))
+               (insert-group (1+ level) subtaxy)))))
+      (magit-insert-section (magit-section)
+        (magit-insert-heading
+          "Group Policies")
+        (dolist (taxy (taxy-taxys (org-memento-policy-group-taxy rules)))
+          (insert-group 0 taxy)))
+      (insert ?\n))))
 
 ;;;; Extra hooks
 

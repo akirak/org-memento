@@ -1,0 +1,15 @@
+;;; -*- mode: org-memento-policy; -*-
+
+(group "English"
+  :budget ((day minimum "0:15")
+           (day goal "1:00")
+           (week goal "5:00"))
+  (period "2022-10"
+    (group "pronunciation"
+      :yield (:backtrack (:events 5 :days 5)
+              :generator
+              (lambda (x y)))))
+  (period ("2022-11-01" . "2022-11-30")))
+
+(group "NixOS"
+  (group "maintenance"))
