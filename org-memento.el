@@ -551,6 +551,40 @@ The function takes two arguments: the date string and an
   (message "Idle finished [%s]" (format-time-string "%F %R"))
   (org-clock-out))
 
+;;;; Minor mode for the journal file
+
+(defvar org-memento-file-mode-map
+  (let ((map (make-sparse-keymap)))
+    (define-key map [remap org-clock-in] #'org-memento-start-at-point)
+    map))
+
+(define-minor-mode org-memento-file-mode
+  "Minor mode for the journal file of Org Memento.
+
+This mode is primarily intended for remapping commands that
+should not be run inside the journal file."
+  :lighter " MmtFile")
+
+(defun org-memento-start-at-point ()
+  "Start the block at point."
+  (interactive)
+  (unless (file-equal-p (buffer-file-name) org-memento-file)
+    (user-error "You cannot run this command outside of the journal file"))
+  (when org-memento-current-block
+    (user-error "Already started"))
+  (pcase (org-get-outline-path t)
+    (`(,date ,heading)
+     (unless (equal date (org-memento--today-string
+                          (decode-time (org-memento--current-time))))
+       (user-error "Not on an entry for today"))
+     (when (equal heading org-memento-idle-heading)
+       (user-error "You cannot run this on an idle entry"))
+     (when (org-entry-is-done-p)
+       (user-error "The entry is already closed"))
+     (org-memento-start-block heading))
+    (_
+     (user-error "Not on a block entry"))))
+
 ;;;; Commands
 
 ;;;###autoload
@@ -761,7 +795,9 @@ point to the heading.
 (defun org-memento--buffer ()
   (or (find-buffer-visiting org-memento-file)
       (let ((auto-insert-mode nil))
-        (find-file-noselect org-memento-file))))
+        (with-current-buffer (find-file-noselect org-memento-file)
+          (org-memento-file-mode t)
+          (current-buffer)))))
 
 (defun org-memento--save-buffer ()
   (let ((make-backup-files nil)
