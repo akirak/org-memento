@@ -2322,6 +2322,11 @@ range."
                (when default
                  (insert default)
                  (goto-char (point-min)))
+               ;; TODO: Add a custom prompt by using `org-read-date' directly
+               ;;
+               ;; It seems impossible to retrieve the end time from
+               ;; `org-end-time-was-given' when lexical binding is enabled.
+               ;; To be resolved in the future.
                (org-time-stamp nil)
                (goto-char (point-min))
                (org-element-timestamp-parser)))
