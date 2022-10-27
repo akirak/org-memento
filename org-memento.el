@@ -967,6 +967,7 @@ The point must be at the heading."
 
 ;;;;; Scanning
 
+;;;###autoload
 (defun org-memento-status (&optional check-in)
   "Update the status."
   (interactive)
