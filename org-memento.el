@@ -2336,21 +2336,6 @@ range."
           (unless (time-equal-p start-time end-time)
             end-time))))
 
-(defun org-memento--read-time-or-span (start)
-  "Prompt for a time or a time span."
-  (let* ((ts (with-temp-buffer
-               (insert (format-time-string (org-time-stamp-format t)
-                                           start))
-               (goto-char (point-min))
-               (org-time-stamp nil)
-               (goto-char (point-min))
-               (org-element-timestamp-parser)))
-         (start-time (org-memento--timestamp-to-time ts))
-         (end-time (org-memento--timestamp-to-time ts 'end)))
-    (list start-time
-          (unless (time-equal-p start-time end-time)
-            end-time))))
-
 (defun org-memento--timestamp-to-time (ts &optional end)
   (encode-time (make-decoded-time
                 :year (org-element-property (if end :year-end :year-start) ts)
