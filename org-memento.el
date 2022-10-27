@@ -2304,15 +2304,10 @@ nil. If one of them is nil, the other one is returned."
 
 (defun org-memento--read-date-range ()
   "Return a date range in a list of decoded times."
-  (let ((org-extend-today-until 0)
-        result)
-    (with-temp-buffer
-      (dotimes (_ 2)
-        (org-time-stamp nil)
-        (goto-char (point-min))
-        (looking-at org-ts-regexp)
-        (push (parse-time-string (match-string 1)) result)))
-    (nreverse result)))
+  (let ((org-extend-today-until 0))
+    (mapcar #'parse-time-string
+            (list (org-read-date nil nil nil "Start date")
+                  (org-read-date nil nil nil "End date")))))
 
 (defun org-memento--read-time-span (&optional default)
   "Prompt for a time span.
