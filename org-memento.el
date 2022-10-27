@@ -973,24 +973,31 @@ The point must be at the heading."
   (setq org-memento-status-data (org-memento--block-data
                                  (or check-in
                                      (called-interactively-p t))))
-  (unless (and org-memento-current-block
-               (seq-find (lambda (block)
-                           (and (equal (org-memento-title block)
-                                       org-memento-current-block)
-                                (org-memento-started-time block)
-                                (not (org-memento-ended-time block))))
-                         (org-memento--blocks)))
-    (setq org-memento-current-block
-          (seq-some (lambda (block)
-                      (when (and (org-memento-started-time block)
-                                 (not (org-memento-ended-time block)))
-                        (org-memento-title block)))
-                    (org-memento--blocks))))
-  (let* ((block (org-memento--current-block))
-         (category (when block (org-memento-block-category block)))
-         (ending-time (when block (org-memento-ending-time block))))
-    (setq org-memento-current-category category))
-  (run-hooks 'org-memento-status-hook))
+  (unless (catch 'cancel
+            (unless (and org-memento-current-block
+                         (seq-find (lambda (block)
+                                     (and (equal (org-memento-title block)
+                                                 org-memento-current-block)
+                                          (org-memento-started-time block)
+                                          (not (org-memento-ended-time block))))
+                                   (org-memento--blocks)))
+              (if-let (right-block (seq-some (lambda (block)
+                                               (when (and (org-memento-started-time block)
+                                                          (not (org-memento-ended-time block)))
+                                                 (org-memento-title block)))
+                                             (org-memento--blocks)))
+                  (progn
+                    ;; Call `org-memento-start-block' to run necessary hooks.
+                    (org-memento-start-block right-block)
+                    ;; `org-memento-start-block' updates the status, so avoid
+                    ;; rerun of the status hook.
+                    (throw 'cancel t))
+                (setq org-memento-current-block nil))))
+    (let* ((block (org-memento--current-block))
+           (category (when block (org-memento-block-category block)))
+           (ending-time (when block (org-memento-ending-time block))))
+      (setq org-memento-current-category category))
+    (run-hooks 'org-memento-status-hook)))
 
 (defun org-memento--status ()
   "Only update `org-memento-status-data'."
