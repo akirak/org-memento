@@ -140,6 +140,11 @@ distractions."
   :type '(choice (const nil)
                  (function :tag "Function without an argument")))
 
+(define-widget 'org-memento-duration-type 'lazy
+  "String representing a duration."
+  :tag "Duration (h:mm)"
+  :type 'string)
+
 (defcustom org-memento-workhour-alist
   '(((1 2 3 4 5)
      :normal-checkin "9:30"
@@ -151,9 +156,9 @@ distractions."
                                    (((const :normal-checkin)
                                      string)
                                     ((const :normal-duration)
-                                     string)
+                                     org-memento-duration-type)
                                     ((const :normal-saving)
-                                     string)))))
+                                     org-memento-duration-type)))))
 
 (defcustom org-memento-schedule-away-alist nil
   ""
