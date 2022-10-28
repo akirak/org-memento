@@ -115,12 +115,12 @@ timeline as an argument."
 (defvar org-memento-timeline-date-range nil)
 
 ;;;###autoload
-(defun org-memento-timeline (start-day end-day &optional span)
+(cl-defun org-memento-timeline (start-day end-day &key span)
   (interactive (if (equal current-prefix-arg '(4))
                    (list (org-read-date)
                          (org-read-date))
                  (let ((today (org-memento--today-string (decode-time))))
-                   (list today today 'day))))
+                   (list today today :span 'day))))
   (when (string-lessp end-day start-day)
     (user-error "The end day must be no earlier than the start day"))
   (with-current-buffer (get-buffer-create org-memento-timeline-ms-buffer)
@@ -141,6 +141,34 @@ timeline as an argument."
     (setq org-memento-timeline-refresh-timer
           (run-with-timer org-memento-timeline-refresh-interval t
                           #'org-memento-timeline-refresh-1))))
+
+;;;###autoload
+(defun org-memento-timeline-for-week (&optional arg)
+  (interactive "P")
+  (pcase-let
+      ((`(,start ,end) (pcase-exhaustive arg
+                         (`nil
+                          (org-memento-timeline--week-range 0))
+                         ((pred numberp)
+                          (org-memento-timeline--week-range arg)))))
+    (org-memento-timeline start end :span 'week)))
+
+(defun org-memento-timeline--week-range (n)
+  (let* ((today (thread-first
+                  (org-memento--current-time)
+                  (decode-time)
+                  (org-memento--start-of-day)))
+         (week-start (thread-last
+                       (make-decoded-time
+                        :day (+ (- (mod (+ 7 (- (decoded-time-weekday today)
+                                                org-agenda-start-on-weekday))
+                                        7))
+                                (* n 7)))
+                       (decoded-time-add today)))
+         (week-end (decoded-time-add
+                    week-start (make-decoded-time :day 6))))
+    (list (format-time-string "%F" (encode-time week-start))
+          (format-time-string "%F" (encode-time week-end)))))
 
 (defun org-memento-timeline-revert (&rest _args)
   (interactive)
