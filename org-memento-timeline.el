@@ -771,7 +771,8 @@ You should update the status before you call this function."
 
 (defun org-memento-timeline-feasibility-section (taxy)
   (when (org-memento-timeline--within-range-p taxy)
-    (let ((planning-items (org-memento--planning-items)))
+    (let ((planning-items (org-memento--planning-items))
+          (now (float-time (org-memento--current-time))))
       (cl-labels
           ((block-not-started-p (block)
              (not (org-memento-started-time block)))
@@ -840,6 +841,30 @@ You should update the status before you call this function."
           (magit-insert-section (magit-section)
             (magit-insert-heading
               "Feasibility")
+            (let (overlaps)
+              (dolist (date-taxy (taxy-taxys taxy))
+                (let (last-end)
+                  (when (< (car (taxy-name date-taxy)) now)
+                    (dolist (block-taxy (taxy-taxys date-taxy))
+                      (let* ((record (taxy-name block-taxy))
+                             (start (car record))
+                             (end (cadr record)))
+                        (when (> end now)
+                          (when (and last-end
+                                     (< start last-end))
+                            (push (cons record last-end) overlaps))
+                          (setq last-end end)))))))
+              (when overlaps
+                (pcase-dolist (`(,record . ,last-end) overlaps)
+                  (magit-insert-section (block record t)
+                    (magit-insert-heading
+                      (make-string 2 ?\s)
+                      (propertize (nth 2 record) 'face 'magit-section-heading)
+                      (format-spec
+                       " starts at %s before its previous event ends at %e (overlap)."
+                       `((?s . ,(format-time-string "%R" (car record)))
+                         (?e . ,(format-time-string "%R" last-end)))))))
+                (insert ?\n)))
             (org-memento-timeline-with-overlay
              ((keymap . org-memento-timeline-feasibility-map))
              (dolist (block (seq-sort-by #'org-memento-starting-time
