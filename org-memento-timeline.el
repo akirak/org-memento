@@ -623,13 +623,16 @@ If ARG is non-nil, create an away event."
                       (cadr (taxy-name taxy))))))
 
 (defun org-memento-timeline--marker (value)
-  (cl-etypecase value
-    (org-memento-planning-item
+  (pcase value
+    ((pred org-memento-planning-item-p)
      (org-memento-planning-item-hd-marker value))
-    (list
-     (pcase value
-       (`(,_ ,_ ,_ ,marker . ,_)
-        marker)))))
+    ((pred org-memento-block-p)
+     (org-memento-block-hd-marker value))
+    ((and `(,x . ,_)
+          (guard (org-memento-block-p x)))
+     (org-memento-block-hd-marker x))
+    (`(,_ ,_ ,_ ,marker . ,_)
+     marker)))
 
 (defun org-memento-timeline-range ()
   "Return the range as a list of internal time representations."
