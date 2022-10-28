@@ -410,6 +410,7 @@ timeline as an argument."
   (let ((map (make-sparse-keymap)))
     (define-key map "e" #'org-memento-timeline-edit-dwim)
     (define-key map "o" #'org-memento-timeline-open-entry)
+    (define-key map "D" #'org-memento-timeline-delete-entry)
     (define-key map (kbd "SPC") #'org-memento-timeline-show-entry)
     map))
 
@@ -459,6 +460,36 @@ timeline as an argument."
   (interactive)
   (org-memento-timeline-with-marker-point
    (org-todo)))
+
+(defun org-memento-timeline-delete-entry ()
+  (interactive)
+  (when-let* ((section (magit-current-section))
+              (value (oref section value)))
+    (when (pcase value
+            ((and `(,start ,end ,_ ,marker . ,_)
+                  (guard marker))
+             (cond
+              ((and start (> start (float-time (org-memento--current-time))))
+               (save-current-buffer
+                 (org-with-point-at marker
+                   (org-end-of-meta-data t)
+                   (if (looking-at (concat org-ts-regexp "\n"))
+                       (when (yes-or-no-p "Remove the timestamp of the entry?")
+                         (delete-region (point) (1+ (pos-eol)))
+                         (message "Removed an active timestamp")
+                         t)
+                     (error "No timestamp is found")))))
+              ((not start)
+               (when (yes-or-no-p "Remove the entry?")
+                 (save-current-buffer
+                   (org-with-point-at marker
+                     (org-cut-subtree)))))
+              (t
+               (user-error "Nothing to do"))
+              ))
+            (_
+             (user-error "Nothing to do")))
+      (org-memento-timeline-revert))))
 
 (defun org-memento-timeline-edit-dwim (&optional arg)
   "Adjust the time slice(s) at point.
