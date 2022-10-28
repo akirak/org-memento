@@ -816,6 +816,10 @@ You should update the status before you call this function."
                           :key #'org-memento-planning-item-id
                           :test #'equal)
                  (error "Cannot find an item \"%s\" by its ID" (cdr cell))))
+           (compare-maybe-number (x y)
+             (if (and x y)
+                 (< x y)
+               x))
            (insert-block (block)
              (let* ((duration (or (org-memento-duration block)
                                   (duration-from-time block)))
@@ -899,7 +903,8 @@ You should update the status before you call this function."
             (org-memento-timeline-with-overlay
              ((keymap . org-memento-timeline-feasibility-map))
              (dolist (block (seq-sort-by #'org-memento-starting-time
-                                         #'< blocks))
+                                         #'compare-maybe-number
+                                         blocks))
                (insert-block block))))
           (insert ?\n))))))
 
