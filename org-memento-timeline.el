@@ -110,20 +110,23 @@ timeline as an argument."
 
 ;;;; Display the timeline
 
+(defvar org-memento-timeline-span nil)
+
 (defvar org-memento-timeline-date-range nil)
 
 ;;;###autoload
-(defun org-memento-timeline (start-day end-day)
+(defun org-memento-timeline (start-day end-day &optional span)
   (interactive (if (equal current-prefix-arg '(4))
                    (list (org-read-date)
                          (org-read-date))
                  (let ((today (org-memento--today-string (decode-time))))
-                   (list today today))))
+                   (list today today 'day))))
   (when (string-lessp end-day start-day)
     (user-error "The end day must be no earlier than the start day"))
   (with-current-buffer (get-buffer-create org-memento-timeline-ms-buffer)
     (org-memento-timeline-mode)
     (setq-local org-memento-timeline-date-range (list start-day end-day)
+                org-memento-timeline-span span
                 revert-buffer-function #'org-memento-timeline-revert)
     (org-memento-timeline-revert)
     (pop-to-buffer (current-buffer))
