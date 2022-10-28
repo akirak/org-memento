@@ -2352,41 +2352,53 @@ nil. If one of them is nil, the other one is returned."
             (list (org-read-date nil nil nil "Start date")
                   (org-read-date nil nil nil "End date")))))
 
-(defun org-memento--read-time-span (&optional default)
+(defun org-memento--read-time-span (&optional default on-date)
   "Prompt for a time span.
 
 DEFAULT is an optional timestamp string which contains the
 default range.
 
+If ON-DATE is given, the result will be adjusted to be on the date.
+
 This function returns (START END) where START and END are time
 representations. END can be nil if the user doesn't enter a time
 range."
-  (let* ((ts (with-temp-buffer
-               (when default
-                 (insert default)
-                 (goto-char (point-min)))
-               ;; TODO: Add a custom prompt by using `org-read-date' directly
-               ;;
-               ;; It seems impossible to retrieve the end time from
-               ;; `org-end-time-was-given' when lexical binding is enabled.
-               ;; To be resolved in the future.
-               (org-time-stamp nil)
-               (goto-char (point-min))
-               (org-element-timestamp-parser)))
-         (start-time (org-memento--timestamp-to-time ts))
-         (end-time (org-memento--timestamp-to-time ts 'end)))
-    (list start-time
-          (unless (time-equal-p start-time end-time)
-            end-time))))
+  (let ((ts (with-temp-buffer
+              (when default
+                (insert default)
+                (goto-char (point-min)))
+              ;; TODO: Add a custom prompt by using `org-read-date' directly
+              ;;
+              ;; It seems impossible to retrieve the end time from
+              ;; `org-end-time-was-given' when lexical binding is enabled.
+              ;; To be resolved in the future.
+              (org-time-stamp nil)
+              (goto-char (point-min))
+              (org-element-timestamp-parser)))
+        (date (when on-date
+                (org-memento--start-of-day (decode-time on-date)))))
+    (list (org-memento--timestamp-to-time ts nil date)
+          (when (eq 'active-range (org-element-property :type ts))
+            (org-memento--timestamp-to-time ts 'end date)))))
 
-(defun org-memento--timestamp-to-time (ts &optional end)
-  (encode-time (make-decoded-time
-                :year (org-element-property (if end :year-end :year-start) ts)
-                :month (org-element-property (if end :month-end :month-start) ts)
-                :day (org-element-property (if end :day-end :day-start) ts)
-                :hour (org-element-property (if end :hour-end :hour-start) ts)
-                :minute (org-element-property (if end :minute-end :minute-start) ts)
-                :second 0)))
+(defun org-memento--timestamp-to-time (ts &optional end date)
+  (let ((hour (mod (org-element-property (if end :hour-end :hour-start) ts) 24)))
+    (encode-time (make-decoded-time
+                  :year (if date
+                            (decoded-time-year date)
+                          (org-element-property (if end :year-end :year-start) ts))
+                  :month (if date
+                             (decoded-time-month date)
+                           (org-element-property (if end :month-end :month-start) ts))
+                  :day (if date
+                           (decoded-time-day date)
+                         (org-element-property (if end :day-end :day-start) ts))
+                  :hour (if (and org-extend-today-until
+                                 (< hour org-extend-today-until))
+                            (+ hour 24)
+                          hour)
+                  :minute (org-element-property (if end :minute-end :minute-start) ts)
+                  :second 0))))
 
 (defun org-memento--format-active-range (start-time end-time)
   (format (org-format-time-string "<%Y-%m-%d %a %%s>" start-time)

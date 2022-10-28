@@ -527,11 +527,12 @@ If ARG is non-nil, create an away event."
              (org-memento-adjust-time))))
        (schedule-new-block (start end-bound)
          (pcase-exhaustive (org-memento--read-time-span
-                            (format-time-string
-                             (org-time-stamp-format t)
+                            (org-memento--format-active-range
                              (if (and start (< start (float-time)))
                                  (+ (float-time) (* 5 60))
-                               start)))
+                               start)
+                             end-bound)
+                            start)
            (`(,modified-start ,end)
             (org-memento-schedule-block (float-time modified-start)
                                         (if end
@@ -541,7 +542,8 @@ If ARG is non-nil, create an away event."
        (add-event (start end &optional moderate-time away)
          (pcase-exhaustive (if moderate-time
                                (org-memento--read-time-span
-                                (org-memento--format-active-range start end))
+                                (org-memento--format-active-range start end)
+                                start)
                              (list start end))
            (`(,start ,end)
             (org-memento-add-event :start start :end end
@@ -549,7 +551,8 @@ If ARG is non-nil, create an away event."
        (log-away-event (start-bound end-bound marker)
          (pcase-exhaustive (thread-last
                              (org-memento--read-time-span
-                              (org-memento--format-active-range start-bound end-bound))
+                              (org-memento--format-active-range start-bound end-bound)
+                              start-bound)
                              (mapcar #'float-time))
            (`(,start ,end)
             (org-memento--remove-clock marker start-bound end-bound start end)
