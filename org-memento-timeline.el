@@ -87,6 +87,10 @@ timeline as an argument."
     (t (:inherit default)))
   "Face for an item at the current time.")
 
+(defface org-memento-timeline-warning-face
+  '((t (:inherit font-lock-warning-face)))
+  "Face for warning items.")
+
 ;;;; Variables
 
 (defvar org-memento-timeline-refresh-timer nil)
@@ -196,7 +200,8 @@ timeline as an argument."
 (defun org-memento-timeline-section (root-taxy)
   "Insert the timeline section."
   ;; TODO: Maybe set magit-section-set-visibility-hook
-  (let ((now (float-time (org-memento--current-time))))
+  (let ((now (float-time (org-memento--current-time)))
+        last-block-end)
     (cl-labels
         ((get-record (item)
            (if (taxy-p item)
@@ -305,7 +310,12 @@ timeline as an argument."
                  (magit-insert-heading
                    indent1
                    (if start
-                       (format-time-string "%R- " start)
+                       (if (and (> start now)
+                                (< start last-block-end))
+                           (propertize (format-time-string "%R- " start)
+                                       'face 'font-lock-warning-face
+                                       'org-memento-warning-type 'overlap)
+                         (format-time-string "%R- " start))
                      (make-string 7 ?\s))
                    (if-let (title (title taxy))
                        (propertize title
@@ -346,7 +356,8 @@ timeline as an argument."
                              ;; Don't show the end of the block if the block is
                              ;; anonymous
                              (when (title taxy)
-                               end)))))
+                               end))
+               (setq last-block-end end))))
          (insert-date (taxy)
            (magit-insert-section (date (taxy-name taxy))
              (let ((title (title taxy))
