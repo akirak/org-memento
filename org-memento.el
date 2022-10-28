@@ -143,13 +143,16 @@ distractions."
 (defcustom org-memento-workhour-alist
   '(((1 2 3 4 5)
      :normal-checkin "9:30"
-     :normal-duration "8:00"))
+     :normal-duration "8:00"
+     :normal-saving "1:00"))
   ""
   :type '(alist :key-type org-memento-days-of-week-type
                 :value-type (plist :options
                                    (((const :normal-checkin)
                                      string)
                                     ((const :normal-duration)
+                                     string)
+                                    ((const :normal-saving)
                                      string)))))
 
 (defcustom org-memento-schedule-away-alist nil
