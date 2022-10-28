@@ -763,14 +763,23 @@ point to the heading.
           (when (and orig-ts
                      (eq 'active-range (org-element-property :type orig-ts))
                      (not (eq 'active-range (org-element-property :type new-ts))))
-            (delete-region match-begin match-end)
-            (thread-last
-              (- (float-time (org-timestamp-to-time orig-ts t))
-                 (float-time (org-timestamp-to-time orig-ts)))
-              (time-add start)
-              (format-time-string "-%R")
-              (org-insert-time-stamp start
-                                     t nil nil nil))))
+            (thing-at-point-looking-at org-ts-regexp)
+            (replace-match "")
+            (org-insert-time-stamp
+             start
+             t nil nil nil
+             (concat "-"
+                     (org-memento--format-army-time
+                      (time-add start
+                                (- (float-time (org-timestamp-to-time orig-ts t))
+                                   (float-time (org-timestamp-to-time orig-ts))))
+                      (float-time
+                       (encode-time
+                        (make-decoded-time
+                         :year (org-element-property :year-start new-ts)
+                         :month (org-element-property :month-start new-ts)
+                         :day (org-element-property :day-start new-ts)
+                         :hour 0 :minute 0 :second 0))))))))
         (unless had-ts (insert "\n"))))))
 
 ;;;; Timers and notifications
