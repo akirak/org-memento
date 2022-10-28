@@ -743,9 +743,27 @@ point to the heading.
     (org-end-of-meta-data)
     (when (looking-at org-logbook-drawer-re)
       (goto-char (match-end 0)))
-    (let ((has-ts (looking-at org-ts-regexp)))
+    (let* ((had-ts (looking-at org-ts-regexp))
+           (orig-ts (when had-ts
+                      (org-timestamp-from-string (match-string 0)))))
       (when (org-time-stamp nil)
-        (unless has-ts (insert "\n"))))))
+        (thing-at-point-looking-at org-ts-regexp)
+        (let* ((match-begin (match-beginning 0))
+               (match-end (match-end 0))
+               (new-ts (org-timestamp-from-string (match-string 0)))
+               (start (org-timestamp-to-time new-ts)))
+          (when (and orig-ts
+                     (eq 'active-range (org-element-property :type orig-ts))
+                     (not (eq 'active-range (org-element-property :type new-ts))))
+            (delete-region match-begin match-end)
+            (thread-last
+              (- (float-time (org-timestamp-to-time orig-ts t))
+                 (float-time (org-timestamp-to-time orig-ts)))
+              (time-add start)
+              (format-time-string "-%R")
+              (org-insert-time-stamp start
+                                     t nil nil nil))))
+        (unless had-ts (insert "\n"))))))
 
 ;;;; Timers and notifications
 
