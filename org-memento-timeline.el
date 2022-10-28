@@ -589,6 +589,19 @@ If ARG is non-nil, create an away event."
        (`(,_ ,_ ,_ ,marker . ,_)
         marker)))))
 
+(defun org-memento-timeline-range ()
+  "Return the range as a list of internal time representations."
+  (list (encode-time
+         (org-memento--set-time-of-day
+          (parse-time-string (car org-memento-timeline-date-range))
+          (or org-extend-today-until 0) 0 0))
+        (encode-time
+         (decoded-time-add
+          (org-memento--set-time-of-day
+           (parse-time-string (cadr org-memento-timeline-date-range))
+           (or org-extend-today-until 0) 0 0)
+          (make-decoded-time :hour 23 :minute 59)))))
+
 ;;;; Extra hooks
 
 (defun org-memento-timeline-planning-sections (taxy)
