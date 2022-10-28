@@ -413,6 +413,11 @@ timeline as an argument."
   (org-memento-timeline-with-marker-point
    (org-schedule arg)))
 
+(defun org-memento-timeline-todo ()
+  (interactive)
+  (org-memento-timeline-with-marker-point
+   (org-todo)))
+
 (defun org-memento-timeline-edit-dwim (&optional arg)
   "Adjust the time slice(s) at point.
 
@@ -564,6 +569,7 @@ If ARG is non-nil, create an away event."
   (let ((map (make-sparse-keymap)))
     (define-key map "e" #'org-memento-timeline-edit-agenda-item)
     (define-key map (kbd "C-c C-s") #'org-memento-timeline-schedule)
+    (define-key map (kbd "C-c C-t") #'org-memento-timeline-todo)
     ;; (define-key map (kbd "C-c C-d") #'org-memento-timeline-deadline)
     map))
 
