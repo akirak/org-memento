@@ -661,36 +661,14 @@ If ARG is non-nil, create an away event."
                 :start-date (car org-memento-timeline-date-range)
                 :end-date (cadr org-memento-timeline-date-range))))
     (cl-labels
-        ((insert-rule (level rule)
-           (magit-insert-section (policy-rule rule nil)
-             (magit-insert-heading
-               (make-string (* 2 (1+ level)) ?\s)
-               (cl-etypecase rule
-                 (org-memento-policy-budget-rule "Budget rule")))
-             (cl-etypecase rule
-               (org-memento-policy-budget-rule
-                (dolist (spec (oref rule specs))
-                  (magit-insert-section (budget-spec spec nil)
-                    (magit-insert-heading
-                      (make-string (* 2 (+ 2 level)) ?\s)
-                      (propertize (format "%s %s: "
-                                          (cl-ecase (oref spec span)
-                                            (day "Daily")
-                                            (week "Weekly")
-                                            (month "Monthly"))
-                                          (symbol-name (oref spec level)))
-                                  'face 'magit-section-heading)
-                      (org-duration-from-minutes (oref spec duration-minutes)))))))))
-         (insert-group (level taxy)
+        ((insert-group (level taxy)
            (magit-insert-section (policy-group (list (taxy-name taxy)
                                                      :level level))
              (magit-insert-heading
                (make-string (* 2 (1+ level)) ?\s)
                (funcall (plist-get (nth level org-memento-group-taxonomy)
                                    :format)
-                        (taxy-name taxy)))
-             (dolist (rule (taxy-items taxy))
-               (insert-rule (1+ level) rule))
+                        (nth level (taxy-name taxy))))
              (dolist (subtaxy (taxy-taxys taxy))
                (insert-group (1+ level) subtaxy)))))
       (magit-insert-section (magit-section)
