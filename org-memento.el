@@ -250,6 +250,8 @@ Note that all property names should be upper-cased."
 
 (defvar org-memento-title-string nil)
 
+(defvar org-memento-group-cache nil)
+
 ;;;; Substs and small utility functions
 
 (defsubst org-memento--current-time ()
@@ -2229,6 +2231,35 @@ denoting the type of the activity. ARGS is an optional list."
           dates)))))
 
 ;;;; Grouping
+
+(defun org-memento--cache-groups ()
+  (let* ((alist1 (org-memento-map-past-blocks-1
+                  (lambda (date)
+                    (let ((props (thread-last
+                                   (cl-remove-if (lambda (key)
+                                                   (member key org-memento-unique-properties))
+                                                 (org-entry-properties nil 'standard)
+                                                 :key #'car)
+                                   (seq-sort-by #'car #'string<)))
+                          (tags (org-get-tags)))
+                      (when (or props tags)
+                        (list (cons props tags)
+                              date
+                              (point-marker)))))))
+         (alist2 (cl-remove-duplicates alist1
+                                       :key #'car
+                                       :test #'equal)))
+    (if org-memento-group-cache
+        (clrhash org-memento-group-cache)
+      (setq org-memento-group-cache (make-hash-table :test #'equal)))
+    (with-current-buffer (org-memento--buffer)
+      (org-with-wide-buffer
+       (pcase-dolist (`(,_ ,date ,marker) alist2)
+         (goto-char marker)
+         (let ((element (org-element-headline-parser (org-entry-end-position))))
+           (puthash (org-memento--get-group element)
+                    (list date (org-element-property :title element))
+                    org-memento-group-cache)))))))
 
 (defun org-memento--collect-groups-1 (&optional start-date-string end-date-string)
   (org-memento-map-past-blocks
