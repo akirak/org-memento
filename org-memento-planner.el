@@ -31,7 +31,7 @@
 
 (define-derived-mode org-memento-planner-mode magit-section-mode
   "MmtPlanner"
-  (setq revert-buffer-function #'org-memento-planner-revert))
+  (setq-local revert-buffer-function #'org-memento-planner-revert))
 
 ;;;; Commands
 
