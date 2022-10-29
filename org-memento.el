@@ -2063,7 +2063,8 @@ denoting the type of the activity. ARGS is an optional list."
       (org-map-entries #'scan nil files #'skip))
     (nreverse result)))
 
-(defun org-memento--block-activities (start-date-string &optional end-date-string)
+(cl-defun org-memento--block-activities (start-date-string &optional end-date-string
+                                                           &key annotate-groups)
   (cl-flet*
       ((parse-date (string)
          (encode-time (org-memento--set-time-of-day
@@ -2082,8 +2083,8 @@ denoting the type of the activity. ARGS is an optional list."
          (when (and float
                     (> float (float-time (org-memento--current-time))))
            float))
-       (parse-entry (include-future &optional away)
-         (if (or include-future away)
+       (parse-entry (include-future &optional away return-element)
+         (if (or include-future away return-element)
              (let* ((block (org-memento-block-entry))
                     (start (or (org-memento-started-time block)
                                (if away
@@ -2097,7 +2098,9 @@ denoting the type of the activity. ARGS is an optional list."
                                           org-memento-current-block)
                                (float-time (org-memento--current-time))))))
                (when start
-                 (list start end)))
+                 (list start end
+                       (when return-element
+                         (list (org-memento-headline-element block))))))
            ;; Faster version for past activities.
            (let* ((entry-end (org-entry-end-position))
                   (end (when (re-search-forward org-closed-time-regexp entry-end t)
@@ -2136,7 +2139,7 @@ denoting the type of the activity. ARGS is an optional list."
                    (hd-marker (point-marker))
                    (bound (org-entry-end-position)))
                (pcase (save-excursion (parse-entry nil 'away))
-                 (`(,start ,end)
+                 (`(,start ,end . ,_)
                   (push (list start
                               end
                               heading
@@ -2185,28 +2188,32 @@ denoting the type of the activity. ARGS is an optional list."
                                                           (decode-time
                                                            (org-memento--current-time)))))))
                   (pcase (parse-entry include-future)
-                    (`(,start ,end)
+                    (`(,start ,end . ,_)
                      (let ((day (list start end date-string marker 'date))
                            (subtree-end (save-excursion (org-end-of-subtree)))
                            blocks)
                        (while (re-search-forward org-complex-heading-regexp subtree-end t)
                          (beginning-of-line)
-                         (let ((level (length (match-string 1)))
-                               (heading (match-string-no-properties 4))
-                               (hd-marker (point-marker)))
+                         (let* ((level (length (match-string 1)))
+                                (is-block (= level 2))
+                                (heading (match-string-no-properties 4))
+                                (hd-marker (point-marker)))
                            (if (equal heading org-memento-idle-heading)
                                (setq blocks (append blocks
                                                     (parse-idle-clocks)
                                                     (parse-idle-children include-future)))
-                             (pcase (parse-entry include-future)
-                               (`(,start ,end)
-                                (push (list start
-                                            end
-                                            heading
-                                            hd-marker
-                                            (if (= level 2)
-                                                'block
-                                              'away))
+                             (pcase (parse-entry include-future nil annotate-groups)
+                               (`(,start ,end . ,rest)
+                                (push (append (list start
+                                                    end
+                                                    heading
+                                                    hd-marker
+                                                    (if is-block
+                                                        'block
+                                                      'away))
+                                              (when (and is-block annotate-groups)
+                                                (list :group
+                                                      (org-memento--get-group (car rest)))))
                                       blocks)))))
                          (end-of-line 1))
                        (push (cons day blocks) dates))))))))
