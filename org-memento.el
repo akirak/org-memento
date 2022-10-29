@@ -466,13 +466,9 @@ Return a copy of the list."
       (error "Failed to find a heading for the current block"))))
 
 ;; This is not a macro but serves a similar purpose, so it's put here.
-(defun org-memento-map-past-blocks (fn &optional
-                                       start-date-string
-                                       end-date-string)
-  "Call a function on every block entry performed in the past.
-
-The function takes two arguments: the date string and an
-`org-memento-block' struct."
+(defun org-memento-map-past-blocks-1 (fn &optional
+                                         start-date-string
+                                         end-date-string)
   (with-current-buffer (org-memento--buffer)
     (org-with-wide-buffer
      (org-memento--find-today)
@@ -494,14 +490,27 @@ The function takes two arguments: the date string and an
                             (not (or (equal (match-string 4) org-memento-idle-heading)
                                      (string-prefix-p org-comment-string (match-string 4))))
                             (org-entry-is-done-p))
-                   ;; Drop invalid entries using when-let
-                   (when-let* ((block (org-memento-block-entry))
-                               (started (org-memento-started-time block))
-                               (ended (org-memento-ended-time block)))
-                     (push (funcall fn date block)
-                           result)))
+                   (goto-char (match-beginning 0))
+                   (when-let (x (funcall fn date))
+                     (push x result)))
                  (org-end-of-subtree))))))
        result))))
+
+(defun org-memento-map-past-blocks (fn &optional
+                                       start-date-string
+                                       end-date-string)
+  "Call a function on every block entry performed in the past.
+
+The function takes two arguments: the date string and an
+`org-memento-block' struct."
+  (org-memento-map-past-blocks-1
+   `(lambda (date)
+      (when-let* ((block (org-memento-block-entry))
+                  (started (org-memento-started-time block))
+                  (ended (org-memento-ended-time block)))
+        (funcall ',fn date block)))
+   start-date-string
+   end-date-string))
 
 (defun org-memento-map-away-events (fn)
   (with-current-buffer (org-memento--buffer)
