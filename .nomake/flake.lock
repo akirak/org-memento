@@ -80,22 +80,6 @@
         "type": "sourcehut"
       }
     },
-    "org-memento-timeline": {
-      "flake": false,
-      "locked": {
-        "lastModified": 1665464867,
-        "narHash": "sha256-qEa2Goy9KrqlnsFWzknN66h1Z5j9P5zNs8w2QMI43Mo=",
-        "owner": "~akirak",
-        "repo": "org-memento",
-        "rev": "6314a99647feb76604187aa7c49fdcfb4a795c62",
-        "type": "sourcehut"
-      },
-      "original": {
-        "owner": "~akirak",
-        "repo": "org-memento",
-        "type": "sourcehut"
-      }
-    },
     "root": {
       "inputs": {
         "buttercup": "buttercup",
@@ -103,7 +87,6 @@
         "dash": "dash",
         "magit-section": "magit-section",
         "org-memento": "org-memento",
-        "org-memento-timeline": "org-memento-timeline",
         "taxy": "taxy"
       }
     },

@@ -31,12 +31,6 @@
       repo = "org-memento";
       type = "sourcehut";
     };
-    org-memento-timeline = {
-      flake = false;
-      owner = "~akirak";
-      repo = "org-memento";
-      type = "sourcehut";
-    };
     taxy = {
       flake = false;
       owner = "alphapapa";

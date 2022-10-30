@@ -40,7 +40,6 @@
       src = ./.;
       localPackages = [
         "org-memento"
-        "org-memento-timeline"
       ];
 
       scripts = {
