@@ -2262,7 +2262,7 @@ denoting the type of the activity. ARGS is an optional list."
          (goto-char marker)
          (let ((element (org-element-headline-parser (org-entry-end-position))))
            (puthash (org-memento--get-group element)
-                    (list date (org-element-property :title element))
+                    (list date (org-element-property :raw-value element))
                     org-memento-group-cache)))))))
 
 (defun org-memento--collect-groups-1 (&optional start-date-string end-date-string)
