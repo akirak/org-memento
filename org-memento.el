@@ -1261,7 +1261,7 @@ The point must be at the heading."
       (completing-read "Start a block: " #'completions))))
 
 (cl-defun org-memento-read-future-event (start &optional end-bound
-                                               &key (reschedule t) (reuse t)
+                                               &key (reschedule t)
                                                title no-ask-time)
   (org-memento--status)
   (let* ((now (float-time (org-memento--current-time)))
@@ -1345,11 +1345,10 @@ The point must be at the heading."
                                    (seq-filter #'not-scheduled-p blocks)))
               (puthash (org-memento-title block) block cache)
               (push (org-memento-title block) candidates))))
-        (when reuse
-          (dolist (group-with-entries (org-memento--group-alist-1))
-            (let ((group-title (org-memento--format-group (car group-with-entries))))
-              (puthash group-title (cons 'group group-with-entries) cache)
-              (push group-title candidates))))
+        (dolist (group-with-entries (org-memento--group-alist-1))
+          (let ((group-title (org-memento--format-group (car group-with-entries))))
+            (puthash group-title (cons 'group group-with-entries) cache)
+            (push group-title candidates)))
         (setq candidates (nreverse candidates))
         (unwind-protect
             (let* ((completions-sort nil)
@@ -2604,7 +2603,7 @@ range."
                     (org-memento-starting-time event)
                   limit)))
     (pcase-exhaustive (org-memento-read-future-event start limit
-                                                     :reschedule nil :reuse t
+                                                     :reschedule nil
                                                      :title title)
       (`(copy-entry ,olp . ,plist)
        (org-memento-add-event :title title
