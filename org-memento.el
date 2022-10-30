@@ -1340,7 +1340,10 @@ The point must be at the heading."
                           (seq-filter #'org-memento-block-not-closed-p)
                           (seq-filter (if duration-limit
                                           #'within-duration-limit-p
-                                        (lambda (_) t))))))
+                                        (lambda (_) t)))
+                          (seq-filter (lambda (block)
+                                        (not (equal (org-memento-title block)
+                                                    org-memento-current-block)))))))
             (dolist (block (append (seq-filter #'scheduled-past-p blocks)
                                    (seq-filter #'not-scheduled-p blocks)))
               (puthash (org-memento-title block) block cache)
