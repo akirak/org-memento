@@ -420,6 +420,10 @@ Return a copy of the list."
   (when-let (effort (org-memento-planning-item-effort x))
     (org-duration-to-minutes effort)))
 
+;;;;; org-memento-order
+
+(cl-defstruct org-memento-order group title sample-marker duration)
+
 ;;;; Macros
 
 (defmacro org-memento-with-today-entry (&rest progn)
@@ -1186,7 +1190,8 @@ The point must be at the heading."
   (with-current-buffer (org-memento--buffer)
     (delq nil (org-property-values "MEMENTO_CATEGORY"))))
 
-(cl-defun org-memento-read-title (&optional prompt &key category default date)
+(cl-defun org-memento-read-title (&optional prompt &key group category default date)
+  (declare (indent 1))
   (let* ((date (or date (org-memento--today-string (decode-time (org-memento--current-time)))))
          (prompt (or prompt "Title: "))
          existing-titles
@@ -1206,6 +1211,61 @@ The point must be at the heading."
         (if (member input existing-titles)
             (setq prompt (format "Title (\"%s\" is a duplicate): " input))
           (throw 'input input))))))
+
+(cl-defun org-memento-read-group (&optional prompt &key title)
+  (let ((cache (make-hash-table :test #'equal :size 100))
+        (prompt (or prompt
+                    (format "Select a group for \"%s\" (or empty to nil): "
+                            title)))
+        candidates)
+    (cl-labels
+        ((group (candidate transform)
+           (if transform
+               candidate
+             (if (= (length (gethash candidate cache))
+                    (length org-memento-group-taxonomy))
+                 "Complete groups"
+               "Incomplete group paths from policies")))
+         (completions (string pred action)
+           (if (eq action 'metadata)
+               (cons 'metadata
+                     (list (cons 'category 'org-memento-group)
+                           (cons 'group-function #'group)))
+             (complete-with-action action candidates string pred))))
+      (progn
+        (dolist (group (map-keys org-memento-group-cache))
+          (unless (org-memento-policy-group-archived-p group)
+            (let ((title (org-memento--format-group group)))
+              (puthash title group cache)
+              (push title candidates))))
+        (when (and (bound-and-true-p org-memento-policy-data)
+                   (taxy-p org-memento-policy-data))
+          (dolist (group-path (cl-remove-duplicates
+                               (mapcar (lambda (context)
+                                         (oref context group-path))
+                                       (org-memento-policy-contexts))
+                               :test #'equal))
+            (let ((title (org-memento--format-group group-path)))
+              (unless (gethash title cache)
+                (puthash title group-path cache))
+              (push title candidates))))
+        (setq candidates (nreverse candidates))
+        (unwind-protect
+            (let ((input (completing-read prompt #'completions)))
+              (unless (string-empty-p input)
+                (gethash input cache input)))
+          (clrhash cache))))))
+
+(defun org-memento--default-group (group-path)
+  "Return a complete group by filling the full length with nils.."
+  (when group-path
+    (if (= (length group-path)
+           (length org-memento-group-taxonomy))
+        group-path
+      (append group-path
+              (make-list (- (length org-memento-group-taxonomy)
+                            (length group-path))
+                         nil)))))
 
 (defun org-memento--titles-in-category (category)
   (let (result)
@@ -1261,19 +1321,18 @@ The point must be at the heading."
       (completing-read "Start a block: " #'completions))))
 
 (cl-defun org-memento-read-future-event (start &optional end-bound
-                                               &key (reschedule t)
-                                               title no-ask-time)
+                                               &key (reschedule t))
   (org-memento--status)
   (let* ((now (float-time (org-memento--current-time)))
          (cache (make-hash-table :test #'equal :size 100))
          (duration-limit (when end-bound
                            (/ (- end-bound start) 60)))
-         (prompt (if end-bound
-                     (format "Thing to do in %s-%s (%d min): "
-                             (format-time-string "%R" start)
-                             (format-time-string "%R" end-bound)
-                             duration-limit)
-                   (format "Thing to do at %s: " (format-time-string "%R" start))))
+         (prompt (concat "Select or enter a thing todo"
+                         (if end-bound
+                             (concat " in " (org-memento--format-army-time-range
+                                             start end-bound))
+                           (concat " at " (format-time-string "%R" start)))
+                         ": "))
          candidates)
     (cl-labels
         ((annotator (title)
@@ -1303,27 +1362,26 @@ The point must be at the heading."
                                       'face 'font-lock-doc-face)))))
              (`(context . ,_)
               "")
-             (`(group . ,group)
-              (pcase (gethash group org-memento-group-cache)
-                (`(,date . ,_)
-                 (concat " "
-                         (org-memento--format-diff-days
-                          (- now
-                             (thread-first
-                               (parse-time-string date)
-                               (org-memento--set-time-of-day 0 0 0)
-                               (encode-time)
-                               (float-time))))))))))
+             (`(copy-entry (,date ,_) :group ,group)
+              (format " %s (%s)"
+                      (org-memento--format-group group)
+                      (org-memento--format-diff-days
+                       (- now
+                          (thread-first
+                            (parse-time-string date)
+                            (org-memento--set-time-of-day 0 0 0)
+                            (encode-time)
+                            (float-time))))))))
          (group (candidate transform)
            (if transform
                candidate
              (pcase (gethash candidate cache)
                ((pred org-memento-block-p)
-                "Blocks to (re)allocate")
+                "Blocks to (re)schedule")
                (`(context . ,_)
                 "Group contexts defined in the policies")
-               (`(group . ,_)
-                "Groups of the past activities"))))
+               (`(copy-entry . ,_)
+                "Copy the latest entry of a group"))))
          (completions (string pred action)
            (if (eq action 'metadata)
                (cons 'metadata
@@ -1361,9 +1419,10 @@ The point must be at the heading."
               (push (org-memento-title block) candidates))))
         (dolist (group (map-keys org-memento-group-cache))
           (unless (org-memento-policy-group-archived-p group)
-            (let ((group-title (org-memento--format-group group)))
-              (puthash group-title (cons 'group group) cache)
-              (push group-title candidates))))
+            (let* ((olp (gethash group org-memento-group-cache))
+                   (title (nth 1 olp)))
+              (puthash title (list 'copy-entry olp :group group) cache)
+              (push title candidates))))
         (when (and (bound-and-true-p org-memento-policy-data)
                    (taxy-p org-memento-policy-data))
           (dolist (group-path (org-memento-policy-group-leaves))
@@ -1378,29 +1437,25 @@ The point must be at the heading."
                    (input (completing-read prompt #'completions))
                    (entry (gethash input cache input)))
               (pcase entry
-                (`(group . ,group)
-                 (let* ((olp (gethash group org-memento-group-cache))
-                        (marker (org-find-olp (cons org-memento-file olp))))
-                   (list 'copy-entry marker
-                         :title
-                         (or title
-                             (read-from-minibuffer "Title: " (nth 1 olp)
-                                                   nil nil nil nil 'input-method))
-                         :time
-                         (unless no-ask-time
-                           (org-memento--read-time-span
-                            (org-memento--format-active-range
-                             start
-                             (when-let* ((block (save-current-buffer
-                                                  (org-with-point-at marker
-                                                    (org-memento-block-entry))))
-                                         (started (org-memento-started-time block))
-                                         (ended (org-memento-ended-time block)))
-                               (+ start
-                                  (- ended started))))
-                            start)))))
-                (`(context . ,_group-path)
-                 (error "Not implemented for context: %s" entry))
+                (`(copy-entry ,olp :group ,group)
+                 (let ((marker (org-find-olp (cons org-memento-file olp))))
+                   (make-org-memento-order
+                    :title (nth 1 olp)
+                    :group group
+                    :sample-marker marker
+                    :duration
+                    (when-let* ((block (save-current-buffer
+                                         (org-with-point-at marker
+                                           (org-memento-block-entry))))
+                                (start (org-memento-started-time block))
+                                (end (org-memento-ended-time block)))
+                      (/ (- end start) 60)))))
+                (`(context . ,group-path)
+                 (make-org-memento-order
+                  :group group-path))
+                ((pred stringp)
+                 (make-org-memento-order
+                  :title entry))
                 (_
                  entry)))
           (clrhash cache))))))
@@ -2543,7 +2598,7 @@ range."
 ;;;; Capture
 
 ;;;###autoload
-(cl-defun org-memento-add-event (&key title category start end copy-from
+(cl-defun org-memento-add-event (&key title category group start end copy-from
                                       interactive away)
   "Insert an block/event entry into the journal"
   (interactive (let* ((span (org-memento--read-time-span))
@@ -2566,14 +2621,29 @@ range."
                        (org-memento--find-or-create-idle-heading))))
          (title (or title (if away
                               (org-memento-read-away-title)
-                            (org-memento-read-title
-                             nil :date (when start
-                                         (thread-last
-                                           (decode-time start)
-                                           (org-memento--start-of-day)
-                                           (format-time-string "%F")))))))
+                            (org-memento-read-title nil
+                              :date (when start
+                                      (thread-last
+                                        (decode-time start)
+                                        (org-memento--start-of-day)
+                                        (format-time-string "%F")))))))
+         (group (or group
+                    (org-memento-read-group nil :title title)))
+         (arguments (org-memento--merge-template-arguments-1
+                     (org-memento--template-group group)
+                     (when copy-from
+                       (save-current-buffer
+                         (org-with-point-at copy-from
+                           (list :tags (org-get-tags nil t)
+                                 :properties
+                                 (cl-remove-if
+                                  (lambda (key)
+                                    (member key org-memento-unique-properties))
+                                  (org-entry-properties nil 'standard)
+                                  :key #'car)))))))
          (category (unless (or away copy-from)
                      (or category
+                         (cdr (assoc "MEMENTO_CATEGORY" (plist-get arguments :properties)))
                          (org-memento-read-category nil))))
          (template (if away
                        (org-memento--away-event-template
@@ -2582,16 +2652,7 @@ range."
                      (apply #'org-memento--event-template
                             :start start :end end :title title :category category
                             :interactive interactive
-                            (when copy-from
-                              (save-current-buffer
-                                (org-with-point-at copy-from
-                                  (list :tags (org-get-tags nil t)
-                                        :properties
-                                        (cl-remove-if
-                                         (lambda (key)
-                                           (member key org-memento-unique-properties))
-                                         (org-entry-properties nil 'standard)
-                                         :key #'car))))))))
+                            arguments)))
          (plist (unless interactive
                   '(:immediate-finish t)))
          (org-capture-entry `("" ""
@@ -2610,13 +2671,16 @@ range."
                   (apply #'min)))
          (limit (if-let (event (org-memento--next-agenda-event nil limit))
                     (org-memento-starting-time event)
-                  limit)))
-    (pcase-exhaustive (org-memento-read-future-event start limit
-                                                     :reschedule nil
-                                                     :title title)
-      (`(copy-entry ,olp . ,plist)
+                  limit))
+         (event (org-memento-read-future-event start limit
+                                               :reschedule nil
+                                               :title title)))
+    (cl-typecase event
+      (org-memento-order
        (org-memento-add-event :title title
-                              :copy-from (org-find-olp (cons org-memento-file olp))
+                              :group (org-memento--default-group
+                                      (org-memento-order-group event))
+                              :copy-from (org-memento-order-sample-marker event)
                               :interactive nil
                               :start start))
       (`nil
@@ -2627,10 +2691,9 @@ range."
 (cl-defun org-memento-schedule-block (start end-bound
                                             &key confirmed-time)
   "Schedule a block."
-  (let ((event (org-memento-read-future-event start end-bound
-                                              :no-ask-time confirmed-time)))
-    (pcase-exhaustive event
-      ((pred org-memento-block-p)
+  (let ((event (org-memento-read-future-event start end-bound)))
+    (cl-etypecase event
+      (org-memento-block
        (save-current-buffer
          (org-memento-with-block-title (org-memento-title event)
            (org-end-of-meta-data)
@@ -2652,30 +2715,29 @@ range."
                (beginning-of-line 1)
                (unless had-duration
                  (org-time-stamp nil)))))))
-      (`(copy-entry ,marker . ,plist)
-       (org-memento-add-event :title (plist-get plist :title)
-                              :start (if confirmed-time
-                                         start
-                                       (nth 0 (plist-get plist :time)))
-                              :end (if confirmed-time
-                                       end-bound
-                                     (nth 1 (plist-get plist :time)))
-                              :interactive t
-                              :copy-from marker))
-      ((pred stringp)
-       (if confirmed-time
-           (org-memento-add-event :title event
-                                  :start start
-                                  :end end-bound
-                                  :interactive t)
-         (pcase-exhaustive (org-memento--read-time-span
-                            (org-memento--format-active-range
-                             start end-bound))
-           (`(,start ,end)
-            (org-memento-add-event :title event
-                                   :start start
-                                   :end end
-                                   :interactive t))))))))
+      (org-memento-order
+       (pcase-let*
+           ((title (or (and (not (org-memento-order-sample-marker event))
+                            (org-memento-order-title event))
+                       (org-memento-read-title nil
+                         :default (org-memento-order-title event)
+                         :group (org-memento-order-group event))))
+            (`(,start ,end) (if confirmed-time
+                                (list start end-bound)
+                              (org-memento--read-time-span
+                               (org-memento--format-active-range
+                                start
+                                (if-let (duration (org-memento-order-duration event))
+                                    (+ start (* 60 duration))
+                                  end-bound))
+                               start))))
+         (org-memento-add-event :title title
+                                :start start
+                                :end end
+                                :interactive t
+                                :group (org-memento--default-group
+                                        (org-memento-order-group event))
+                                :copy-from (org-memento-order-sample-marker event)))))))
 
 (cl-defun org-memento--event-template (&key title category start end interactive
                                             tags properties)
@@ -2734,6 +2796,32 @@ range."
             (if interactive
                 "%?"
               ""))))
+
+(defun org-memento--template-group (group)
+  (thread-last
+    (org-memento--zip org-memento-group-taxonomy group)
+    (mapcar (pcase-lambda (`(,plist ,arg))
+              (when-let (fn (plist-get plist :template))
+                (funcall fn
+                         arg))))
+    (org-memento--merge-template-arguments)))
+
+(defun org-memento--merge-template-arguments (plists)
+  "Merge plists for templating, later ones preceding."
+  (cl-reduce #'org-memento--merge-template-arguments-1
+             plists :initial-value nil))
+
+(defun org-memento--merge-template-arguments-1 (plist1 plist2)
+  (list :tags
+        (cl-remove-duplicates
+         (append (plist-get plist1 :tags)
+                 (plist-get plist2 :tags))
+         :test #'equal)
+        :properties
+        (cl-remove-duplicates
+         (append (plist-get plist1 :properties)
+                 (plist-get plist2 :properties))
+         :test #'equal :key #'car)))
 
 ;;;; Exporting
 
