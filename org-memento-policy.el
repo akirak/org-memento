@@ -280,7 +280,7 @@ DATA should be a result of `org-memento--collect-groups-1' call."
       (dolist (taxy (taxy-taxys (org-memento-policy-group-taxy
                                  (org-memento-policy-contexts))))
         (collect taxy)))
-    paths))
+    (cl-remove-duplicates paths :test #'equal)))
 
 (defun org-memento-policy-find-context-by-group (group)
   (org-memento-policy-find-context
