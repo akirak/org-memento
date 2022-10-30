@@ -90,12 +90,6 @@
              (encode-time (parse-time-string "2020-01-01 12:00:00"))
              (encode-time (parse-time-string "2020-01-03 12:00:00"))))))
 
-(describe "org-memento--seconds-since-midnight"
-  (it "returns the number of seconds"
-    (expect (org-memento--seconds-since-midnight
-             (encode-time (parse-time-string "2020-01-01 09:00:00")))
-            :to-be-close-to 32400 1)))
-
 (describe "org-memento--time-min"
   (it "returns a smaller time"
     (expect (org-memento--time-min

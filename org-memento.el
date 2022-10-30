@@ -2335,10 +2335,6 @@ denoting the type of the activity. ARGS is an optional list."
       (setf (nth i decoded-time) 0)))
   decoded-time)
 
-(defun org-memento--inactive-ts-string (time)
-  "Return a string for an inactive timestamp at TIME."
-  (org-format-time-string (org-time-stamp-format t t) time))
-
 (defun org-memento--parse-time-range (string)
   "Return a cons cell of minutes from a string time spec."
   (save-match-data
@@ -2399,10 +2395,6 @@ ACTIVE and INACTIVE specify types of timestamp to match against."
                                         ?\]))
                                 (delq nil)
                                 (mapconcat #'char-to-string)))))))
-
-(defun org-memento--seconds-since-midnight (time)
-  (- (float-time time)
-     (float-time (encode-time (org-memento--set-time-of-day (decode-time time) 0 0 0)))))
 
 (defun org-memento--time-min (time1 time2)
   "Return an earlier time of the two.
@@ -2492,24 +2484,27 @@ range."
                   :minute (org-element-property (if end :minute-end :minute-start) ts)
                   :second 0))))
 
-(defun org-memento--format-active-range (start-time end-time)
-  (format (org-format-time-string "<%Y-%m-%d %a %%s>" start-time)
-          (if end-time
-              (org-memento--format-army-time-range start-time end-time)
-            (org-format-time-string "%H:%M" start-time))))
+(defun org-memento--format-timestamp (start-time &optional end-time inactive)
+  (let* ((midnight (org-memento--midnight start-time)))
+    (format (org-format-time-string (if inactive
+                                        "[%Y-%m-%d %a %%s]"
+                                      "<%Y-%m-%d %a %%s>")
+                                    midnight)
+            (if end-time
+                (org-memento--format-army-time-range start-time end-time midnight)
+              (org-memento--format-army-time start-time midnight)))))
 
-(defun org-memento--format-army-time-range (start end)
+(defun org-memento--format-active-range (start-time end-time)
+  (org-memento--format-timestamp start-time end-time))
+
+(defun org-memento--format-army-time-range (start end &optional midnight)
   (let* ((start (cl-etypecase start
                   (number (time-convert start 'list))
                   (list start)))
          (end (cl-etypecase end
                 (number (time-convert end 'list))
                 (list end)))
-         (midnight (thread-first
-                     (org-memento--start-of-day (decode-time start))
-                     (org-memento--set-time-of-day 0 0 0)
-                     (encode-time)
-                     (float-time))))
+         (midnight (or midnight (org-memento--midnight start))))
     (concat (org-memento--format-army-time start midnight)
             (unless (time-equal-p start end)
               (format "-%s" (org-memento--format-army-time end midnight))))))
@@ -2523,6 +2518,13 @@ range."
     (format "%02d:%02d"
             (floor (/ minutes 60))
             (mod minutes 60))))
+
+(defun org-memento--midnight (time)
+  (thread-first
+    (org-memento--maybe-decrement-date (decode-time time))
+    (org-memento--set-time-of-day 0 0 0)
+    (encode-time)
+    (float-time)))
 
 (defun org-memento--format-duration (minutes)
   "An alternative function for formatting a duration."
