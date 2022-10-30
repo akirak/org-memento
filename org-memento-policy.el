@@ -255,6 +255,19 @@ DATA should be a result of `org-memento--collect-groups-1' call."
         (search taxy)))
     result))
 
+(defun org-memento-policy-contexts ()
+  "Return a flat list of contexts."
+  (let (contexts)
+    (cl-labels
+        ((collect-contexts (taxy)
+           (unless (oref (taxy-name taxy) archived)
+             (push (taxy-name taxy) contexts)
+             (dolist (subtaxy (taxy-taxys taxy))
+               (collect-contexts subtaxy)))))
+      (dolist (taxy (taxy-taxys org-memento-policy-data))
+        (collect-contexts taxy))
+      contexts)))
+
 (defun org-memento-policy-find-context-by-group (group)
   (org-memento-policy-find-context
    (apply-partially

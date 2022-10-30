@@ -278,22 +278,10 @@
     (magit-insert-section (policies)
       (magit-insert-heading
         "Groups")
-      (dolist (group (taxy-taxys (org-memento-planner--contexts)))
+      (dolist (group (taxy-taxys (org-memento-policy-group-taxy
+                                  (org-memento-policy-contexts))))
         (insert-group 0 group)))
     (insert ?\n)))
-
-(defun org-memento-planner--contexts ()
-  (let (contexts)
-    (cl-labels
-        ((collect-contexts (taxy)
-           (unless (oref (taxy-name taxy) archived)
-             (push (taxy-name taxy) contexts)
-             (dolist (subtaxy (taxy-taxys taxy))
-               (collect-contexts subtaxy)))))
-      (dolist (taxy (taxy-taxys org-memento-policy-data))
-        (collect-contexts taxy))
-      (org-memento-policy-group-taxy
-       contexts))))
 
 (defun org-memento-planner-activities-section ()
   (unless org-memento-group-cache
