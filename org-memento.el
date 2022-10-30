@@ -1276,27 +1276,7 @@ The point must be at the heading."
                    (format "Thing to do at %s: " (format-time-string "%R" start))))
          candidates)
     (cl-labels
-        ((format-past-time (time)
-           (let ((ndays (/ (- now time)
-                           (* 3600 24))))
-             (cond
-              ((< ndays 1)
-               (format "today"))
-              ((< ndays 2)
-               (format "yesterday"))
-              ((< ndays 14)
-               (format "%d days ago" (floor ndays)))
-              ((< ndays 30)
-               (format "%d weeks ago" (floor (/ ndays 7))))
-              ((< ndays 60)
-               (format "1 month ago"))
-              ((< ndays 365)
-               (format "%d months ago" (floor (/ ndays 30))))
-              ((< ndays 730)
-               (format "1 year ago"))
-              (t
-               (format "%d years ago" (floor (/ ndays 365)))))))
-         (annotator (title)
+        ((annotator (title)
            (pcase-exhaustive (gethash title cache)
              ((and (pred org-memento-block-p)
                    block)
@@ -1324,13 +1304,14 @@ The point must be at the heading."
              (`(group . ,group)
               (pcase (gethash group org-memento-group-cache)
                 (`(,date . ,_)
-                 (format " %s" (thread-first
-                                 (parse-time-string date)
-                                 (org-memento--set-time-of-day 0 0 0)
-                                 (encode-time)
-                                 (float-time)
-                                 (format-past-time)
-                                 )))))))
+                 (concat " "
+                         (org-memento--format-diff-days
+                          (- now
+                             (thread-first
+                               (parse-time-string date)
+                               (org-memento--set-time-of-day 0 0 0)
+                               (encode-time)
+                               (float-time))))))))))
          (group (candidate transform)
            (if transform
                candidate
@@ -2479,6 +2460,26 @@ range."
   (format "%d:%02d"
           (floor (/ minutes 60))
           (mod minutes 60)))
+
+(defun org-memento--format-diff-days (seconds)
+  (let ((ndays (floor (/ seconds (* 3600 24)))))
+    (cond
+     ((< ndays 1)
+      (format "today"))
+     ((< ndays 2)
+      (format "yesterday"))
+     ((< ndays 14)
+      (format "%d days ago" ndays))
+     ((< ndays 30)
+      (format "%d weeks ago" (floor (/ ndays 7))))
+     ((< ndays 60)
+      (format "1 month ago"))
+     ((< ndays 365)
+      (format "%d months ago" (floor (/ ndays 30))))
+     ((< ndays 730)
+      (format "1 year ago"))
+     (t
+      (format "%d years ago" (floor (/ ndays 365)))))))
 
 (defun org-memento--duration-secs-ts-at-point ()
   "Return the duration in seconds from a timestamp at point."
