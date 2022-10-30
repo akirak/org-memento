@@ -1375,9 +1375,10 @@ The point must be at the heading."
               (puthash (org-memento-title block) block cache)
               (push (org-memento-title block) candidates))))
         (dolist (group (map-keys org-memento-group-cache))
-          (let ((group-title (org-memento--format-group group)))
-            (puthash group-title (cons 'group group) cache)
-            (push group-title candidates)))
+          (unless (org-memento-policy-group-archived-p group)
+            (let ((group-title (org-memento--format-group group)))
+              (puthash group-title (cons 'group group) cache)
+              (push group-title candidates))))
         (setq candidates (nreverse candidates))
         (unwind-protect
             (let* ((completions-sort nil)

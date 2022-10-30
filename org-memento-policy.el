@@ -255,6 +255,18 @@ DATA should be a result of `org-memento--collect-groups-1' call."
         (search taxy)))
     result))
 
+(defun org-memento-policy-find-context-by-group (group)
+  (org-memento-policy-find-context
+   (apply-partially
+    (lambda (group x)
+      (org-memento-policy-match-group x group))
+    group)))
+
+(defun org-memento-policy-group-archived-p (group)
+  "Return non-nil if GROUP is archived."
+  (when-let (taxy (org-memento-policy-find-context-by-group group))
+    (oref (taxy-name taxy) archived)))
+
 ;;;; Specific rules
 
 ;;;;; Budget rules
