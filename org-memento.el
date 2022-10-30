@@ -1276,8 +1276,28 @@ The point must be at the heading."
                    (format "Thing to do at %s: " (format-time-string "%R" start))))
          candidates)
     (cl-labels
-        ((annotator (title)
-           (pcase (gethash title cache)
+        ((format-past-time (time)
+           (let ((ndays (/ (- now time)
+                           (* 3600 24))))
+             (cond
+              ((< ndays 1)
+               (format "today"))
+              ((< ndays 2)
+               (format "yesterday"))
+              ((< ndays 14)
+               (format "%d days ago" (floor ndays)))
+              ((< ndays 30)
+               (format "%d weeks ago" (floor (/ ndays 7))))
+              ((< ndays 60)
+               (format "1 month ago"))
+              ((< ndays 365)
+               (format "%d months ago" (floor (/ ndays 30))))
+              ((< ndays 730)
+               (format "1 year ago"))
+              (t
+               (format "%d years ago" (floor (/ ndays 365)))))))
+         (annotator (title)
+           (pcase-exhaustive (gethash title cache)
              ((and (pred org-memento-block-p)
                    block)
               (let* ((time (org-memento-starting-time block))
@@ -1301,10 +1321,16 @@ The point must be at the heading."
                         (when duration
                           (propertize (concat " " (org-duration-from-minutes duration))
                                       'face 'font-lock-doc-face)))))
-             (`(group . ,group-with-entries)
-              (org-memento--group-annotator group-with-entries))
-             (_
-              "")))
+             (`(group . ,group)
+              (pcase (gethash group org-memento-group-cache)
+                (`(,date . ,_)
+                 (format " %s" (thread-first
+                                 (parse-time-string date)
+                                 (org-memento--set-time-of-day 0 0 0)
+                                 (encode-time)
+                                 (float-time)
+                                 (format-past-time)
+                                 )))))))
          (group (candidate transform)
            (if transform
                candidate
@@ -1312,7 +1338,7 @@ The point must be at the heading."
                ((pred org-memento-block-p)
                 "Blocks to (re)allocate")
                (`(group . ,_)
-                "Groups"))))
+                "Groups of the past activities"))))
          (completions (string pred action)
            (if (eq action 'metadata)
                (cons 'metadata
@@ -1348,9 +1374,9 @@ The point must be at the heading."
                                    (seq-filter #'not-scheduled-p blocks)))
               (puthash (org-memento-title block) block cache)
               (push (org-memento-title block) candidates))))
-        (dolist (group-with-entries (org-memento--group-alist-1))
-          (let ((group-title (org-memento--format-group (car group-with-entries))))
-            (puthash group-title (cons 'group group-with-entries) cache)
+        (dolist (group (map-keys org-memento-group-cache))
+          (let ((group-title (org-memento--format-group group)))
+            (puthash group-title (cons 'group group) cache)
             (push group-title candidates)))
         (setq candidates (nreverse candidates))
         (unwind-protect
@@ -1358,66 +1384,30 @@ The point must be at the heading."
                    (input (completing-read prompt #'completions))
                    (entry (gethash input cache input)))
               (pcase entry
-                (`(group . ,group-with-entries)
-                 (org-memento--read-group-entry (cdr group-with-entries) start end-bound
-                                                :title title :no-ask-time no-ask-time))
+                (`(group . ,group)
+                 (let* ((olp (gethash group org-memento-group-cache))
+                        (marker (org-find-olp (cons org-memento-file olp))))
+                   (list 'copy-entry marker
+                         :title
+                         (or title
+                             (read-from-minibuffer "Title: " (nth 1 olp)
+                                                   nil nil nil nil 'input-method))
+                         :time
+                         (unless no-ask-time
+                           (org-memento--read-time-span
+                            (org-memento--format-active-range
+                             start
+                             (when-let* ((block (save-current-buffer
+                                                  (org-with-point-at marker
+                                                    (org-memento-block-entry))))
+                                         (started (org-memento-started-time block))
+                                         (ended (org-memento-ended-time block)))
+                               (+ start
+                                  (- ended started))))
+                            start)))))
                 (_
                  entry)))
           (clrhash cache))))))
-
-(cl-defun org-memento--read-group-entry (entries start end-bound
-                                                 &key title no-ask-time)
-  (let ((cache (make-hash-table :test #'equal :size (length entries)))
-        (prompt (if title
-                    (format "Pick a prototype of \"%s\" (empty input to select none): "
-                            title)
-                  (if end-bound
-                      (format "Thing to do in %s-%s (%.f min): "
-                              (format-time-string "%R" start)
-                              (format-time-string "%R" end-bound)
-                              (/ (- end-bound start) 60))
-                    (format "Thing to do at %s: "
-                            (format-time-string "%R" start)))))
-        candidates)
-    (cl-labels
-        ((annotator (candidate)
-           (pcase (gethash candidate cache)
-             (`(,start ,end ,_date ,_title . ,plist)
-              (format " %s %s"
-                      (plist-get plist :todo-keyword)
-                      (org-duration-from-minutes (/ (- end start) 60))))))
-         (sort-candidates (candidates)
-           (cl-sort candidates #'string>))
-         (completions (string pred action)
-           (if (eq action 'metadata)
-               (cons 'metadata
-                     (list (cons 'annotation-function #'annotator)
-                           (cons 'display-sort-function #'sort-candidates)))
-             (complete-with-action action candidates string pred))))
-      (progn
-        (dolist (entry entries)
-          (pcase-exhaustive entry
-            (`(,start ,end ,date ,heading . ,plist)
-             (let ((title (string-join (list date heading)
-                                       "/")))
-               (puthash title entry cache)
-               (push title candidates)))))
-        (let ((input (completing-read prompt #'completions nil
-                                      (not title))))
-          (pcase-exhaustive (gethash input cache input)
-            (`(,start1 ,end1 ,date ,headline . ,_)
-             (list 'copy-entry
-                   (org-find-olp (list org-memento-file date headline))
-                   :title
-                   (or title
-                       (read-from-minibuffer "Title: " headline nil nil nil nil 'input-method))
-                   :time
-                   (unless no-ask-time
-                     (org-memento--read-time-span
-                      (org-memento--format-active-range
-                       start (+ start (- end1 start1)))))))
-            (""
-             nil)))))))
 
 (defun org-memento--group-alist-1 ()
   (thread-last
