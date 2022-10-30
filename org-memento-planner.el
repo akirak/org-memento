@@ -265,20 +265,16 @@
 
 (defun org-memento-planner-policies-section ()
   (cl-labels
-      ((context-archivedp (context)
-         (oref context archived))
-       (insert-group (level taxy)
-         (unless (and (taxy-items taxy)
-                      (seq-every-p #'context-archivedp (taxy-items taxy)))
-           (magit-insert-section (group (taxy-name taxy))
-             (magit-insert-heading
-               (make-string (* 2 (1+ level)) ?\s)
-               (propertize (funcall (plist-get (nth level org-memento-group-taxonomy) :format)
-                                    (nth level (taxy-name taxy)))
-                           'face
-                           'magit-section-heading))
-             (dolist (subtaxy (taxy-taxys taxy))
-               (insert-group (1+ level) subtaxy))))))
+      ((insert-group (level taxy)
+         (magit-insert-section (group (taxy-name taxy))
+           (magit-insert-heading
+             (make-string (* 2 (1+ level)) ?\s)
+             (propertize (funcall (plist-get (nth level org-memento-group-taxonomy) :format)
+                                  (nth level (taxy-name taxy)))
+                         'face
+                         'magit-section-heading))
+           (dolist (subtaxy (taxy-taxys taxy))
+             (insert-group (1+ level) subtaxy)))))
     (magit-insert-section (policies)
       (magit-insert-heading
         "Groups")
@@ -290,9 +286,10 @@
   (let (contexts)
     (cl-labels
         ((collect-contexts (taxy)
-           (push (taxy-name taxy) contexts)
-           (dolist (subtaxy (taxy-taxys taxy))
-             (collect-contexts subtaxy))))
+           (unless (oref (taxy-name taxy) archived)
+             (push (taxy-name taxy) contexts)
+             (dolist (subtaxy (taxy-taxys taxy))
+               (collect-contexts subtaxy)))))
       (dolist (taxy (taxy-taxys org-memento-policy-data))
         (collect-contexts taxy))
       (org-memento-policy-group-taxy
