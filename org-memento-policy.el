@@ -268,6 +268,20 @@ DATA should be a result of `org-memento--collect-groups-1' call."
         (collect-contexts taxy))
       contexts)))
 
+(defun org-memento-policy-group-leaves ()
+  "Return leafs of group paths."
+  (let (paths)
+    (cl-labels
+        ((collect (taxy)
+           (if (taxy-taxys taxy)
+               (dolist (subtaxy (taxy-taxys taxy))
+                 (collect subtaxy))
+             (push (taxy-name taxy) paths))))
+      (dolist (taxy (taxy-taxys (org-memento-policy-group-taxy
+                                 (org-memento-policy-contexts))))
+        (collect taxy)))
+    paths))
+
 (defun org-memento-policy-find-context-by-group (group)
   (org-memento-policy-find-context
    (apply-partially

@@ -1301,6 +1301,8 @@ The point must be at the heading."
                         (when duration
                           (propertize (concat " " (org-duration-from-minutes duration))
                                       'face 'font-lock-doc-face)))))
+             (`(context . ,_)
+              "")
              (`(group . ,group)
               (pcase (gethash group org-memento-group-cache)
                 (`(,date . ,_)
@@ -1318,6 +1320,8 @@ The point must be at the heading."
              (pcase (gethash candidate cache)
                ((pred org-memento-block-p)
                 "Blocks to (re)allocate")
+               (`(context . ,_)
+                "Group contexts defined in the policies")
                (`(group . ,_)
                 "Groups of the past activities"))))
          (completions (string pred action)
@@ -1360,6 +1364,14 @@ The point must be at the heading."
             (let ((group-title (org-memento--format-group group)))
               (puthash group-title (cons 'group group) cache)
               (push group-title candidates))))
+        (when (and (bound-and-true-p org-memento-policy-data)
+                   (taxy-p org-memento-policy-data))
+          (dolist (group-path (org-memento-policy-group-leaves))
+            (let ((title (string-join (org-memento--format-group-entries group-path)
+                                      " > ")))
+              (unless (gethash title cache)
+                (puthash title (cons 'context group-path) cache))
+              (push title candidates))))
         (setq candidates (nreverse candidates))
         (unwind-protect
             (let* ((completions-sort nil)
@@ -1387,6 +1399,8 @@ The point must be at the heading."
                                (+ start
                                   (- ended started))))
                             start)))))
+                (`(context . ,_group-path)
+                 (error "Not implemented for context: %s" entry))
                 (_
                  entry)))
           (clrhash cache))))))
