@@ -987,6 +987,8 @@ The function returns non-nil if the check-in is done."
     (org-end-of-meta-data t)
     (when (looking-at org-ts-regexp)
       (beginning-of-line 2))
+    ;; Cache groups from the past activities.
+    (org-memento--cache-groups)
     (save-excursion
       (run-hooks 'org-memento-checkin-hook))
     (org-memento-status)
