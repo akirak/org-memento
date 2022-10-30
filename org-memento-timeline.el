@@ -2,12 +2,6 @@
 
 ;; Copyright (C) 2022 Akira Komamura
 
-;; Author: Akira Komamura <akira.komamura@gmail.com>
-;; Version: 0.1
-;; Package-Requires: ((emacs "28.1") (org-memento "0.1") (magit-section "3.3") (taxy "0.10") (dash "2.19"))
-;; Keywords: calendar
-;; URL: https://git.sr.ht/~akirak/org-memento
-
 ;; This file is not part of GNU Emacs.
 
 ;;; License:

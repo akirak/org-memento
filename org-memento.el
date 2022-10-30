@@ -4,7 +4,7 @@
 
 ;; Author: Akira Komamura <akira.komamura@gmail.com>
 ;; Version: 0.1
-;; Package-Requires: ((emacs "28.1") (taxy "0.10"))
+;; Package-Requires: ((emacs "28.1") (taxy "0.10") (magit-section "3.3") (dash "2.19"))
 ;; Keywords: calendar
 ;; URL: https://git.sr.ht/~akirak/org-memento
 
