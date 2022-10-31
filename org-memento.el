@@ -2423,10 +2423,12 @@ TAXY must be a result of `org-memento-activity-taxy'."
             (when (> (length (match-data)) 4)
               (floor (org-duration-to-minutes (match-string 2 string))))))))
 
-(defun org-memento--today-string (decoded-time)
+(defun org-memento--today-string (&optional decoded-time)
   (format-time-string "%F"
                       (encode-time
-                       (org-memento--maybe-decrement-date decoded-time))))
+                       (org-memento--maybe-decrement-date
+                        (or decoded-time
+                            (decode-time (org-memento--current-time)))))))
 
 (defun org-memento--start-of-day (decoded-time)
   "Return the start of the day given as DECODED-TIME.
