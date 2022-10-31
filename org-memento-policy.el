@@ -10,6 +10,10 @@
   "Policy enforcement for Org Memento."
   :group 'org-memento)
 
+;;;; Constants
+
+(defconst org-memento-policy-span-types '(day week month))
+
 ;;;; Custom variables
 
 (defcustom org-memento-policy-file (locate-user-emacs-file "org-memento/policies")
@@ -344,6 +348,10 @@ DATA should be a result of `org-memento--collect-groups-1' call."
         (+ (* 60 (string-to-number (match-string 1 x)))
            (string-to-number (match-string 2 x)))
       (error "Invalid format %s" x))))
+
+(defun org-memento-policy--compare-span-types (a b)
+  (< (cl-position a org-memento-policy-span-types)
+     (cl-position b org-memento-policy-span-types)))
 
 ;;;; Major mode for editing the policy file
 
