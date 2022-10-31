@@ -1222,6 +1222,8 @@ The point must be at the heading."
           (throw 'input input))))))
 
 (cl-defun org-memento-read-group (&optional prompt &key title)
+  (unless org-memento-group-cache
+    (org-memento--cache-groups))
   (let ((cache (make-hash-table :test #'equal :size 100))
         (prompt (or prompt
                     (format "Select a group for \"%s\" (or empty to nil): "
@@ -1333,6 +1335,8 @@ The point must be at the heading."
 (cl-defun org-memento-read-future-event (start &optional end-bound
                                                &key (reschedule t))
   (org-memento--status)
+  (unless org-memento-group-cache
+    (org-memento--cache-groups))
   (let* ((now (float-time (org-memento--current-time)))
          (cache (make-hash-table :test #'equal :size 100))
          (duration-limit (when end-bound
