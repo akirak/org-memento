@@ -173,7 +173,8 @@ timeline as an argument."
 (defun org-memento-timeline-revert (&rest _args)
   (interactive)
   (let ((taxy (apply #'org-memento-activity-taxy
-                     org-memento-timeline-date-range)))
+                     (append org-memento-timeline-date-range
+                             (list :groups t)))))
     (when (org-memento-timeline--within-range-p taxy)
       (org-memento--status))
     (let ((inhibit-read-only t))

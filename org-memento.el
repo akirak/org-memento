@@ -1820,7 +1820,7 @@ marker to the time stamp, and the margin in seconds."
 ;;;; Collect data for analytic purposes
 
 ;;;###autoload
-(defun org-memento-activity-taxy (start-day end-day)
+(cl-defun org-memento-activity-taxy (start-day end-day &key groups)
   (require 'taxy)
   (cl-labels
       ((date-string-to-time (string)
@@ -2028,7 +2028,8 @@ marker to the time stamp, and the margin in seconds."
         (make-taxy
          :name (list start-time end-time)
          :taxys (thread-last
-                  (org-memento--block-activities start-day end-day)
+                  (org-memento--block-activities start-day end-day
+                                                 :annotate-groups groups)
                   (fill-voids (float-time start-time) (float-time end-time) #'car #'make-gap-date)
                   (mapcar #'make-date-taxy)))
         (taxy-emptied)
@@ -2288,7 +2289,9 @@ denoting the type of the activity. ARGS is an optional list."
                                                       'away))
                                               (when (and is-block annotate-groups)
                                                 (list :group
-                                                      (org-memento--get-group (car rest)))))
+                                                      (save-excursion
+                                                        (goto-char hd-marker)
+                                                        (org-memento--get-group (caar rest))))))
                                       blocks)))))
                          (end-of-line 1))
                        (push (cons day blocks) dates))))))))
