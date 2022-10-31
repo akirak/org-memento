@@ -659,7 +659,7 @@ If ARG is non-nil, create an away event."
         ((budget-span (rule)
            (oref rule span))
          (rule-group-path (rule)
-           (oref (oref rule context) group-path))
+           (slot-value (slot-value rule 'context) 'group-path))
          (insert-group-status (span group-path group-budgets)
            (magit-insert-section (group-budgets (list span group-path))
              (magit-insert-heading

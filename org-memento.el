@@ -1242,7 +1242,7 @@ The point must be at the heading."
                            (cons 'group-function #'group)))
              (complete-with-action action candidates string pred)))
          (context-group-path (context)
-           (oref context group-path)))
+           (slot-value context 'group-path)))
       (progn
         (dolist (group (map-keys org-memento-group-cache))
           (unless (org-memento-policy-group-archived-p group)

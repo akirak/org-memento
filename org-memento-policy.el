@@ -221,8 +221,8 @@ DATA should be a result of `org-memento--collect-groups-1' call."
                                start-date (make-decoded-time :month 1 :day -1)))))))
     (cl-flet
         ((effectivep (rule)
-           (let ((context (oref rule context)))
-             (and (not (oref context archived))
+           (let ((context (slot-value rule 'context)))
+             (and (not (slot-value context 'archived))
                   (org-memento-policy-effective-p context start-date end-date)))))
       (seq-filter #'effectivep (taxy-flatten org-memento-policy-data)))))
 
@@ -265,7 +265,7 @@ DATA should be a result of `org-memento--collect-groups-1' call."
   (let (contexts)
     (cl-labels
         ((collect-contexts (taxy)
-           (unless (oref (taxy-name taxy) archived)
+           (unless (slot-value (taxy-name taxy) 'archived)
              (push (taxy-name taxy) contexts)
              (dolist (subtaxy (taxy-taxys taxy))
                (collect-contexts subtaxy)))))

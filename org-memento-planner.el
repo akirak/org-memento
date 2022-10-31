@@ -204,14 +204,14 @@
                     (week limit))))
     (cl-labels
         ((budgetp (span type x)
-           (and (eq type (oref x level))
-                (eq span (oref x span))))
+           (and (eq type (slot-value x 'level))
+                (eq span (slot-value x 'span))))
          (makep (span type)
            (apply-partially #'budgetp span type))
          (taxy-budget (taxy span-and-type)
            (when-let (rule (seq-find (apply #'apply-partially #'budgetp span-and-type)
                                      (taxy-items taxy)))
-             (oref rule duration-minutes)))
+             (slot-value rule 'duration-minutes)))
          (insert-taxy (level taxy)
            (magit-insert-section (group (taxy-name taxy))
              (let ((rules (taxy-items taxy)))
@@ -304,7 +304,7 @@
              (`(,date ,group ,olp)
               (let* ((context-taxy (find-group-context group))
                      (archived (and context-taxy
-                                    (oref (taxy-name context-taxy) archived))))
+                                    (slot-value (taxy-name context-taxy) 'archived))))
                 (magit-insert-section (group group)
                   (magit-insert-heading
                     (make-string 2 ?\s)
