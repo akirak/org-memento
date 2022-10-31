@@ -958,7 +958,8 @@ and on a time block entry (at level 2).
 The function returns non-nil if the check-in is done."
   (unless (org-entry-get nil "MEMENTO_CHECKIN_TIME")
     (let ((now (org-memento--current-time)))
-      (org-entry-put nil "MEMENTO_CHECKIN_TIME" (org-memento--format-timestamp now))
+      (org-entry-put nil "MEMENTO_CHECKIN_TIME" (org-memento--format-timestamp
+                                                 now nil 'inactive))
       (when adjust
         (org-memento--move-active-ts now)))
     t))
