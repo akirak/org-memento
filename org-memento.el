@@ -2392,7 +2392,10 @@ TAXY must be a result of `org-memento-activity-taxy'."
                   (org-memento--start-of-day)))
          (week-start (thread-last
                        (make-decoded-time
-                        :day (+ (- (mod (+ 7 (- (decoded-time-weekday today)
+                        :day (+ (- (mod (+ 7 (- (org-day-of-week
+                                                 (decoded-time-day today)
+                                                 (decoded-time-month today)
+                                                 (decoded-time-year today))
                                                 org-agenda-start-on-weekday))
                                         7))
                                 (* n 7)))
