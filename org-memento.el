@@ -1240,7 +1240,9 @@ The point must be at the heading."
                (cons 'metadata
                      (list (cons 'category 'org-memento-group)
                            (cons 'group-function #'group)))
-             (complete-with-action action candidates string pred))))
+             (complete-with-action action candidates string pred)))
+         (context-group-path (context)
+           (oref context group-path)))
       (progn
         (dolist (group (map-keys org-memento-group-cache))
           (unless (org-memento-policy-group-archived-p group)
@@ -1250,8 +1252,7 @@ The point must be at the heading."
         (when (and (bound-and-true-p org-memento-policy-data)
                    (taxy-p org-memento-policy-data))
           (dolist (group-path (cl-remove-duplicates
-                               (mapcar (lambda (context)
-                                         (oref context group-path))
+                               (mapcar #'context-group-path
                                        (org-memento-policy-contexts))
                                :test #'equal))
             (let ((title (org-memento--format-group group-path)))
