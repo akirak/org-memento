@@ -2348,6 +2348,41 @@ denoting the type of the activity. ARGS is an optional list."
         (push (funcall (plist-get plist :read) element) result)))
     (nreverse result)))
 
+(defun org-memento-group-sums (taxy)
+  "Return the sums of time spent on blocks.
+
+TAXY must be a result of `org-memento-activity-taxy' with :blocks
+argument set to non-nil."
+  (let ((now (float-time (org-memento--current-time))))
+    (thread-last
+      (org-memento--map-taxy-blocks taxy
+        `(lambda (record)
+           (pcase record
+             ((and `(,start ,end ,_ ,_ block . ,plist)
+                   (guard start)
+                   (guard end)
+                   (guard (< end ,now)))
+              (when-let (group (plist-get plist :group))
+                (cons group
+                      (/ (- end start) 60)))))))
+      (seq-group-by #'car)
+      (mapcar (pcase-lambda (`(,group . ,records))
+                (cons group
+                      (cl-reduce #'+ (mapcar #'cdr records)
+                                 :initial-value 0)))))))
+
+(cl-defun org-memento--map-taxy-blocks (taxy fn)
+  "Run a function on each block record.
+
+TAXY must be a result of `org-memento-activity-taxy'."
+  (declare (indent 1))
+  (let (result)
+    (dolist (date-taxy (taxy-taxys taxy))
+      (dolist (taxy (taxy-taxys date-taxy))
+        (when-let (r (funcall fn (taxy-name taxy)))
+          (push r result))))
+    result))
+
 ;;;; Utility functions for time representations and Org timestamps
 
 (defun org-memento--fill-decoded-time (decoded-time)
