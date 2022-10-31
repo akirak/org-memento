@@ -252,6 +252,8 @@ Note that all property names should be upper-cased."
 
 (defvar org-memento-group-cache nil)
 
+(defvar org-memento-weekly-group-sums nil)
+
 ;;;; Substs and small utility functions
 
 (defsubst org-memento--current-time ()
@@ -992,8 +994,11 @@ The function returns non-nil if the check-in is done."
     (org-end-of-meta-data t)
     (when (looking-at org-ts-regexp)
       (beginning-of-line 2))
-    ;; Cache groups from the past activities.
-    (org-memento--cache-groups)
+    ;; Save the position in case the cache functions move the point.
+    (save-excursion
+      ;; Cache information on the past activities.
+      (org-memento--cache-groups)
+      (org-memento--update-weekly-group-sums))
     (save-excursion
       (run-hooks 'org-memento-checkin-hook))
     (org-memento-status)
@@ -2347,6 +2352,35 @@ denoting the type of the activity. ARGS is an optional list."
       (dolist (plist org-memento-group-taxonomy)
         (push (funcall (plist-get plist :read) element) result)))
     (nreverse result)))
+
+(defun org-memento--merge-group-sums-1 (lists)
+  (thread-last
+    (seq-group-by #'car (apply #'append lists))
+    (mapcar (pcase-lambda (`(,group . ,groups-and-sums))
+              (cons group
+                    (cl-reduce #'+ (mapcar #'cdr
+                                           groups-and-sums)
+                               :initial-value 0))))))
+
+(defun org-memento--update-weekly-group-sums ()
+  "Update the value of `org-memento-weekly-group-sums'.
+
+This is useful for `org-memento-timeline'."
+  (pcase-exhaustive (org-memento-week-date-range 0)
+    (`(,start-date ,end-date)
+     (let ((decoded-time (decode-time (org-memento--current-time))))
+       (setq org-memento-weekly-group-sums
+             (unless (equal start-date (org-memento--today-string decoded-time))
+               (org-memento-group-sums
+                (org-memento-activity-taxy
+                 start-date (format-time-string
+                             "%F"
+                             (thread-first
+                               decoded-time
+                               (org-memento--start-of-day)
+                               (decoded-time-add (make-decoded-time :day -1))
+                               (encode-time)))
+                 :groups t))))))))
 
 (defun org-memento-group-sums (taxy)
   "Return the sums of time spent on blocks.
