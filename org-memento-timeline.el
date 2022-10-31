@@ -52,7 +52,7 @@ timeline as an argument."
   :type 'hook)
 
 (defcustom org-memento-timeline-planning-hook
-  '(org-memento-timeline-policies-section
+  '(org-memento-timeline-progress-section
     org-memento-timeline-agenda-section
     org-memento-timeline-late-blocks-section
     org-memento-timeline-next-event-section
@@ -646,33 +646,59 @@ If ARG is non-nil, create an away event."
            (or org-extend-today-until 0) 0 0)
           (make-decoded-time :hour 23 :minute 59)))))
 
-;;;; Display policies
+;;;; Extra hooks
 
-(defun org-memento-timeline-policies-section (taxy)
+(defun org-memento-timeline-progress-section (taxy)
   (org-memento-policy-maybe-load)
-  (let ((rules (org-memento-policy-rules
-                :span org-memento-timeline-span
-                :start-date (car org-memento-timeline-date-range)
-                :end-date (cadr org-memento-timeline-date-range))))
+  (let* ((rules (org-memento-policy-rules
+                 :span org-memento-timeline-span
+                 :start-date (car org-memento-timeline-date-range)
+                 :end-date (cadr org-memento-timeline-date-range)))
+         (budgets (seq-filter #'org-memento-policy-budget-rule-p rules)))
     (cl-labels
-        ((insert-group (level taxy)
-           (magit-insert-section (policy-group (list (taxy-name taxy)
-                                                     :level level))
+        ((budget-span (rule)
+           (oref rule span))
+         (rule-group-path (rule)
+           (oref (oref rule context) group-path))
+         (insert-group-status (span group-path group-budgets)
+           (magit-insert-section (group-budgets (list span group-path))
              (magit-insert-heading
-               (make-string (* 2 (1+ level)) ?\s)
-               (funcall (plist-get (nth level org-memento-group-taxonomy)
-                                   :format)
-                        (nth level (taxy-name taxy))))
-             (dolist (subtaxy (taxy-taxys taxy))
-               (insert-group (1+ level) subtaxy)))))
+               (make-string 4 ?\s)
+               (format "| %-16s | %13s %-6s |"
+                       (org-memento--format-group-last-node group-path)
+                       ;; Display progress (x:xx/x:xx)
+                       ""
+                       ;; Display whether it is a minimum or a goal
+                       ""))
+             ;; TODO: Display corresponding yield rules
+             )))
       (magit-insert-section (magit-section)
         (magit-insert-heading
-          "Group Policies")
-        (dolist (taxy (taxy-taxys (org-memento-policy-group-taxy rules)))
-          (insert-group 0 taxy)))
+          "Progress")
+        (pcase-dolist (`(,span . ,span-budget-rules)
+                       (thread-last
+                         budgets
+                         (seq-group-by #'budget-span)
+                         (seq-sort-by #'car #'org-memento-policy--compare-span-types)))
+          (magit-insert-section (span span)
+            (magit-insert-heading
+              (make-string 2 ?\s)
+              (cl-ecase span
+                (day "Daily")
+                (week "Weekly")
+                (month "Monthly"))
+              "\n"
+              (make-string 4 ?\s)
+              (format "| %-16s | %13s %-6s |\n"
+                      "Group" "" ""))
+            (let ((groups-with-budgets
+                   (thread-last
+                     span-budget-rules
+                     (seq-group-by #'rule-group-path))))
+              (pcase-dolist (`(,group-path . ,group-budget-rules)
+                             groups-with-budgets)
+                (insert-group-status span group-path group-budget-rules))))))
       (insert ?\n))))
-
-;;;; Extra hooks
 
 (defun org-memento-timeline-planning-sections (taxy)
   (unless (and org-memento-timeline-hide-planning
