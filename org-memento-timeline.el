@@ -638,50 +638,105 @@ If ARG is non-nil, create an away event."
                  :span org-memento-timeline-span
                  :start-date (car org-memento-timeline-date-range)
                  :end-date (cadr org-memento-timeline-date-range)))
-         (budgets (seq-filter #'org-memento-policy-budget-rule-p rules)))
+         (budgets (seq-filter #'org-memento-policy-budget-rule-p rules))
+         (sums-for-span (org-memento-group-sums taxy))
+         (sums-by-spans (cons (cons org-memento-timeline-span sums-for-span)
+                              (when (< (cl-position org-memento-timeline-span
+                                                    org-memento-policy-span-types)
+                                       (cl-position 'week
+                                                    org-memento-policy-span-types))
+                                `((week . ,(org-memento--merge-group-sums-1
+                                            (list sums-for-span
+                                                  org-memento-weekly-group-sums))))))))
     (cl-labels
         ((budget-span (rule)
            (oref rule span))
          (rule-group-path (rule)
            (slot-value (slot-value rule 'context) 'group-path))
-         (insert-group-status (span group-path group-budgets)
-           (magit-insert-section (group-budgets (list span group-path))
-             (magit-insert-heading
-               (make-string 4 ?\s)
-               (format "| %-16s | %13s %-6s |"
-                       (org-memento--format-group-last-node group-path)
-                       ;; Display progress (x:xx/x:xx)
-                       ""
-                       ;; Display whether it is a minimum or a goal
-                       ""))
-             ;; TODO: Display corresponding yield rules
-             )))
+         (match-group (group-path group)
+           (equal group-path (seq-take group (length group-path))))
+         (budget-type-is (level rule)
+           (eq level (slot-value rule 'level)))
+         (insert-group-status (span group-path group-budgets &optional sum)
+           (let ((sum (or sum
+                          (cl-reduce
+                           #'+
+                           (mapcar #'cdr (cl-remove-if-not
+                                          (apply-partially #'match-group group-path)
+                                          (alist-get span sums-by-spans)
+                                          :key #'car))
+                           :initial-value 0)))
+                 (main-budget (or (seq-find (-partial #'budget-type-is 'goal) group-budgets)
+                                  (seq-find (-partial #'budget-type-is 'minimum) group-budgets)
+                                  (seq-find (-partial #'budget-type-is 'limit) group-budgets))))
+             (magit-insert-section (group-budgets (list span group-path))
+               (magit-insert-heading
+                 (make-string 4 ?\s)
+                 (format "| %-12s | %5s%1s%5s %-6s |"
+                         (string-pad (org-memento--format-group-last-node group-path)
+                                     12)
+                         (org-memento--format-duration sum)
+                         (if group-budgets "/" "")
+                         (if main-budget
+                             (org-memento--format-duration
+                              (slot-value main-budget 'duration-minutes))
+                           "")
+                         (if main-budget
+                             (cl-ecase (slot-value main-budget 'level)
+                               (minimum "(min.)")
+                               (goal "(goal)")
+                               (`limit "(lim.)"))
+                           "")
+                         ""))
+               ;; TODO: Display corresponding yield rules
+               )))
+         (in-some-group (group-paths group)
+           (seq-find (-partial (-flip #'match-group) group)
+                     group-paths)))
       (magit-insert-section (magit-section)
         (magit-insert-heading
           "Progress")
-        (pcase-dolist (`(,span . ,span-budget-rules)
+        (pcase-dolist (`(,span . ,budget-rules-for-span)
                        (thread-last
                          budgets
                          (seq-group-by #'budget-span)
                          (seq-sort-by #'car #'org-memento-policy--compare-span-types)))
-          (magit-insert-section (span span)
-            (magit-insert-heading
-              (make-string 2 ?\s)
-              (cl-ecase span
-                (day "Daily")
-                (week "Weekly")
-                (month "Monthly"))
-              "\n"
-              (make-string 4 ?\s)
-              (format "| %-16s | %13s %-6s |\n"
-                      "Group" "" ""))
-            (let ((groups-with-budgets
-                   (thread-last
-                     span-budget-rules
-                     (seq-group-by #'rule-group-path))))
-              (pcase-dolist (`(,group-path . ,group-budget-rules)
-                             groups-with-budgets)
-                (insert-group-status span group-path group-budget-rules))))))
+          (when (<= (cl-position org-memento-timeline-span
+                                 org-memento-policy-span-types)
+                    (cl-position span
+                                 org-memento-policy-span-types))
+            (magit-insert-section (span span)
+              (magit-insert-heading
+                (make-string 2 ?\s)
+                (cl-ecase span
+                  (day "Daily")
+                  (week "Weekly")
+                  (month "Monthly"))
+                "\n"
+                (make-string 4 ?\s)
+                (format "| %-12s | %11s %-6s |\n"
+                        "Group" "" ""))
+              (let ((groups-with-budgets
+                     (thread-last
+                       budget-rules-for-span
+                       (seq-group-by #'rule-group-path))))
+                (pcase-dolist (`(,group-path . ,group-budget-rules)
+                               groups-with-budgets)
+                  (insert-group-status span group-path group-budget-rules))
+                (pcase-dolist (`(,group . ,sum)
+                               (thread-last
+                                 (cl-remove-if (apply-partially
+                                                #'in-some-group
+                                                (mapcar #'car groups-with-budgets))
+                                               (alist-get span sums-by-spans)
+                                               :key #'car)
+                                 (seq-group-by #'caar)
+                                 (mapcar (pcase-lambda (`(,node . ,groups-and-sums))
+                                           (cons (list node)
+                                                 (cl-reduce #'+
+                                                            (mapcar #'cdr groups-and-sums)
+                                                            :initial-value 0))))))
+                  (insert-group-status span group nil sum)))))))
       (insert ?\n))))
 
 (defun org-memento-timeline-planning-sections (taxy)
