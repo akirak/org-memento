@@ -2385,6 +2385,23 @@ TAXY must be a result of `org-memento-activity-taxy'."
 
 ;;;; Utility functions for time representations and Org timestamps
 
+(defun org-memento-week-date-range (n)
+  (let* ((today (thread-first
+                  (org-memento--current-time)
+                  (decode-time)
+                  (org-memento--start-of-day)))
+         (week-start (thread-last
+                       (make-decoded-time
+                        :day (+ (- (mod (+ 7 (- (decoded-time-weekday today)
+                                                org-agenda-start-on-weekday))
+                                        7))
+                                (* n 7)))
+                       (decoded-time-add today)))
+         (week-end (decoded-time-add
+                    week-start (make-decoded-time :day 6))))
+    (list (format-time-string "%F" (encode-time week-start))
+          (format-time-string "%F" (encode-time week-end)))))
+
 (defun org-memento--fill-decoded-time (decoded-time)
   "Fill time fields of DECODED-TIME."
   (dolist (i (number-sequence 0 2))

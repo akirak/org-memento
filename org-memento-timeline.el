@@ -148,27 +148,10 @@ timeline as an argument."
   (pcase-let
       ((`(,start ,end) (pcase-exhaustive arg
                          (`nil
-                          (org-memento-timeline--week-range 0))
+                          (org-memento-week-date-range 0))
                          ((pred numberp)
-                          (org-memento-timeline--week-range arg)))))
+                          (org-memento-week-date-range arg)))))
     (org-memento-timeline start end :span 'week)))
-
-(defun org-memento-timeline--week-range (n)
-  (let* ((today (thread-first
-                  (org-memento--current-time)
-                  (decode-time)
-                  (org-memento--start-of-day)))
-         (week-start (thread-last
-                       (make-decoded-time
-                        :day (+ (- (mod (+ 7 (- (decoded-time-weekday today)
-                                                org-agenda-start-on-weekday))
-                                        7))
-                                (* n 7)))
-                       (decoded-time-add today)))
-         (week-end (decoded-time-add
-                    week-start (make-decoded-time :day 6))))
-    (list (format-time-string "%F" (encode-time week-start))
-          (format-time-string "%F" (encode-time week-end)))))
 
 (defun org-memento-timeline-revert (&rest _args)
   (interactive)

@@ -39,7 +39,7 @@
 (cl-defun org-memento-planner ()
   (interactive)
   (setq org-memento-planner-span 'week)
-  (setq org-memento-planner-date-range (org-memento-timeline--week-range 1))
+  (setq org-memento-planner-date-range (org-memento-week-date-range 1))
   (with-current-buffer (get-buffer-create org-memento-planner-buffer)
     (org-memento-planner-mode)
     (org-memento-planner-revert)
