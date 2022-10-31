@@ -1543,6 +1543,11 @@ The point must be at the heading."
         (push string strings)))
     (nreverse strings)))
 
+(defun org-memento--format-group-last-node (group-path)
+  (let ((i (1- (length group-path))))
+    (when-let (fn (plist-get (nth i org-memento-group-taxonomy) :format))
+      (nth i group-path))))
+
 ;;;; Retrieving timing information
 
 (defun org-memento--idle-hours ()
