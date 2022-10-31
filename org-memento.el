@@ -2630,8 +2630,9 @@ range."
                                         (decode-time start)
                                         (org-memento--start-of-day)
                                         (format-time-string "%F")))))))
-         (group (or group
-                    (org-memento-read-group nil :title title)))
+         (group (unless away
+                  (or group
+                      (org-memento-read-group nil :title title))))
          (arguments (org-memento--merge-template-arguments-1
                      (org-memento--template-group group)
                      (when copy-from
