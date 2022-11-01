@@ -1207,7 +1207,10 @@ The point must be at the heading."
                                             select-existing-heading)
   (declare (indent 1))
   (let* ((date (or date (org-memento--today-string (decode-time (org-memento--current-time)))))
-         (prompt (or prompt "Title: "))
+         (prompt (or prompt
+                     (if default
+                         (format "Title [\"%s\"]: " default)
+                       "Title: ")))
          existing-titles
          input)
     (org-memento-maybe-with-date-entry date
