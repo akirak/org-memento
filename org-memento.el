@@ -67,6 +67,10 @@
   "File that keeps the journal."
   :type 'file)
 
+(defcustom org-memento-todo-keyword-for-success "DONE"
+  "Org todo keyword that indicates a successful performance."
+  :type 'string)
+
 (defcustom org-memento-idle-time 30
   "Duration in minutes until idle tasks are performed.
 
@@ -672,7 +676,7 @@ should not be run inside the journal file."
   (when org-memento-current-block
     (run-hooks 'org-memento-block-before-exit-hook)
     (org-memento-with-current-block
-      (org-todo 'done)
+      (org-todo org-memento-todo-keyword-for-success)
       (org-memento--save-buffer))
     (setq org-memento-current-block nil)
     (org-memento--cancel-block-timer)
