@@ -2149,7 +2149,8 @@ denoting the type of the activity. ARGS is an optional list."
     (nreverse result)))
 
 (cl-defun org-memento--block-activities (start-date-string &optional end-date-string
-                                                           &key annotate-groups)
+                                                           &key annotate-groups
+                                                           annotate-todo)
   (cl-flet*
       ((parse-date (string)
          (encode-time (org-memento--set-time-of-day
@@ -2289,19 +2290,27 @@ denoting the type of the activity. ARGS is an optional list."
                                                     (parse-idle-children include-future)))
                              (pcase (parse-entry include-future nil annotate-groups)
                                (`(,start ,end . ,rest)
-                                (push (append (list start
-                                                    end
-                                                    heading
-                                                    hd-marker
-                                                    (if is-block
-                                                        'block
-                                                      'away))
-                                              (when (and is-block annotate-groups)
-                                                (list :group
-                                                      (save-excursion
-                                                        (goto-char hd-marker)
-                                                        (org-memento--get-group (caar rest))))))
-                                      blocks)))))
+                                (let* ((record (list start
+                                                     end
+                                                     heading
+                                                     hd-marker
+                                                     (if is-block
+                                                         'block
+                                                       'away)))
+                                       (element (caar rest)))
+                                  (when is-block
+                                    (nconc record
+                                           (when-let (keyword (and annotate-todo
+                                                                   (org-element-property
+                                                                    :todo-keyword
+                                                                    element)))
+                                             `(:todo-keyword ,keyword))
+                                           (when annotate-groups
+                                             `(:group
+                                               ,(save-excursion
+                                                  (goto-char hd-marker)
+                                                  (org-memento--get-group element))))))
+                                  (push record blocks))))))
                          (end-of-line 1))
                        (push (cons day blocks) dates))))))))
           dates)))))
