@@ -9,7 +9,7 @@
   (object-of-class-p x 'org-memento-yield-rule))
 
 (cl-defgeneric org-memento-yield-some (yield-rule activities
-                                                  &key demand start end slots)
+                                                  &key demand start end)
   "Generate some plans according to a rule.
 
 YIELD-RULE is an instance of `org-memento-yield-rule'.
@@ -111,7 +111,7 @@ another type.")
         :max-count 1))
 
 (cl-defmethod org-memento-yield-some ((x org-memento-yield-simple-rule)
-                                      activities &key demand start end slots)
+                                      activities &key demand start end)
   (let* ((activity (car activities))
          (no-earlier-than (when (and activity (oref x interval))
                             (float-time (org-memento-yield--add-days
