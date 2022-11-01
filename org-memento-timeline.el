@@ -647,7 +647,8 @@ If ARG is non-nil, create an away event."
                                                     org-memento-policy-span-types))
                                 `((week . ,(org-memento--merge-group-sums-1
                                             (list sums-for-span
-                                                  org-memento-weekly-group-sums))))))))
+                                                  org-memento-weekly-group-sums)))))))
+         (yields (seq-filter #'org-memento-yield-instance-p rules)))
     (cl-labels
         ((budget-span (rule)
            (oref rule span))
@@ -655,6 +656,8 @@ If ARG is non-nil, create an away event."
            (slot-value (slot-value rule 'context) 'group-path))
          (match-group (group-path group)
            (equal group-path (seq-take group (length group-path))))
+         (rule-match-group (group-path rule)
+           (match-group group-path (rule-group-path rule)))
          (budget-type-is (level rule)
            (eq level (slot-value rule 'level)))
          (insert-group-status (span group-path group-budgets &optional sum)
@@ -688,8 +691,20 @@ If ARG is non-nil, create an away event."
                                (`limit "(lim.)"))
                            "")
                          ""))
-               ;; TODO: Display corresponding yield rules
-               )))
+               (dolist (yield-rule (seq-filter (apply-partially #'rule-match-group group-path)
+                                               yields))
+                 (magit-insert-section (yield-rule yield-rule)
+                   (dolist (task (car (org-memento-yield-some
+                                       yield-rule
+                                       (org-memento-yield--activities-1 yield-rule taxy))))
+                     (magit-insert-section (task task)
+                       (magit-insert-heading
+                         (make-string 6 ?\s)
+                         "+ "
+                         (propertize (org-memento-order-title task)
+                                     'face 'magit-section-heading)
+                         (when-let (duration (org-memento-order-duration task))
+                           (concat " " (org-memento--format-duration duration)))))))))))
          (in-some-group (group-paths group)
            (seq-find (-partial (-flip #'match-group) group)
                      group-paths)))

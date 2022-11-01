@@ -5,6 +5,9 @@
 (defclass org-memento-yield-rule (org-memento-policy-rule)
   ())
 
+(defun org-memento-yield-instance-p (x)
+  (object-of-class-p x 'org-memento-yield-rule))
+
 (cl-defgeneric org-memento-yield-some (yield-rule activities
                                                   &key demand start end slots)
   "Generate some plans according to a rule.
