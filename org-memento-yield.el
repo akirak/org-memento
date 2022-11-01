@@ -118,9 +118,16 @@ another type.")
                                          (car activity)
                                          (oref x interval)))))
          (start (or start (float-time (org-memento--current-time))))
+         (plist (oref x static))
          (obj (apply #'make-org-memento-order
                      :group (oref (oref x context) group-path)
-                     (oref x static))))
+                     (thread-first
+                       plist
+                       (plist-put :duration
+                                  (when-let (duration (plist-get plist :duration))
+                                    (cl-etypecase duration
+                                      (string (org-duration-to-minutes duration))
+                                      (number duration))))))))
     (unless (and end no-earlier-than
                  (> no-earlier-than end))
       (when (and no-earlier-than
