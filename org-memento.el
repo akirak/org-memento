@@ -2906,7 +2906,7 @@ range."
                            category))
                      ("MEMENTO_CHECKIN_TIME"
                       . ,(when started-past
-                           (format-time-string (org-time-stamp-format t t) start)))))
+                           (org-memento--format-timestamp start nil 'inactive)))))
       (when value
         (if-let (cell (assoc key properties))
             (setcdr cell value)
