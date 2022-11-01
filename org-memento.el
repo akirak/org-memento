@@ -1191,7 +1191,9 @@ The point must be at the heading."
   (with-current-buffer (org-memento--buffer)
     (delq nil (org-property-values "MEMENTO_CATEGORY"))))
 
-(cl-defun org-memento-read-title (&optional prompt &key group category default date)
+(cl-defun org-memento-read-title (&optional prompt
+                                            &key group category default date
+                                            select-existing-heading)
   (declare (indent 1))
   (let* ((date (or date (org-memento--today-string (decode-time (org-memento--current-time)))))
          (prompt (or prompt "Title: "))
@@ -1206,10 +1208,15 @@ The point must be at the heading."
     (catch 'input
       (while (setq input (string-trim
                           (completing-read prompt
-                                           (when category
-                                             (org-memento--titles-in-category category))
-                                           nil nil nil nil default 'inherit-input-method)))
-        (if (member input existing-titles)
+                                           (if select-existing-heading
+                                               existing-titles
+                                             (when category
+                                               (org-memento--titles-in-category category)))
+                                           nil
+                                           select-existing-heading
+                                           nil nil default 'inherit-input-method)))
+        (if (and (not select-existing-heading)
+                 (member input existing-titles))
             (setq prompt (format "Title (\"%s\" is a duplicate): " input))
           (throw 'input input))))))
 
