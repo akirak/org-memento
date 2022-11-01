@@ -428,7 +428,9 @@ Return a copy of the list."
 
 ;;;;; org-memento-order
 
-(cl-defstruct org-memento-order group title sample-marker duration)
+(cl-defstruct org-memento-order
+  group title sample-marker duration
+  no-earlier-than no-later-than)
 
 ;;;; Macros
 
