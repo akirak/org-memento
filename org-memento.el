@@ -1568,6 +1568,17 @@ The point must be at the heading."
 
 ;;;; Retrieving timing information
 
+(defun org-memento--empty-slots (taxy)
+  (let ((now (float-time (org-memento--current-time)))
+        result)
+    (dolist (date-taxy (taxy-taxys taxy))
+      (when (> (cadr (taxy-name date-taxy)) now)
+        (dolist (block-taxy (taxy-taxys date-taxy))
+          (when (and (not (taxy-taxys block-taxy))
+                     (> (cadr (taxy-name block-taxy)) now))
+            (push (taxy-name block-taxy) result)))))
+    result))
+
 (defun org-memento--idle-hours ()
   "Return idle hours on today."
   (when org-memento-idle-heading
