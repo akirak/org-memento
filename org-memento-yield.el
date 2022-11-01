@@ -49,6 +49,7 @@ another type.")
 ;;;; Helper functions to use yield rules
 
 (defun org-memento-yield--activities-1 (rule taxy)
+  (cl-check-type rule org-memento-yield-rule)
   (let* ((plist (org-memento-yield-backtrack-spec rule))
          ;; (max-days (plist-get plist :max-days))
          (max-count (plist-get plist :max-count))
