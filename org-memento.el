@@ -1235,6 +1235,16 @@ The point must be at the heading."
             (setq prompt (format "Title (\"%s\" is a duplicate): " input))
           (throw 'input input))))))
 
+(defun org-memento-select-slot (prompt slots)
+  (let* ((alist (mapcar (lambda (slot)
+                          (cons (org-memento--format-army-time-range
+                                 (car slot) (cadr slot))
+                                slot))
+                        slots))
+         (input (completing-read prompt (mapcar #'car alist)
+                                 nil t)))
+    (cdr (assoc input alist))))
+
 (cl-defun org-memento-read-group (&optional prompt &key title)
   (unless org-memento-group-cache
     (org-memento--cache-groups))

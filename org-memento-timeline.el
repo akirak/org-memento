@@ -653,7 +653,8 @@ If ARG is non-nil, create an away event."
                                 `((week . ,(org-memento--merge-group-sums-1
                                             (list sums-for-span
                                                   org-memento-weekly-group-sums)))))))
-         (yields (seq-filter #'org-memento-yield-instance-p rules)))
+         (yields (seq-filter #'org-memento-yield-instance-p rules))
+         (slots (org-memento--empty-slots taxy)))
     (cl-labels
         ((budget-span (rule)
            (oref rule span))
@@ -702,7 +703,7 @@ If ARG is non-nil, create an away event."
                    (dolist (task (car (org-memento-yield-some
                                        yield-rule
                                        (org-memento-yield--activities-1 yield-rule taxy))))
-                     (magit-insert-section (task task)
+                     (magit-insert-section (task-and-slots (cons task slots))
                        (magit-insert-heading
                          (make-string 6 ?\s)
                          "+ "
@@ -764,25 +765,42 @@ If ARG is non-nil, create an away event."
 (defun org-memento-timeline-progress-return ()
   (interactive)
   (if-let* ((section (magit-current-section))
-            (value (oref section value)))
-      (cl-etypecase value
-        (org-memento-order
+            (value (oref section value))
+            (type (oref section type)))
+      (pcase-exhaustive value
+        ((and `(,task . ,slots)
+              (guard (eq type 'task-and-slots))
+              (guard (org-memento-order-p task)))
          (pcase-let*
-             ((title (org-memento-read-title nil :default (org-memento-order-title value)))
+             ((title (org-memento-read-title nil :default (org-memento-order-title task)))
+              (duration (org-memento-order-duration task))
+              (slot (when slots
+                      (org-memento-select-slot (format "Choose a slot for \"%s\": "
+                                                       title)
+                                               (if duration
+                                                   (seq-filter `(lambda (slot)
+                                                                  (<= (- (cadr slot)
+                                                                         (car slot))
+                                                                      (* ,duration)))
+                                                               slots)
+                                                 slots))))
               (`(,start ,end) (org-memento--read-time-span
-                               nil
+                               (when slot
+                                 (org-memento--format-timestamp
+                                  (car slot)
+                                  (if duration
+                                      (+ (car slot) (* 60 duration))
+                                    (cadr slot))))
                                (float-time (org-memento--current-time)))))
            (org-memento-add-event :title title
                                   :start start
                                   :end (or end
-                                           (when-let (duration
-                                                      (and start
-                                                           (org-memento-order-duration value)))
+                                           (when (and start duration)
                                              (+ start (* 60 duration))))
                                   :interactive t
                                   :group (org-memento--default-group
-                                          (org-memento-order-group value))
-                                  :copy-from (org-memento-order-sample-marker value)))))
+                                          (org-memento-order-group task))
+                                  :copy-from (org-memento-order-sample-marker task)))))
     (user-error "No value")))
 
 (defun org-memento-timeline-planning-sections (taxy)
