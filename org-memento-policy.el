@@ -161,7 +161,8 @@ DATA should be a result of `org-memento--collect-groups-1' call."
     (cl-labels
         ((build-rules (context key args)
            (apply (or (alist-get key org-memento-policy-rule-types)
-                      (error "Key %s is not included in org-memento-policy-rule-types"))
+                      (error "Key %s is not included in org-memento-policy-rule-types"
+                             key))
                   context
                   args))
          (build-context (parent exp)

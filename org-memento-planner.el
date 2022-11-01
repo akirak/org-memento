@@ -11,6 +11,7 @@
 
 (defcustom org-memento-planner-effort-threshold "0:10"
   ""
+  :group 'org-memento
   :type 'string)
 
 ;;;; Faces
@@ -20,7 +21,8 @@
      :foreground "gray72")
     (((class color) (min-colors 88) (background light))
      :foreground "gray35"))
-  "")
+  ""
+  :group 'org-memento)
 
 ;;;; Variables
 
@@ -214,20 +216,19 @@
              (slot-value rule 'duration-minutes)))
          (insert-taxy (level taxy)
            (magit-insert-section (group (taxy-name taxy))
-             (let ((rules (taxy-items taxy)))
-               (magit-insert-heading
-                 (apply #'format "  | %-18s | %5s | %5s | %5s | %6s | %6s | %6s |"
-                        (concat (make-string (* 2 level) ?\s)
-                                (funcall (plist-get (nth level org-memento-group-taxonomy)
-                                                    :format)
-                                         (nth level (taxy-name taxy))))
-                        (thread-last
-                          columns
-                          (mapcar (apply-partially #'taxy-budget taxy))
-                          (mapcar (lambda (duration)
-                                    (if duration
-                                        (org-memento--format-duration duration)
-                                      "")))))))
+             (magit-insert-heading
+               (apply #'format "  | %-18s | %5s | %5s | %5s | %6s | %6s | %6s |"
+                      (concat (make-string (* 2 level) ?\s)
+                              (funcall (plist-get (nth level org-memento-group-taxonomy)
+                                                  :format)
+                                       (nth level (taxy-name taxy))))
+                      (thread-last
+                        columns
+                        (mapcar (apply-partially #'taxy-budget taxy))
+                        (mapcar (lambda (duration)
+                                  (if duration
+                                      (org-memento--format-duration duration)
+                                    ""))))))
              (insert-taxys (1+ level) (taxy-taxys taxy))))
          (insert-taxys (level taxys)
            (dolist (taxy taxys)
@@ -301,7 +302,7 @@
             (apply-partially #'match-group group)))
          (insert-group-subsection (x)
            (pcase-exhaustive x
-             (`(,date ,group ,olp)
+             (`(,date ,group ,_olp)
               (let* ((context-taxy (find-group-context group))
                      (archived (and context-taxy
                                     (slot-value (taxy-name context-taxy) 'archived))))

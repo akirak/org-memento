@@ -1,6 +1,9 @@
 ;;; org-memento-date.el --- Date spans -*- lexical-binding: t -*-
 
 (require 'eieio)
+(require 'time-date)
+
+(declare-function make-decoded-time "time-date")
 
 (defclass org-memento-date-span ()
   ())

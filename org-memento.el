@@ -35,6 +35,7 @@
 
 (require 'org)
 (require 'org-element)
+(require 'eieio)
 
 (declare-function org-element-headline-parser "org-element")
 (declare-function org-day-of-week "org-clock")
@@ -48,6 +49,7 @@
 (declare-function org-capture "org-capture")
 (declare-function org-clocking-p "org-clock")
 (defvar org-capture-entry)
+(defvar org-agenda-start-on-weekday)
 
 (defgroup org-memento nil
   "Time blocking with Org mode."
@@ -708,7 +710,7 @@ should not be run inside the journal file."
            (org-narrow-to-subtree)
            (pop-to-buffer (current-buffer))
            (org-show-entry)
-           (with-demoted-errors "The heading for the current block does not exist. Possibly renamed?"
+           (with-demoted-errors "The heading for the current block does not exist. Possibly renamed? %s"
              (re-search-forward (format org-complex-heading-regexp-format title)))
            (org-back-to-heading)
            (when narrow
@@ -779,9 +781,7 @@ point to the heading.
                       (org-timestamp-from-string (match-string 0)))))
       (when (org-time-stamp nil)
         (thing-at-point-looking-at org-ts-regexp)
-        (let* ((match-begin (match-beginning 0))
-               (match-end (match-end 0))
-               (new-ts (org-timestamp-from-string (match-string 0)))
+        (let* ((new-ts (org-timestamp-from-string (match-string 0)))
                (start (org-timestamp-to-time new-ts)))
           (when (and orig-ts
                      (eq 'active-range (org-element-property :type orig-ts))
@@ -1059,8 +1059,7 @@ The point must be at the heading."
                     (throw 'cancel t))
                 (setq org-memento-current-block nil))))
     (let* ((block (org-memento--current-block))
-           (category (when block (org-memento-block-category block)))
-           (ending-time (when block (org-memento-ending-time block))))
+           (category (when block (org-memento-block-category block))))
       (setq org-memento-current-category category))
     (run-hooks 'org-memento-status-hook)))
 
@@ -1159,38 +1158,6 @@ The point must be at the heading."
     (pcase org-memento-agenda-files
       ((pred functionp) (funcall org-memento-agenda-files)))))
 
-;;;; Formatting status
-
-(defun org-memento--format-block-status ()
-  (let* ((block (org-memento-with-current-block
-                  (org-memento-block-entry)))
-         (ending-time (org-memento-ending-time block)))
-    (concat "Current: " org-memento-current-block " "
-            (if ending-time
-                (let ((minutes (org-memento-minutes-from-now ending-time)))
-                  (format " (ending at %s, %s)"
-                          (format-time-string "%R" ending-time)
-                          (if (> minutes 0)
-                              (format "in %d minutes" minutes)
-                            "overdue")))
-              "")
-            "\nNext event: "
-            (if org-memento-next-event
-                (format "%s (starting at %s)"
-                        (save-current-buffer
-                          (org-with-point-at (org-memento-org-event-marker
-                                              org-memento-next-event)
-                            (org-get-heading t t t t)))
-                        (org-memento-starting-time org-memento-next-event))
-              "None"))))
-
-(defun org-memento--format-org-event-status (event)
-  (format "\"%s\" starts at %s."
-          (save-current-buffer
-            (org-with-point-at (org-memento-org-event-marker event)
-              (org-get-heading nil nil nil nil)))
-          (format-time-string "%R" (org-memento-starting-time event))))
-
 ;;;; Completion
 
 (defun org-memento-read-category (&optional prompt)
@@ -1208,9 +1175,13 @@ The point must be at the heading."
   (declare (indent 1))
   (let* ((date (or date (org-memento--today-string (decode-time (org-memento--current-time)))))
          (prompt (or prompt
-                     (if default
-                         (format "Title [\"%s\"]: " default)
-                       "Title: ")))
+                     (cond
+                      (default
+                       (format "Title [\"%s\"]: " default))
+                      (group
+                       (format "Title for group %s: " (org-memento--format-group group)))
+                      (t
+                       "Title: "))))
          existing-titles
          input)
     (org-memento-maybe-with-date-entry date
@@ -1738,8 +1709,7 @@ marker to the time stamp, and the margin in seconds."
           (while (re-search-forward org-drawer-regexp bound t)
             (when (string-equal-ignore-case (match-string 1)
                                             org-memento-planning-drawer)
-              (let ((start (point))
-                    (end (save-excursion
+              (let ((end (save-excursion
                            (re-search-forward org-drawer-regexp bound)))
                     links)
                 (while (re-search-forward org-link-bracket-re end t)
@@ -2241,7 +2211,7 @@ denoting the type of the activity. ARGS is an optional list."
                                'idle)
                          clocks)))
                clocks))))
-       (parse-idle-children (include-future)
+       (parse-idle-children ()
          (let ((subtree-end (save-excursion (org-end-of-subtree)))
                blocks)
            ;; This is like in `org-memento--agenda-activities', but without future
@@ -2313,7 +2283,7 @@ denoting the type of the activity. ARGS is an optional list."
                            (if (equal heading org-memento-idle-heading)
                                (setq blocks (append blocks
                                                     (parse-idle-clocks)
-                                                    (parse-idle-children include-future)))
+                                                    (parse-idle-children)))
                              (pcase (parse-entry include-future nil annotate-groups)
                                (`(,start ,end . ,rest)
                                 (let* ((record (list start
@@ -2408,7 +2378,7 @@ denoting the type of the activity. ARGS is an optional list."
 
 This is useful for `org-memento-timeline'."
   (pcase-exhaustive (org-memento-week-date-range 0)
-    (`(,start-date ,end-date)
+    (`(,start-date ,_end-date)
      (let ((decoded-time (decode-time (org-memento--current-time))))
        (setq org-memento-weekly-group-sums
              (unless (equal start-date (org-memento--today-string decoded-time))

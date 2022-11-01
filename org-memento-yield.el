@@ -49,9 +49,11 @@ another type.")
 ;;;; Helper functions to use yield rules
 
 (defun org-memento-yield--activities-1 (rule taxy)
-  (pcase-let*
-      (((map :max-days :max-count) (org-memento-yield-backtrack-spec rule))
-       (group-path (oref (oref rule context) group-path)))
+  (let* ((plist (org-memento-yield-backtrack-spec rule))
+         ;; (max-days (plist-get plist :max-days))
+         (max-count (plist-get plist :max-count))
+         (context (oref rule context))
+         (group-path (oref context group-path)))
     (cl-labels
         ((match-group (group)
            (equal (seq-take group (length group-path))

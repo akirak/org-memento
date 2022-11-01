@@ -27,9 +27,12 @@
 
 (require 'org-memento)
 (require 'org-memento-policy)
+(require 'org-memento-yield)
 (require 'taxy)
 (require 'dash)
 (require 'magit-section)
+
+(declare-function org-clocking-p "org-clock")
 
 (defgroup org-memento-timeline nil
   "Activity timeline."
@@ -222,8 +225,7 @@ timeline as an argument."
                (dolist (group (-partition-by #'caddr items))
                  (magit-insert-section (group (car group)
                                               'hide)
-                   (let ((marker (cadddr (car group)))
-                         (title (caddr (car group))))
+                   (let ((title (caddr (car group))))
                      (magit-insert-heading
                        indent1
                        (format-time-string "%R" (car (car group)))
@@ -272,8 +274,6 @@ timeline as an argument."
          (insert-block (taxy)
            (magit-insert-section (block (taxy-name taxy) 'hide)
              (let ((indent1 (make-string 4 ?\s))
-                   (indent2 (make-string 11 ?\s))
-                   (indent2 (make-string 13 ?\s))
                    (start (start-time taxy))
                    (end (end-time taxy))
                    (nowp (eq 'now (nth 4 (taxy-name taxy)))))
@@ -446,7 +446,7 @@ timeline as an argument."
   (when-let* ((section (magit-current-section))
               (value (oref section value)))
     (when (pcase value
-            ((and `(,start ,end ,_ ,marker . ,_)
+            ((and `(,start ,_end ,_ ,marker . ,_)
                   (guard marker))
              (cond
               ((and start (> start (float-time (org-memento--current-time))))
@@ -465,8 +465,7 @@ timeline as an argument."
                    (org-with-point-at marker
                      (org-cut-subtree)))))
               (t
-               (user-error "Nothing to do"))
-              ))
+               (user-error "Nothing to do"))))
             (_
              (user-error "Nothing to do")))
       (org-memento-timeline-revert))))
@@ -695,8 +694,7 @@ If ARG is non-nil, create an away event."
                                (minimum "(min.)")
                                (goal "(goal)")
                                (`limit "(lim.)"))
-                           "")
-                         ""))
+                           "")))
                (dolist (yield-rule (seq-filter (apply-partially #'rule-match-group group-path)
                                                yields))
                  (magit-insert-section (yield-rule yield-rule)
@@ -1070,8 +1068,7 @@ You should update the status before you call this function."
   (let ((value (oref (magit-current-section) value)))
     (when (cl-ecase (oref (magit-current-section) type)
             (block-feasibility
-             (let* ((block (car value))
-                    (effort-sum (cdr value)))
+             (let ((block (car value)))
                (save-current-buffer
                  (org-with-point-at (org-memento-block-hd-marker block)
                    (if (org-memento-ending-time block)
