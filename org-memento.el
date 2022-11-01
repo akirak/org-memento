@@ -1545,7 +1545,7 @@ The point must be at the heading."
 (defun org-memento--format-group-last-node (group-path)
   (let ((i (1- (length group-path))))
     (when-let (fn (plist-get (nth i org-memento-group-taxonomy) :format))
-      (nth i group-path))))
+      (funcall fn (nth i group-path)))))
 
 ;;;; Retrieving timing information
 
