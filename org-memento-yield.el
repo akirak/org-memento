@@ -1,5 +1,7 @@
 ;;; org-memento-yield.el --- Task generators -*- lexical-binding: t -*-
 
+(require 'eieio)
+
 ;;;; Classes and generics
 
 (defclass org-memento-yield-rule (org-memento-policy-rule)
