@@ -1204,7 +1204,8 @@ The point must be at the heading."
                      (org-end-of-subtree))))
         (while (re-search-forward org-complex-heading-regexp bound t)
           (when (= 2 (length (match-string 1)))
-            (push (match-string 4) existing-titles)))))
+            (push (match-string-no-properties 4)
+                  existing-titles)))))
     (catch 'input
       (while (setq input (string-trim
                           (completing-read prompt
