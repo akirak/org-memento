@@ -10,6 +10,10 @@
   "Policy enforcement for Org Memento."
   :group 'org-memento)
 
+;;;; Constants
+
+(defconst org-memento-policy-span-types '(day week month))
+
 ;;;; Custom variables
 
 (defcustom org-memento-policy-file (locate-user-emacs-file "org-memento/policies")
@@ -18,7 +22,7 @@
 
 (defcustom org-memento-policy-rule-types
   '((:budget . org-memento-policy-make-budgets)
-    (:yield . org-memento-policy-make-yields))
+    (:yield . org-memento-yield-init-1))
   ""
   :type '(alist :key-type keyword
                 :value-type (function :tag "Function that instantiate a subclass of\
@@ -217,8 +221,9 @@ DATA should be a result of `org-memento--collect-groups-1' call."
                                start-date (make-decoded-time :month 1 :day -1)))))))
     (cl-flet
         ((effectivep (rule)
-           (org-memento-policy-effective-p (oref rule context)
-                                           start-date end-date)))
+           (let ((context (slot-value rule 'context)))
+             (and (not (slot-value context 'archived))
+                  (org-memento-policy-effective-p context start-date end-date)))))
       (seq-filter #'effectivep (taxy-flatten org-memento-policy-data)))))
 
 (cl-defun org-memento-policy-group-taxy (items &key prepend append)
@@ -260,7 +265,7 @@ DATA should be a result of `org-memento--collect-groups-1' call."
   (let (contexts)
     (cl-labels
         ((collect-contexts (taxy)
-           (unless (oref (taxy-name taxy) archived)
+           (unless (slot-value (taxy-name taxy) 'archived)
              (push (taxy-name taxy) contexts)
              (dolist (subtaxy (taxy-taxys taxy))
                (collect-contexts subtaxy)))))
@@ -317,22 +322,6 @@ DATA should be a result of `org-memento--collect-groups-1' call."
                               (org-duration-to-minutes duration)))))
           specs))
 
-;;;;; Yield rules
-
-(defclass org-memento-policy-yield-rule (org-memento-policy-rule)
-  ((backtrack-event-count :initarg :backtrack-event-count
-                          :initform nil)
-   (backtrack-maximum-days :initarg :backtrack-maximum-days
-                           :initform nil)
-   (generator :initarg :generator :type function)))
-
-(cl-defun org-memento-policy-make-yields (context &key backtrack generator)
-  (list (make-instance 'org-memento-policy-yield-rule
-                       :context context
-                       :backtrack-event-count (plist-get backtrack :events)
-                       :backtrack-maximum-days (plist-get backtrack :days)
-                       :generator generator)))
-
 ;;;; Miscellaneous utilities
 
 (defun org-memento-policy-parse-duration (x)
@@ -343,6 +332,10 @@ DATA should be a result of `org-memento--collect-groups-1' call."
         (+ (* 60 (string-to-number (match-string 1 x)))
            (string-to-number (match-string 2 x)))
       (error "Invalid format %s" x))))
+
+(defun org-memento-policy--compare-span-types (a b)
+  (< (cl-position a org-memento-policy-span-types)
+     (cl-position b org-memento-policy-span-types)))
 
 ;;;; Major mode for editing the policy file
 

@@ -67,6 +67,10 @@
   "File that keeps the journal."
   :type 'file)
 
+(defcustom org-memento-todo-keyword-for-success "DONE"
+  "Org todo keyword that indicates a successful performance."
+  :type 'string)
+
 (defcustom org-memento-idle-time 30
   "Duration in minutes until idle tasks are performed.
 
@@ -252,6 +256,8 @@ Note that all property names should be upper-cased."
 
 (defvar org-memento-group-cache nil)
 
+(defvar org-memento-weekly-group-sums nil)
+
 ;;;; Substs and small utility functions
 
 (defsubst org-memento--current-time ()
@@ -422,7 +428,9 @@ Return a copy of the list."
 
 ;;;;; org-memento-order
 
-(cl-defstruct org-memento-order group title sample-marker duration)
+(cl-defstruct org-memento-order
+  group title sample-marker duration
+  no-earlier-than no-later-than)
 
 ;;;; Macros
 
@@ -670,7 +678,7 @@ should not be run inside the journal file."
   (when org-memento-current-block
     (run-hooks 'org-memento-block-before-exit-hook)
     (org-memento-with-current-block
-      (org-todo 'done)
+      (org-todo org-memento-todo-keyword-for-success)
       (org-memento--save-buffer))
     (setq org-memento-current-block nil)
     (org-memento--cancel-block-timer)
@@ -992,8 +1000,11 @@ The function returns non-nil if the check-in is done."
     (org-end-of-meta-data t)
     (when (looking-at org-ts-regexp)
       (beginning-of-line 2))
-    ;; Cache groups from the past activities.
-    (org-memento--cache-groups)
+    ;; Save the position in case the cache functions move the point.
+    (save-excursion
+      ;; Cache information on the past activities.
+      (org-memento--cache-groups)
+      (org-memento--update-weekly-group-sums))
     (save-excursion
       (run-hooks 'org-memento-checkin-hook))
     (org-memento-status)
@@ -1196,7 +1207,10 @@ The point must be at the heading."
                                             select-existing-heading)
   (declare (indent 1))
   (let* ((date (or date (org-memento--today-string (decode-time (org-memento--current-time)))))
-         (prompt (or prompt "Title: "))
+         (prompt (or prompt
+                     (if default
+                         (format "Title [\"%s\"]: " default)
+                       "Title: ")))
          existing-titles
          input)
     (org-memento-maybe-with-date-entry date
@@ -1221,7 +1235,19 @@ The point must be at the heading."
             (setq prompt (format "Title (\"%s\" is a duplicate): " input))
           (throw 'input input))))))
 
+(defun org-memento-select-slot (prompt slots)
+  (let* ((alist (mapcar (lambda (slot)
+                          (cons (org-memento--format-army-time-range
+                                 (car slot) (cadr slot))
+                                slot))
+                        slots))
+         (input (completing-read prompt (mapcar #'car alist)
+                                 nil t)))
+    (cdr (assoc input alist))))
+
 (cl-defun org-memento-read-group (&optional prompt &key title)
+  (unless org-memento-group-cache
+    (org-memento--cache-groups))
   (let ((cache (make-hash-table :test #'equal :size 100))
         (prompt (or prompt
                     (format "Select a group for \"%s\" (or empty to nil): "
@@ -1240,7 +1266,9 @@ The point must be at the heading."
                (cons 'metadata
                      (list (cons 'category 'org-memento-group)
                            (cons 'group-function #'group)))
-             (complete-with-action action candidates string pred))))
+             (complete-with-action action candidates string pred)))
+         (context-group-path (context)
+           (slot-value context 'group-path)))
       (progn
         (dolist (group (map-keys org-memento-group-cache))
           (unless (org-memento-policy-group-archived-p group)
@@ -1250,8 +1278,7 @@ The point must be at the heading."
         (when (and (bound-and-true-p org-memento-policy-data)
                    (taxy-p org-memento-policy-data))
           (dolist (group-path (cl-remove-duplicates
-                               (mapcar (lambda (context)
-                                         (oref context group-path))
+                               (mapcar #'context-group-path
                                        (org-memento-policy-contexts))
                                :test #'equal))
             (let ((title (org-memento--format-group group-path)))
@@ -1332,6 +1359,8 @@ The point must be at the heading."
 (cl-defun org-memento-read-future-event (start &optional end-bound
                                                &key (reschedule t))
   (org-memento--status)
+  (unless org-memento-group-cache
+    (org-memento--cache-groups))
   (let* ((now (float-time (org-memento--current-time)))
          (cache (make-hash-table :test #'equal :size 100))
          (duration-limit (when end-bound
@@ -1542,7 +1571,23 @@ The point must be at the heading."
         (push string strings)))
     (nreverse strings)))
 
+(defun org-memento--format-group-last-node (group-path)
+  (let ((i (1- (length group-path))))
+    (when-let (fn (plist-get (nth i org-memento-group-taxonomy) :format))
+      (nth i group-path))))
+
 ;;;; Retrieving timing information
+
+(defun org-memento--empty-slots (taxy)
+  (let ((now (float-time (org-memento--current-time)))
+        result)
+    (dolist (date-taxy (taxy-taxys taxy))
+      (when (> (cadr (taxy-name date-taxy)) now)
+        (dolist (block-taxy (taxy-taxys date-taxy))
+          (when (and (not (taxy-taxys block-taxy))
+                     (> (cadr (taxy-name block-taxy)) now))
+            (push (taxy-name block-taxy) result)))))
+    result))
 
 (defun org-memento--idle-hours ()
   "Return idle hours on today."
@@ -1810,7 +1855,7 @@ marker to the time stamp, and the margin in seconds."
 ;;;; Collect data for analytic purposes
 
 ;;;###autoload
-(defun org-memento-activity-taxy (start-day end-day)
+(cl-defun org-memento-activity-taxy (start-day end-day &key groups)
   (require 'taxy)
   (cl-labels
       ((date-string-to-time (string)
@@ -2018,7 +2063,8 @@ marker to the time stamp, and the margin in seconds."
         (make-taxy
          :name (list start-time end-time)
          :taxys (thread-last
-                  (org-memento--block-activities start-day end-day)
+                  (org-memento--block-activities start-day end-day
+                                                 :annotate-groups groups)
                   (fill-voids (float-time start-time) (float-time end-time) #'car #'make-gap-date)
                   (mapcar #'make-date-taxy)))
         (taxy-emptied)
@@ -2129,7 +2175,8 @@ denoting the type of the activity. ARGS is an optional list."
     (nreverse result)))
 
 (cl-defun org-memento--block-activities (start-date-string &optional end-date-string
-                                                           &key annotate-groups)
+                                                           &key annotate-groups
+                                                           annotate-todo)
   (cl-flet*
       ((parse-date (string)
          (encode-time (org-memento--set-time-of-day
@@ -2269,17 +2316,27 @@ denoting the type of the activity. ARGS is an optional list."
                                                     (parse-idle-children include-future)))
                              (pcase (parse-entry include-future nil annotate-groups)
                                (`(,start ,end . ,rest)
-                                (push (append (list start
-                                                    end
-                                                    heading
-                                                    hd-marker
-                                                    (if is-block
-                                                        'block
-                                                      'away))
-                                              (when (and is-block annotate-groups)
-                                                (list :group
-                                                      (org-memento--get-group (car rest)))))
-                                      blocks)))))
+                                (let* ((record (list start
+                                                     end
+                                                     heading
+                                                     hd-marker
+                                                     (if is-block
+                                                         'block
+                                                       'away)))
+                                       (element (caar rest)))
+                                  (when is-block
+                                    (nconc record
+                                           (when-let (keyword (and annotate-todo
+                                                                   (org-element-property
+                                                                    :todo-keyword
+                                                                    element)))
+                                             `(:todo-keyword ,keyword))
+                                           (when annotate-groups
+                                             `(:group
+                                               ,(save-excursion
+                                                  (goto-char hd-marker)
+                                                  (org-memento--get-group element))))))
+                                  (push record blocks))))))
                          (end-of-line 1))
                        (push (cons day blocks) dates))))))))
           dates)))))
@@ -2289,17 +2346,19 @@ denoting the type of the activity. ARGS is an optional list."
 (defun org-memento--cache-groups ()
   (let* ((alist1 (org-memento-map-past-blocks-1
                   (lambda (date)
-                    (let ((props (thread-last
-                                   (cl-remove-if (lambda (key)
-                                                   (member key org-memento-unique-properties))
-                                                 (org-entry-properties nil 'standard)
-                                                 :key #'car)
-                                   (seq-sort-by #'car #'string<)))
-                          (tags (org-get-tags)))
-                      (when (or props tags)
-                        (list (cons props tags)
-                              date
-                              (point-marker)))))))
+                    (when (equal (org-get-todo-state)
+                                 org-memento-todo-keyword-for-success)
+                      (let ((props (thread-last
+                                     (cl-remove-if (lambda (key)
+                                                     (member key org-memento-unique-properties))
+                                                   (org-entry-properties nil 'standard)
+                                                   :key #'car)
+                                     (seq-sort-by #'car #'string<)))
+                            (tags (org-get-tags)))
+                        (when (or props tags)
+                          (list (cons props tags)
+                                date
+                                (point-marker))))))))
          (alist2 (cl-remove-duplicates alist1
                                        :key #'car
                                        :test #'equal)))
@@ -2335,7 +2394,91 @@ denoting the type of the activity. ARGS is an optional list."
         (push (funcall (plist-get plist :read) element) result)))
     (nreverse result)))
 
+(defun org-memento--merge-group-sums-1 (lists)
+  (thread-last
+    (seq-group-by #'car (apply #'append lists))
+    (mapcar (pcase-lambda (`(,group . ,groups-and-sums))
+              (cons group
+                    (cl-reduce #'+ (mapcar #'cdr
+                                           groups-and-sums)
+                               :initial-value 0))))))
+
+(defun org-memento--update-weekly-group-sums ()
+  "Update the value of `org-memento-weekly-group-sums'.
+
+This is useful for `org-memento-timeline'."
+  (pcase-exhaustive (org-memento-week-date-range 0)
+    (`(,start-date ,end-date)
+     (let ((decoded-time (decode-time (org-memento--current-time))))
+       (setq org-memento-weekly-group-sums
+             (unless (equal start-date (org-memento--today-string decoded-time))
+               (org-memento-group-sums
+                (org-memento-activity-taxy
+                 start-date (format-time-string
+                             "%F"
+                             (thread-first
+                               decoded-time
+                               (org-memento--start-of-day)
+                               (decoded-time-add (make-decoded-time :day -1))
+                               (encode-time)))
+                 :groups t))))))))
+
+(defun org-memento-group-sums (taxy)
+  "Return the sums of time spent on blocks.
+
+TAXY must be a result of `org-memento-activity-taxy' with :blocks
+argument set to non-nil."
+  (let ((now (float-time (org-memento--current-time))))
+    (thread-last
+      (org-memento--map-taxy-blocks taxy
+        `(lambda (record)
+           (pcase record
+             ((and `(,start ,end ,_ ,_ block . ,plist)
+                   (guard start)
+                   (guard end)
+                   (guard (< end ,now)))
+              (when-let (group (plist-get plist :group))
+                (cons group
+                      (/ (- end start) 60)))))))
+      (seq-group-by #'car)
+      (mapcar (pcase-lambda (`(,group . ,records))
+                (cons group
+                      (cl-reduce #'+ (mapcar #'cdr records)
+                                 :initial-value 0)))))))
+
+(cl-defun org-memento--map-taxy-blocks (taxy fn)
+  "Run a function on each block record.
+
+TAXY must be a result of `org-memento-activity-taxy'."
+  (declare (indent 1))
+  (let (result)
+    (dolist (date-taxy (taxy-taxys taxy))
+      (dolist (taxy (taxy-taxys date-taxy))
+        (when-let (r (funcall fn (taxy-name taxy)))
+          (push r result))))
+    result))
+
 ;;;; Utility functions for time representations and Org timestamps
+
+(defun org-memento-week-date-range (n)
+  (let* ((today (thread-first
+                  (org-memento--current-time)
+                  (decode-time)
+                  (org-memento--start-of-day)))
+         (week-start (thread-last
+                       (make-decoded-time
+                        :day (+ (- (mod (+ 7 (- (org-day-of-week
+                                                 (decoded-time-day today)
+                                                 (decoded-time-month today)
+                                                 (decoded-time-year today))
+                                                org-agenda-start-on-weekday))
+                                        7))
+                                (* n 7)))
+                       (decoded-time-add today)))
+         (week-end (decoded-time-add
+                    week-start (make-decoded-time :day 6))))
+    (list (format-time-string "%F" (encode-time week-start))
+          (format-time-string "%F" (encode-time week-end)))))
 
 (defun org-memento--fill-decoded-time (decoded-time)
   "Fill time fields of DECODED-TIME."
@@ -2355,10 +2498,12 @@ denoting the type of the activity. ARGS is an optional list."
             (when (> (length (match-data)) 4)
               (floor (org-duration-to-minutes (match-string 2 string))))))))
 
-(defun org-memento--today-string (decoded-time)
+(defun org-memento--today-string (&optional decoded-time)
   (format-time-string "%F"
                       (encode-time
-                       (org-memento--maybe-decrement-date decoded-time))))
+                       (org-memento--maybe-decrement-date
+                        (or decoded-time
+                            (decode-time (org-memento--current-time)))))))
 
 (defun org-memento--start-of-day (decoded-time)
   "Return the start of the day given as DECODED-TIME.
@@ -2761,7 +2906,7 @@ range."
                            category))
                      ("MEMENTO_CHECKIN_TIME"
                       . ,(when started-past
-                           (format-time-string (org-time-stamp-format t t) start)))))
+                           (org-memento--format-timestamp start nil 'inactive)))))
       (when value
         (if-let (cell (assoc key properties))
             (setcdr cell value)
