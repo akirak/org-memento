@@ -2320,17 +2320,19 @@ denoting the type of the activity. ARGS is an optional list."
 (defun org-memento--cache-groups ()
   (let* ((alist1 (org-memento-map-past-blocks-1
                   (lambda (date)
-                    (let ((props (thread-last
-                                   (cl-remove-if (lambda (key)
-                                                   (member key org-memento-unique-properties))
-                                                 (org-entry-properties nil 'standard)
-                                                 :key #'car)
-                                   (seq-sort-by #'car #'string<)))
-                          (tags (org-get-tags)))
-                      (when (or props tags)
-                        (list (cons props tags)
-                              date
-                              (point-marker)))))))
+                    (when (equal (org-get-todo-state)
+                                 org-memento-todo-keyword-for-success)
+                      (let ((props (thread-last
+                                     (cl-remove-if (lambda (key)
+                                                     (member key org-memento-unique-properties))
+                                                   (org-entry-properties nil 'standard)
+                                                   :key #'car)
+                                     (seq-sort-by #'car #'string<)))
+                            (tags (org-get-tags)))
+                        (when (or props tags)
+                          (list (cons props tags)
+                                date
+                                (point-marker))))))))
          (alist2 (cl-remove-duplicates alist1
                                        :key #'car
                                        :test #'equal)))
