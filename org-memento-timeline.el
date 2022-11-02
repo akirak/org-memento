@@ -94,6 +94,9 @@ timeline as an argument."
 
 (defvar org-memento-timeline-refresh-timer nil)
 
+(defvar org-memento-timeline-slots nil
+  "Empty time slots in the current span.")
+
 ;;;; Macros
 
 (defmacro org-memento-timeline-with-overlay (props &rest progn)
@@ -652,8 +655,8 @@ If ARG is non-nil, create an away event."
                                 `((week . ,(org-memento--merge-group-sums-1
                                             (list sums-for-span
                                                   org-memento-weekly-group-sums)))))))
-         (yields (seq-filter #'org-memento-yield-instance-p rules))
-         (slots (org-memento--empty-slots taxy)))
+         (yields (seq-filter #'org-memento-yield-instance-p rules)))
+    (setq org-memento-timeline-slots (org-memento--empty-slots taxy))
     (cl-labels
         ((budget-span (rule)
            (oref rule span))
@@ -701,7 +704,7 @@ If ARG is non-nil, create an away event."
                    (dolist (task (car (org-memento-yield-some
                                        yield-rule
                                        (org-memento-yield--activities-1 yield-rule taxy))))
-                     (magit-insert-section (task-and-slots (cons task slots))
+                     (magit-insert-section (task-and-slots task)
                        (magit-insert-heading
                          (make-string 6 ?\s)
                          "+ "
@@ -765,13 +768,12 @@ If ARG is non-nil, create an away event."
   (if-let* ((section (magit-current-section))
             (value (oref section value))
             (type (oref section type)))
-      (pcase-exhaustive value
-        ((and `(,task . ,slots)
-              (guard (eq type 'task-and-slots))
-              (guard (org-memento-order-p task)))
+      (cl-etypecase value
+        (org-memento-order
          (pcase-let*
-             ((title (org-memento-read-title nil :default (org-memento-order-title task)))
-              (duration (org-memento-order-duration task))
+             ((slots org-memento-timeline-slots)
+              (title (org-memento-read-title nil :default (org-memento-order-title value)))
+              (duration (org-memento-order-duration value))
               (slot (when slots
                       (org-memento-select-slot (format "Choose a slot for \"%s\": "
                                                        title)
@@ -797,8 +799,8 @@ If ARG is non-nil, create an away event."
                                              (+ start (* 60 duration))))
                                   :interactive t
                                   :group (org-memento--default-group
-                                          (org-memento-order-group task))
-                                  :copy-from (org-memento-order-sample-marker task)))))
+                                          (org-memento-order-group value))
+                                  :copy-from (org-memento-order-sample-marker value)))))
     (user-error "No value")))
 
 (defun org-memento-timeline-planning-sections (taxy)
