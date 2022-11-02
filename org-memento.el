@@ -539,7 +539,8 @@ The function takes two arguments: the date string and an
        (while (re-search-forward regexp nil t)
          (let ((bound (save-excursion
                         (org-end-of-subtree))))
-           (while (re-search-forward org-complex-heading-regexp bound t)
+           (while (and (< (point) bound)
+                       (re-search-forward org-complex-heading-regexp bound t))
              (beginning-of-line)
              (push (save-excursion (funcall fn)) result)
              (org-end-of-subtree))
@@ -1190,7 +1191,8 @@ The point must be at the heading."
     (org-memento-maybe-with-date-entry date
       (let ((bound (save-excursion
                      (org-end-of-subtree))))
-        (while (re-search-forward org-complex-heading-regexp bound t)
+        (while (and (< (point) bound)
+                    (re-search-forward org-complex-heading-regexp bound t))
           (when (= 2 (length (match-string 1)))
             (push (match-string-no-properties 4)
                   existing-titles)))))
@@ -1589,7 +1591,8 @@ The point must be at the heading."
   "Return a list of pairs of decoded times of clocked entries."
   (let ((bound (org-entry-end-position))
         result)
-    (while (re-search-forward org-clock-line-re bound t)
+    (while (and (< (point) bound)
+                (re-search-forward org-clock-line-re bound t))
       (let ((start (when (re-search-forward org-ts-regexp-inactive (pos-eol) t)
                      (parse-time-string (match-string 1))))
             (end (when (and (looking-at "--")
@@ -1721,7 +1724,8 @@ marker to the time stamp, and the margin in seconds."
                           block-or-marker))
       (let ((bound (org-entry-end-position)))
         (catch 'planning
-          (while (re-search-forward org-drawer-regexp bound t)
+          (while (and (< (point) bound)
+                      (re-search-forward org-drawer-regexp bound t))
             (when (string-equal-ignore-case (match-string 1)
                                             org-memento-planning-drawer)
               (let ((end (save-excursion
@@ -1741,7 +1745,8 @@ marker to the time stamp, and the margin in seconds."
     (org-with-point-at (org-memento-block-hd-marker block)
       (let ((bound (org-entry-end-position)))
         (catch 'planning
-          (while (re-search-forward org-drawer-regexp bound t)
+          (while (and (< (point) bound)
+                      (re-search-forward org-drawer-regexp bound t))
             (when (string-equal-ignore-case (match-string 1)
                                             org-memento-planning-drawer)
               (insert "\n")
@@ -2108,7 +2113,8 @@ denoting the type of the activity. ARGS is an optional list."
                  (heading (when (looking-at org-complex-heading-regexp)
                             (match-string-no-properties 4)))
                  (bound (org-entry-end-position)))
-             (when (re-search-forward org-logbook-drawer-re bound t)
+             (when (and (< (point) bound)
+                        (re-search-forward org-logbook-drawer-re bound t))
                (goto-char (match-beginning 0))
                (let ((drawer-end (match-end 0)))
                  (while (re-search-forward (rx bol (* space) "CLOCK:" (* blank))
@@ -2134,7 +2140,8 @@ denoting the type of the activity. ARGS is an optional list."
                         (not (org-entry-is-done-p)))
                (catch 'active-ts
                  (goto-char hd-marker)
-                 (while (re-search-forward org-ts-regexp bound t)
+                 (while (and (< (point) bound)
+                             (re-search-forward org-ts-regexp bound t))
                    ;; Skip SCHEDULED or DEADLINE line
                    (unless (save-match-data
                              (save-excursion
@@ -2246,7 +2253,8 @@ denoting the type of the activity. ARGS is an optional list."
                               hd-marker
                               'away)
                         blocks)))
-               (when (re-search-forward org-logbook-drawer-re bound t)
+               (when (and (< (point) bound)
+                          (re-search-forward org-logbook-drawer-re bound t))
                  (let ((drawer-end (match-end 0)))
                    (goto-char (match-beginning 0))
                    (while (re-search-forward (rx bol (* space) "CLOCK:" (* blank))
