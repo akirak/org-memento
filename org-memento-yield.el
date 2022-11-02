@@ -1,6 +1,11 @@
 ;;; org-memento-yield.el --- Task generators -*- lexical-binding: t -*-
 
 (require 'eieio)
+(require 'org-memento)
+(require 'org-memento-policy)
+
+(defvar org-memento-group-cache)
+(defvar org-memento-todo-keyword-for-success)
 
 ;;;; Classes and generics
 
