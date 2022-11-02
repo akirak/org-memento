@@ -64,12 +64,14 @@ DATA should be a result of `org-memento--collect-groups-1' call."
 ;;;; Classes
 
 (defconst org-memento-policy-context-props
-  '(:archived))
+  '(:archived
+    :link))
 
 (defclass org-memento-policy-context ()
   ((label :initarg :label)
    (group-path :initarg :group-path)
    (period :initarg :period :initform nil)
+   (link :initarg :link :initform nil :type (or string null))
    (archived :initarg :archived :initform nil)))
 
 (cl-defmethod org-memento-group-path ((x org-memento-policy-context))
