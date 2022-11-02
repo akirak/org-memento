@@ -680,7 +680,7 @@ If ARG is non-nil, create an away event."
                  (main-budget (or (seq-find (-partial #'budget-type-is 'goal) group-budgets)
                                   (seq-find (-partial #'budget-type-is 'minimum) group-budgets)
                                   (seq-find (-partial #'budget-type-is 'limit) group-budgets))))
-             (magit-insert-section (group-budgets (list span group-path) nil)
+             (magit-insert-section (group-budgets (list span group-path) t)
                (magit-insert-heading
                  (make-string 4 ?\s)
                  (format "| %-12s | %5s%1s%5s %-6s |"
