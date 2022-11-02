@@ -146,6 +146,15 @@ another type.")
                    (org-memento-title block)
                    nil
                    nil)))
+         (convert-car-time (record)
+           (cons (cl-etypecase (car record)
+                   (string (thread-first
+                             (parse-time-string (car record))
+                             (org-memento--start-of-day)
+                             (encode-time)
+                             (float-time)))
+                   (number (car record)))
+                 (cdr record)))
          (generate-tasks (yield-rule)
            (let ((group-path (thread-first
                                (slot-value yield-rule 'context)
@@ -159,6 +168,7 @@ another type.")
                                             planned :key #'car)
                           (mapcar #'cdr)
                           (mapcar #'block-to-record)))
+                (mapcar #'convert-car-time)
                 (seq-sort-by #'car #'>))
               :end scope-end))))
       (thread-last
