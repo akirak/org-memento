@@ -56,6 +56,7 @@ timeline as an argument."
 
 (defcustom org-memento-timeline-planning-hook
   '(org-memento-timeline-progress-section
+    org-memento-timeline-suggestions-section
     org-memento-timeline-agenda-section
     org-memento-timeline-late-blocks-section
     org-memento-timeline-next-event-section
@@ -871,6 +872,39 @@ If ARG is non-nil, create an away event."
                                           (org-memento-order-group value))
                                   :copy-from (org-memento-order-sample-marker value)))))
     (user-error "No value")))
+
+(defun org-memento-timeline-suggestions-section (taxy)
+  (cl-labels
+      ((rule-group-path (rule)
+         (thread-first
+           (slot-value rule 'context)
+           (slot-value 'group-path))))
+    (magit-insert-section (magit-section)
+      (magit-insert-heading "Suggestions")
+      (pcase-dolist
+          (`(,rule . ,plans)
+           (thread-last
+             (org-memento-yield-for-span taxy org-memento-timeline-span
+               :start-date (car org-memento-timeline-date-range)
+               :end-date (cadr org-memento-timeline-date-range))
+             (seq-sort-by (-compose #'org-memento--format-group #'rule-group-path #'car)
+                          #'string<)))
+        (when plans
+          (let ((group-path (rule-group-path rule)))
+            (magit-insert-section (group group-path)
+              (magit-insert-section (yield-rule rule)
+                (let ((tasks (car plans)))
+                  (magit-insert-section (yield-plan)
+                    (dolist (task tasks)
+                      (magit-insert-section (generated-task task)
+                        (magit-insert-heading
+                          (make-string 2 ?\s)
+                          (propertize (org-memento-order-title task)
+                                      'face 'magit-section-heading)
+                          (when-let (duration (org-memento-order-duration task))
+                            (concat " " (org-memento--format-duration duration)))
+                          (format " (%s)" (org-memento--format-group group-path)))))))))))))
+    (insert ?\n)))
 
 (defun org-memento-timeline-planning-sections (taxy)
   (unless (and org-memento-timeline-hide-planning
