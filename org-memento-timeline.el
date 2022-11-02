@@ -668,19 +668,25 @@ If ARG is non-nil, create an away event."
                                 (org-with-point-at (org-memento-block-hd-marker block)
                                   (cons (org-memento--get-group
                                          (org-memento-block-headline block))
-                                        (or (org-memento-duration block)
-                                            (and (org-memento-starting-time block)
-                                                 (org-memento-ending-time block)
-                                                 (/ (- (org-memento-ending-time block)
-                                                       (org-memento-starting-time block))
-                                                    60)))))))
-                      (cl-remove-if-not #'cdr)
-                      (seq-group-by #'car)
-                      (mapcar (lambda (group-and-entries)
-                                (cons (car group-and-entries)
-                                      (cl-reduce #'+
-                                                 (mapcar #'cdr (cdr group-and-entries))
-                                                 :initial-value 0))))))))
+                                        block)))))))
+         (planned-sums (thread-last
+                         planned
+                         (mapcar (pcase-lambda (`(,group . ,block))
+                                   (org-with-point-at (org-memento-block-hd-marker block)
+                                     (cons group
+                                           (or (org-memento-duration block)
+                                               (and (org-memento-starting-time block)
+                                                    (org-memento-ending-time block)
+                                                    (/ (- (org-memento-ending-time block)
+                                                          (org-memento-starting-time block))
+                                                       60)))))))
+                         (cl-remove-if-not #'cdr)
+                         (seq-group-by #'car)
+                         (mapcar (lambda (group-and-entries)
+                                   (cons (car group-and-entries)
+                                         (cl-reduce #'+
+                                                    (mapcar #'cdr (cdr group-and-entries))
+                                                    :initial-value 0)))))))
     (setq org-memento-timeline-slots (org-memento--empty-slots taxy))
     (cl-labels
         ((budget-span (rule)
@@ -698,7 +704,7 @@ If ARG is non-nil, create an away event."
                                 #'+
                                 (mapcar #'cdr (cl-remove-if-not
                                                (apply-partially #'match-group group-path)
-                                               planned
+                                               planned-sums
                                                :key #'car))
                                 :initial-value 0))
                   (sum (+ (or sum
