@@ -797,6 +797,7 @@ If ARG is non-nil, create an away event."
                                   :end (or end
                                            (when (and start duration)
                                              (+ start (* 60 duration))))
+                                  :duration duration
                                   :interactive t
                                   :group (org-memento--default-group
                                           (org-memento-order-group value))

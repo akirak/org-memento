@@ -2725,8 +2725,8 @@ range."
 ;;;; Capture
 
 ;;;###autoload
-(cl-defun org-memento-add-event (&key title category group start end copy-from
-                                      interactive away)
+(cl-defun org-memento-add-event (&key title category group start end duration
+                                      copy-from interactive away)
   "Insert an block/event entry into the journal"
   (interactive (let* ((span (org-memento--read-time-span))
                       (title (org-memento-read-title))
@@ -2779,6 +2779,7 @@ range."
                         :interactive interactive)
                      (apply #'org-memento--event-template
                             :start start :end end :title title :category category
+                            :duration duration
                             :interactive interactive
                             arguments)))
          (plist (unless interactive
@@ -2867,8 +2868,8 @@ range."
                                         (org-memento-order-group event))
                                 :copy-from (org-memento-order-sample-marker event)))))))
 
-(cl-defun org-memento--event-template (&key title category start end interactive
-                                            tags properties)
+(cl-defun org-memento--event-template (&key title category start end duration
+                                            interactive tags properties)
   (let ((started-past (time-less-p start (org-memento--current-time)))
         (ended-past (and end (time-less-p end (org-memento--current-time)))))
     (pcase-dolist (`(,key . ,value)
@@ -2877,7 +2878,10 @@ range."
                            category))
                      ("MEMENTO_CHECKIN_TIME"
                       . ,(when started-past
-                           (org-memento--format-timestamp start nil 'inactive)))))
+                           (org-memento--format-timestamp start nil 'inactive)))
+                     ("Effort"
+                      . ,(when duration
+                           (org-duration-from-minutes duration)))))
       (when value
         (if-let (cell (assoc key properties))
             (setcdr cell value)
