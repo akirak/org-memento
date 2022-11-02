@@ -87,15 +87,18 @@ another type.")
         (error "More than 1 of :max-count value is not implemented")))))
 
 (defun org-memento-yield--add-days (time-or-string n)
-  (thread-first
-    (cl-etypecase time-or-string
-      (string
-       (parse-time-string time-or-string))
-      (number
-       (org-memento--maybe-decrement-date
-        (decode-time time-or-string))))
-    (decoded-time-add (make-decoded-time :day n))
-    (org-memento--start-of-day)))
+  (let ((decoded-time (cl-etypecase time-or-string
+                        (string
+                         (parse-time-string time-or-string))
+                        (number
+                         (org-memento--start-of-day (decode-time time-or-string))))))
+    (unless (decoded-time-hour decoded-time)
+      (setf (decoded-time-hour decoded-time) (or org-extend-today-until 0)))
+    (unless (decoded-time-minute decoded-time)
+      (setf (decoded-time-minute decoded-time) 0))
+    (unless (decoded-time-second decoded-time)
+      (setf (decoded-time-second decoded-time) 0))
+    (decoded-time-add decoded-time (make-decoded-time :day n))))
 
 ;;;; Default constructor function that supports the built-in yield rules
 
@@ -125,9 +128,12 @@ another type.")
                                       &allow-other-keys)
   (let* ((activity (car activities))
          (no-earlier-than (when (and activity (oref x interval))
-                            (float-time (org-memento-yield--add-days
-                                         (car activity)
-                                         (oref x interval)))))
+                            (thread-first
+                              (org-memento-yield--add-days
+                               (car activity)
+                               (oref x interval))
+                              (encode-time)
+                              (float-time))))
          (start (or start (float-time (org-memento--current-time))))
          (plist (oref x static))
          (obj (apply #'make-org-memento-order
