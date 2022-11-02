@@ -744,8 +744,9 @@ If ARG is non-nil, create an away event."
                (magit-insert-heading
                  (make-string 4 ?\s)
                  (format "| %-12s | %5s%1s%5s %-6s |"
-                         (string-pad (org-memento--format-group-last-node group-path)
-                                     12)
+                         (truncate-string-to-width
+                          (org-memento--format-group-last-node group-path)
+                          12)
                          (propertize (org-memento--format-duration sum)
                                      'face
                                      (if (and planned-sum (> planned-sum 0))
