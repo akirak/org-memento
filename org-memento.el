@@ -1810,30 +1810,33 @@ marker to the time stamp, and the margin in seconds."
                                 (org-timestamp-from-string)
                                 (org-timestamp-to-time))))))))
       (dolist (file (org-agenda-files))
-        (with-current-buffer (or (find-buffer-visiting file)
-                                 (find-file-noselect file))
-          (org-with-wide-buffer
-           (goto-char (point-min))
-           (while (re-search-forward org-planning-line-re nil t)
-             (when (catch 'today
-                     (while (re-search-forward org-ts-regexp (pos-eol) t)
-                       (when (time-less-p (org-timestamp-to-time
-                                           (org-timestamp-from-string (match-string 0)))
-                                          (current-time))
-                         (throw 'today t))))
-               (save-excursion
-                 (org-back-to-heading)
-                 (looking-at org-complex-heading-regexp)
-                 (unless (or (member (match-string 2) org-done-keywords)
-                             (archivedp)
-                             (has-future-time))
-                   (push (make-org-memento-planning-item
-                          :hd-marker (point-marker)
-                          :heading (match-string-no-properties 4)
-                          :effort (org-entry-get nil "Effort")
-                          :id (org-id-get-create))
-                         result)))
-               (re-search-forward org-heading-regexp nil t)))))))
+        ;; This function is currently used exclusively from org-memento-timeline.el,
+        ;;and `org-memento-file' should be excluded in that case.
+        (unless (file-equal-p file org-memento-file)
+          (with-current-buffer (or (find-buffer-visiting file)
+                                   (find-file-noselect file))
+            (org-with-wide-buffer
+             (goto-char (point-min))
+             (while (re-search-forward org-planning-line-re nil t)
+               (when (catch 'today
+                       (while (re-search-forward org-ts-regexp (pos-eol) t)
+                         (when (time-less-p (org-timestamp-to-time
+                                             (org-timestamp-from-string (match-string 0)))
+                                            (current-time))
+                           (throw 'today t))))
+                 (save-excursion
+                   (org-back-to-heading)
+                   (looking-at org-complex-heading-regexp)
+                   (unless (or (member (match-string 2) org-done-keywords)
+                               (archivedp)
+                               (has-future-time))
+                     (push (make-org-memento-planning-item
+                            :hd-marker (point-marker)
+                            :heading (match-string-no-properties 4)
+                            :effort (org-entry-get nil "Effort")
+                            :id (org-id-get-create))
+                           result)))
+                 (re-search-forward org-heading-regexp nil t))))))))
     result))
 
 ;;;; Collect data for analytic purposes
