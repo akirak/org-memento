@@ -501,7 +501,8 @@ Return a copy of the list."
                (when (and start-date-string
                           (string-lessp date start-date-string))
                  (throw 'finish-scan t))
-               (while (re-search-forward org-complex-heading-regexp bound t)
+               (while (and (< (point) bound)
+                           (re-search-forward org-complex-heading-regexp bound t))
                  (when (and (equal (match-string 1) "**")
                             (not (or (equal (match-string 4) org-memento-idle-heading)
                                      (string-prefix-p org-comment-string (match-string 4))))
