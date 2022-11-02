@@ -779,9 +779,9 @@ If ARG is non-nil, create an away event."
                                                        title)
                                                (if duration
                                                    (seq-filter `(lambda (slot)
-                                                                  (<= (- (cadr slot)
+                                                                  (>= (- (cadr slot)
                                                                          (car slot))
-                                                                      (* ,duration)))
+                                                                      ,(* 60 duration)))
                                                                slots)
                                                  slots))))
               (`(,start ,end) (org-memento--read-time-span
