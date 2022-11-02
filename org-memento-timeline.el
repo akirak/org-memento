@@ -169,7 +169,8 @@ timeline as an argument."
                      (append org-memento-timeline-date-range
                              (list :groups t)))))
     (when (org-memento-timeline--within-range-p taxy)
-      (org-memento--status))
+      (org-memento--status)
+      (setq org-memento-timeline-slots (org-memento--empty-slots taxy)))
     (let ((inhibit-read-only t))
       (delete-all-overlays)
       (erase-buffer)
@@ -688,7 +689,6 @@ If ARG is non-nil, create an away event."
                                          (cl-reduce #'+
                                                     (mapcar #'cdr (cdr group-and-entries))
                                                     :initial-value 0)))))))
-    (setq org-memento-timeline-slots (org-memento--empty-slots taxy))
     (cl-labels
         ((budget-span (rule)
            (oref rule span))
