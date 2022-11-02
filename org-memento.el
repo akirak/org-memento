@@ -1238,6 +1238,13 @@ The point must be at the heading."
             (float-time)
             (list))))))
 
+(defun org-memento-select-order (prompt orders)
+  (let* ((alist (mapcar (lambda (x)
+                          (cons (org-memento-order-title x) x))
+                        orders))
+         (input (completing-read prompt alist nil t)))
+    (cdr (assoc input alist))))
+
 (cl-defun org-memento-read-group (&optional prompt &key title)
   (unless org-memento-group-cache
     (org-memento--cache-groups))

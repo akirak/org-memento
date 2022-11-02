@@ -398,6 +398,7 @@ timeline as an argument."
 
 (defvar org-memento-timeline-mode-map
   (let ((map (make-sparse-keymap)))
+    (define-key map "a" #'org-memento-timeline-add-from-suggestion)
     (define-key map "e" #'org-memento-timeline-edit-dwim)
     (define-key map "o" #'org-memento-timeline-open-entry)
     (define-key map "D" #'org-memento-timeline-delete-entry)
@@ -652,11 +653,6 @@ If ARG is non-nil, create an away event."
 
 ;;;; Extra hooks
 
-(defvar org-memento-timeline-progress-map
-  (let ((map (make-sparse-keymap)))
-    (define-key map (kbd "RET") #'org-memento-timeline-progress-return)
-    map))
-
 (defun org-memento-timeline-progress-section (taxy)
   (let* ((scope-end (float-time (cadr (taxy-name taxy))))
          (rules (org-memento-policy-rules
@@ -770,91 +766,48 @@ If ARG is non-nil, create an away event."
       (magit-insert-section (magit-section)
         (magit-insert-heading
           "Progress")
-        (org-memento-timeline-with-overlay
-         ((keymap . org-memento-timeline-progress-map))
-         (pcase-dolist (`(,span . ,budget-rules-for-span)
-                        (thread-last
-                          budgets
-                          (seq-group-by #'budget-span)
-                          (seq-sort-by #'car #'org-memento-policy--compare-span-types)))
-           (when (<= (cl-position org-memento-timeline-span
-                                  org-memento-policy-span-types)
-                     (cl-position span
-                                  org-memento-policy-span-types))
-             (magit-insert-section (span span)
-               (magit-insert-heading
-                 (make-string 2 ?\s)
-                 (cl-ecase span
-                   (day "Daily")
-                   (week "Weekly")
-                   (month "Monthly"))
-                 "\n"
-                 (make-string 4 ?\s)
-                 (format "| %-12s | %11s %-6s |\n"
-                         "Group" "" ""))
-               (let ((groups-with-budgets
-                      (thread-last
-                        budget-rules-for-span
-                        (seq-group-by #'rule-group-path))))
-                 (pcase-dolist (`(,group-path . ,group-budget-rules)
-                                groups-with-budgets)
-                   (insert-group-status span group-path group-budget-rules))
-                 (pcase-dolist (`(,group . ,sum)
-                                (thread-last
-                                  (cl-remove-if (apply-partially
-                                                 #'in-some-group
-                                                 (mapcar #'car groups-with-budgets))
-                                                (alist-get span sums-by-spans)
-                                                :key #'car)
-                                  (seq-group-by #'caar)
-                                  (mapcar (pcase-lambda (`(,node . ,groups-and-sums))
-                                            (cons (list node)
-                                                  (cl-reduce #'+
-                                                             (mapcar #'cdr groups-and-sums)
-                                                             :initial-value 0))))))
-                   (insert-group-status span group nil sum))))))))
+        (pcase-dolist (`(,span . ,budget-rules-for-span)
+                       (thread-last
+                         budgets
+                         (seq-group-by #'budget-span)
+                         (seq-sort-by #'car #'org-memento-policy--compare-span-types)))
+          (when (<= (cl-position org-memento-timeline-span
+                                 org-memento-policy-span-types)
+                    (cl-position span
+                                 org-memento-policy-span-types))
+            (magit-insert-section (span span)
+              (magit-insert-heading
+                (make-string 2 ?\s)
+                (cl-ecase span
+                  (day "Daily")
+                  (week "Weekly")
+                  (month "Monthly"))
+                "\n"
+                (make-string 4 ?\s)
+                (format "| %-12s | %11s %-6s |\n"
+                        "Group" "" ""))
+              (let ((groups-with-budgets
+                     (thread-last
+                       budget-rules-for-span
+                       (seq-group-by #'rule-group-path))))
+                (pcase-dolist (`(,group-path . ,group-budget-rules)
+                               groups-with-budgets)
+                  (insert-group-status span group-path group-budget-rules))
+                (pcase-dolist (`(,group . ,sum)
+                               (thread-last
+                                 (cl-remove-if (apply-partially
+                                                #'in-some-group
+                                                (mapcar #'car groups-with-budgets))
+                                               (alist-get span sums-by-spans)
+                                               :key #'car)
+                                 (seq-group-by #'caar)
+                                 (mapcar (pcase-lambda (`(,node . ,groups-and-sums))
+                                           (cons (list node)
+                                                 (cl-reduce #'+
+                                                            (mapcar #'cdr groups-and-sums)
+                                                            :initial-value 0))))))
+                  (insert-group-status span group nil sum)))))))
       (insert ?\n))))
-
-(defun org-memento-timeline-progress-return ()
-  (interactive)
-  (if-let* ((section (magit-current-section))
-            (value (oref section value))
-            (type (oref section type)))
-      (cl-etypecase value
-        (org-memento-order
-         (pcase-let*
-             ((slots org-memento-timeline-slots)
-              (title (org-memento-read-title nil :default (org-memento-order-title value)))
-              (duration (org-memento-order-duration value))
-              (slot (when slots
-                      (org-memento-select-slot (format "Choose a slot for \"%s\": "
-                                                       title)
-                                               (if duration
-                                                   (seq-filter `(lambda (slot)
-                                                                  (>= (- (cadr slot)
-                                                                         (car slot))
-                                                                      ,(* 60 duration)))
-                                                               slots)
-                                                 slots))))
-              (`(,start ,end) (org-memento--read-time-span
-                               (when slot
-                                 (org-memento--format-timestamp
-                                  (car slot)
-                                  (if duration
-                                      (+ (car slot) (* 60 duration))
-                                    (cadr slot))))
-                               (float-time (org-memento--current-time)))))
-           (org-memento-add-event :title title
-                                  :start start
-                                  :end (or end
-                                           (when (and start duration)
-                                             (+ start (* 60 duration))))
-                                  :duration duration
-                                  :interactive t
-                                  :group (org-memento--default-group
-                                          (org-memento-order-group value))
-                                  :copy-from (org-memento-order-sample-marker value)))))
-    (user-error "No value")))
 
 (defun org-memento-timeline-suggestions-section (taxy)
   (cl-labels
@@ -897,6 +850,78 @@ If ARG is non-nil, create an away event."
         (push (oref (magit-current-section) value)
               result))
       (nreverse result))))
+
+(defun org-memento-timeline-add-from-suggestion ()
+  (interactive)
+  (cl-flet*
+      ((add-item (value &optional interactive)
+         (cl-etypecase value
+           (org-memento-order
+            (pcase-let*
+                ((slots org-memento-timeline-slots)
+                 (title (or (org-memento-order-title value)
+                            (org-memento-read-title nil :default title)))
+                 (duration (org-memento-order-duration value))
+                 (slot (when (and interactive slots)
+                         (org-memento-select-slot
+                          (format "Choose a slot for \"%s\": "
+                                  title)
+                          (if duration
+                              (seq-filter `(lambda (slot)
+                                             (>= (- (cadr slot)
+                                                    (car slot))
+                                                 ,(* 60 duration)))
+                                          slots)
+                            slots))))
+                 (`(,start ,end) (when interactive
+                                   (org-memento--read-time-span
+                                    (when slot
+                                      (org-memento--format-timestamp
+                                       (car slot)
+                                       (if duration
+                                           (+ (car slot) (* 60 duration))
+                                         (cadr slot))))
+                                    (float-time (org-memento--current-time))))))
+              (org-memento-add-event :title title
+                                     :start start
+                                     :end (or end
+                                              (when (and start duration)
+                                                (+ start (* 60 duration))))
+                                     :duration duration
+                                     :interactive t
+                                     :group (org-memento--default-group
+                                             (org-memento-order-group value))
+                                     :copy-from (org-memento-order-sample-marker value))))))
+       (match-group (group-path x)
+         (equal group-path
+                (seq-take (org-memento-group-path x)
+                          (length group-path))))
+       (select-suggestion (&optional group-path)
+         (if-let (suggestions (if group-path
+                                  (seq-filter (apply-partially #'match-group group-path)
+                                              (org-memento-timeline-suggestions))
+                                (org-memento-timeline-suggestions)))
+             (add-item (or (org-memento-select-order "Select a task to add: "
+                                                     suggestions)
+                           (user-error "Not selected")))
+           (user-error "No suggestion")))
+       (fallback ()
+         (select-suggestion)))
+    (if-let (values (magit-region-values))
+        (dolist (value values)
+          (when (org-memento-order-p value)
+            (add-item value)))
+      (if-let (section (magit-current-section))
+          (cond
+           ((eq 'group-budgets (oref section type))
+            (select-suggestion (cdr (oref section value))))
+           ((org-memento-order-p (oref section value))
+            (add-item (oref section value) t))
+           (t
+            (if-let (group-path (ignore-errors (org-memento-group-path value)))
+                (select-suggestion group-path)
+              (fallback))))
+        (fallback)))))
 
 (defun org-memento-timeline-planning-sections (taxy)
   (unless (and org-memento-timeline-hide-planning
