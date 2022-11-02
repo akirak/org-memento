@@ -325,6 +325,9 @@ Return a copy of the list."
   (when-let (effort (org-element-property :EFFORT (org-memento-headline-element x)))
     (org-duration-to-minutes effort)))
 
+(cl-defgeneric org-memento-group-path (x)
+  "Return the group path of X.")
+
 ;;;;; org-memento-block
 
 (cl-defstruct org-memento-block
@@ -433,6 +436,9 @@ Return a copy of the list."
 (cl-defstruct org-memento-order
   group title sample-marker duration
   no-earlier-than no-later-than)
+
+(cl-defmethod org-memento-group-path ((x org-memento-order))
+  (org-memento-order-group x))
 
 ;;;; Macros
 
