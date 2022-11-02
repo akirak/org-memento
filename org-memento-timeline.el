@@ -528,7 +528,9 @@ If ARG is non-nil, create an away event."
                                         (if end
                                             (float-time end)
                                           end-bound)
-                                        :confirmed-time t))))
+                                        :confirmed-time t
+                                        :suggestions
+                                        (org-memento-timeline-suggestions)))))
        (add-event (start end &optional moderate-time away)
          (pcase-exhaustive (if moderate-time
                                (org-memento--read-time-span

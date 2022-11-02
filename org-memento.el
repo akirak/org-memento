@@ -437,6 +437,12 @@ Return a copy of the list."
   group title sample-marker duration
   no-earlier-than no-later-than)
 
+(cl-defmethod org-memento-title ((x org-memento-order))
+  (org-memento-order-title x))
+
+(cl-defmethod org-memento-duration ((x org-memento-order))
+  (org-memento-order-duration x))
+
 (cl-defmethod org-memento-group-path ((x org-memento-order))
   (org-memento-order-group x))
 
@@ -1357,7 +1363,8 @@ The point must be at the heading."
       (completing-read "Start a block: " #'completions))))
 
 (cl-defun org-memento-read-future-event (start &optional end-bound
-                                               &key (reschedule t))
+                                               &key (reschedule t)
+                                               suggestions)
   (org-memento--status)
   (unless org-memento-group-cache
     (org-memento--cache-groups))
@@ -1398,6 +1405,19 @@ The point must be at the heading."
                         (when duration
                           (propertize (concat " " (org-duration-from-minutes duration))
                                       'face 'font-lock-doc-face)))))
+             ((and (pred org-memento-order-p)
+                   order)
+              (let ((group (org-memento-group-path order))
+                    (duration (or (org-memento-duration order)
+                                  (when (and ending-time time)
+                                    (/ (- ending-time time) 60)))))
+                (concat (when group
+                          (propertize (concat " " (org-memento--format-group group))
+                                      'face 'font-lock-doc-face
+                                      ))
+                        (when duration
+                          (propertize (concat " " (org-duration-from-minutes duration))
+                                      'face 'font-lock-doc-face)))))
              (`(context . ,_)
               "")
              (`(copy-entry (,date ,_) :group ,group)
@@ -1416,6 +1436,8 @@ The point must be at the heading."
              (pcase (gethash candidate cache)
                ((pred org-memento-block-p)
                 "Blocks to (re)schedule")
+               ((pred org-memento-order-p)
+                "Suggestions from policies")
                (`(context . ,_)
                 "Group contexts defined in the policies")
                (`(copy-entry . ,_)
@@ -1435,6 +1457,10 @@ The point must be at the heading."
                  (< (/ (- ending starting) 60)
                     duration-limit)
                t)))
+         (order-within-duration-limit-p (order)
+           (if-let (duration (org-memento-duration order))
+               (<= duration duration-limit)
+             t))
          (scheduled-past-p (block)
            (and (org-memento-starting-time block)
                 (< (org-memento-starting-time block) now)))
@@ -1455,6 +1481,10 @@ The point must be at the heading."
                                    (seq-filter #'not-scheduled-p blocks)))
               (puthash (org-memento-title block) block cache)
               (push (org-memento-title block) candidates))))
+        (dolist (order (seq-filter #'order-within-duration-limit-p suggestions))
+          (let ((title (org-memento-order-title order)))
+            (puthash title order cache)
+            (push title candidates)))
         (dolist (group (map-keys org-memento-group-cache))
           (unless (org-memento-policy-group-archived-p group)
             (let* ((olp (gethash group org-memento-group-cache))
@@ -2858,9 +2888,11 @@ range."
                               :start start)))))
 
 (cl-defun org-memento-schedule-block (start end-bound
-                                            &key confirmed-time)
+                                            &key confirmed-time
+                                            suggestions)
   "Schedule a block."
-  (let ((event (org-memento-read-future-event start end-bound)))
+  (let ((event (org-memento-read-future-event start end-bound
+                                              :suggestions suggestions)))
     (cl-etypecase event
       (org-memento-block
        (save-current-buffer
