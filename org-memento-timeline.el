@@ -645,7 +645,8 @@ If ARG is non-nil, create an away event."
 
 (defun org-memento-timeline-progress-section (taxy)
   (org-memento-policy-maybe-load)
-  (let* ((rules (org-memento-policy-rules
+  (let* ((scope-end (cadr (taxy-name taxy)))
+         (rules (org-memento-policy-rules
                  :span org-memento-timeline-span
                  :start-date (car org-memento-timeline-date-range)
                  :end-date (cadr org-memento-timeline-date-range)))
@@ -746,7 +747,8 @@ If ARG is non-nil, create an away event."
                  (magit-insert-section (yield-rule yield-rule)
                    (dolist (task (car (org-memento-yield-some
                                        yield-rule
-                                       (org-memento-yield--activities-1 yield-rule taxy))))
+                                       (org-memento-yield--activities-1 yield-rule taxy)
+                                       :end scope-end)))
                      (magit-insert-section (task-and-slots task)
                        (magit-insert-heading
                          (make-string 6 ?\s)
