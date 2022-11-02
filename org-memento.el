@@ -1058,6 +1058,8 @@ The point must be at the heading."
                     ;; rerun of the status hook.
                     (throw 'cancel t))
                 (setq org-memento-current-block nil))))
+    (unless org-memento-weekly-group-sums
+      (org-memento--update-weekly-group-sums))
     (let* ((block (org-memento--current-block))
            (category (when block (org-memento-block-category block))))
       (setq org-memento-current-category category))
