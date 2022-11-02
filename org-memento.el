@@ -2496,7 +2496,9 @@ TAXY must be a result of `org-memento-activity-taxy'."
   "Return the start of the day given as DECODED-TIME.
 
 This respects `org-extend-today-until'."
-  (org-memento--set-time-of-day (org-memento--maybe-decrement-date decoded-time)
+  (org-memento--set-time-of-day (if (decoded-time-hour decoded-time)
+                                    (org-memento--maybe-decrement-date decoded-time)
+                                  decoded-time)
                                 (or org-extend-today-until 0)
                                 0
                                 0))
