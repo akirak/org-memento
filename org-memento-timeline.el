@@ -170,7 +170,8 @@ timeline as an argument."
                              (list :groups t)))))
     (when (org-memento-timeline--within-range-p taxy)
       (org-memento--status)
-      (setq org-memento-timeline-slots (org-memento--empty-slots taxy)))
+      (setq org-memento-timeline-slots (org-memento--empty-slots taxy))
+      (org-memento-policy-maybe-load))
     (let ((inhibit-read-only t))
       (delete-all-overlays)
       (erase-buffer)
@@ -645,7 +646,6 @@ If ARG is non-nil, create an away event."
     map))
 
 (defun org-memento-timeline-progress-section (taxy)
-  (org-memento-policy-maybe-load)
   (let* ((scope-end (float-time (cadr (taxy-name taxy))))
          (rules (org-memento-policy-rules
                  :span org-memento-timeline-span
