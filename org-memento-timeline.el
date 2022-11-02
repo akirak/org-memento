@@ -645,7 +645,7 @@ If ARG is non-nil, create an away event."
 
 (defun org-memento-timeline-progress-section (taxy)
   (org-memento-policy-maybe-load)
-  (let* ((scope-end (cadr (taxy-name taxy)))
+  (let* ((scope-end (float-time (cadr (taxy-name taxy))))
          (rules (org-memento-policy-rules
                  :span org-memento-timeline-span
                  :start-date (car org-memento-timeline-date-range)
@@ -700,6 +700,17 @@ If ARG is non-nil, create an away event."
            (match-group group-path (rule-group-path rule)))
          (budget-type-is (level rule)
            (eq level (slot-value rule 'level)))
+         (block-to-record (block)
+           (let ((duration (org-memento-duration block)))
+             (list (or (org-memento-starting-time block)
+                       (when duration
+                         (- scope-end (* 60 duration)))
+                       (- scope-end 60))
+                   (or (org-memento-starting-time block)
+                       (- scope-end 1))
+                   (org-memento-title block)
+                   nil
+                   nil)))
          (insert-group-status (span group-path group-budgets &optional sum)
            (let* ((planned-sum (cl-reduce
                                 #'+
@@ -744,19 +755,31 @@ If ARG is non-nil, create an away event."
                            "")))
                (dolist (yield-rule (seq-filter (apply-partially #'rule-match-group group-path)
                                                yields))
-                 (magit-insert-section (yield-rule yield-rule)
-                   (dolist (task (car (org-memento-yield-some
-                                       yield-rule
-                                       (org-memento-yield--activities-1 yield-rule taxy)
-                                       :end scope-end)))
-                     (magit-insert-section (task-and-slots task)
-                       (magit-insert-heading
-                         (make-string 6 ?\s)
-                         "+ "
-                         (propertize (org-memento-order-title task)
-                                     'face 'magit-section-heading)
-                         (when-let (duration (org-memento-order-duration task))
-                           (concat " " (org-memento--format-duration duration)))))))))))
+                 (let ((past-activities (org-memento-yield--activities-1 yield-rule taxy))
+                       (planned-activities (thread-last
+                                             (cl-remove-if-not (apply-partially
+                                                                #'match-group
+                                                                (oref (oref yield-rule context)
+                                                                      group-path))
+                                                               planned
+                                                               :key #'car)
+                                             (mapcar #'cdr)
+                                             (mapcar #'block-to-record))))
+                   (magit-insert-section (yield-rule yield-rule)
+                     (dolist (task (car (org-memento-yield-some
+                                         yield-rule
+                                         (seq-sort-by #'car #'>
+                                                      (append planned-activities
+                                                              past-activities))
+                                         :end scope-end)))
+                       (magit-insert-section (task-and-slots task)
+                         (magit-insert-heading
+                           (make-string 6 ?\s)
+                           "+ "
+                           (propertize (org-memento-order-title task)
+                                       'face 'magit-section-heading)
+                           (when-let (duration (org-memento-order-duration task))
+                             (concat " " (org-memento--format-duration duration))))))))))))
          (in-some-group (group-paths group)
            (seq-find (-partial (-flip #'match-group) group)
                      group-paths)))
