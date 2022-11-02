@@ -38,10 +38,24 @@
 ;;;; Commands
 
 ;;;###autoload
-(cl-defun org-memento-planner ()
-  (interactive)
-  (setq org-memento-planner-span 'week)
-  (setq org-memento-planner-date-range (org-memento-week-date-range 1))
+(defun org-memento-planner (&optional arg)
+  (interactive "P")
+  (pcase arg
+    ('(4)
+     (setq org-memento-planner-span 'week
+           org-memento-planner-date-range
+           (mapcar (lambda (d)
+                     (format "%4d-%02d-%02d"
+                             (decoded-time-year d)
+                             (decoded-time-month d)
+                             (decoded-time-day d)))
+                   (org-memento--read-date-range))))
+    ((pred numberp)
+     (setq org-memento-planner-span 'week
+           org-memento-planner-date-range (org-memento-week-date-range arg)))
+    (_
+     (setq org-memento-planner-span 'week
+           org-memento-planner-date-range (org-memento-week-date-range 1))))
   (with-current-buffer (get-buffer-create org-memento-planner-buffer)
     (org-memento-planner-mode)
     (org-memento-planner-revert)
