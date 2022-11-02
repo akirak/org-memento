@@ -86,6 +86,10 @@ timeline as an argument."
     (t (:inherit default)))
   "Face for an item at the current time.")
 
+(defface org-memento-timeline-estimated-face
+  '((t (:inherit font-lock-variable-name-face)))
+  "Face for items that consider future activities in calculation.")
+
 (defface org-memento-timeline-warning-face
   '((t (:inherit font-lock-warning-face)))
   "Face for warning items.")
@@ -655,7 +659,28 @@ If ARG is non-nil, create an away event."
                                 `((week . ,(org-memento--merge-group-sums-1
                                             (list sums-for-span
                                                   org-memento-weekly-group-sums)))))))
-         (yields (seq-filter #'org-memento-yield-instance-p rules)))
+         (yields (seq-filter #'org-memento-yield-instance-p rules))
+         (planned (save-current-buffer
+                    (thread-last
+                      (org-memento--blocks)
+                      (cl-remove-if #'org-memento-started-time)
+                      (mapcar (lambda (block)
+                                (org-with-point-at (org-memento-block-hd-marker block)
+                                  (cons (org-memento--get-group
+                                         (org-memento-block-headline block))
+                                        (or (org-memento-duration block)
+                                            (and (org-memento-starting-time block)
+                                                 (org-memento-ending-time block)
+                                                 (/ (- (org-memento-ending-time block)
+                                                       (org-memento-starting-time block))
+                                                    60)))))))
+                      (cl-remove-if-not #'cdr)
+                      (seq-group-by #'car)
+                      (mapcar (lambda (group-and-entries)
+                                (cons (car group-and-entries)
+                                      (cl-reduce #'+
+                                                 (mapcar #'cdr (cdr group-and-entries))
+                                                 :initial-value 0))))))))
     (setq org-memento-timeline-slots (org-memento--empty-slots taxy))
     (cl-labels
         ((budget-span (rule)
@@ -669,24 +694,36 @@ If ARG is non-nil, create an away event."
          (budget-type-is (level rule)
            (eq level (slot-value rule 'level)))
          (insert-group-status (span group-path group-budgets &optional sum)
-           (let ((sum (or sum
-                          (cl-reduce
-                           #'+
-                           (mapcar #'cdr (cl-remove-if-not
-                                          (apply-partially #'match-group group-path)
-                                          (alist-get span sums-by-spans)
-                                          :key #'car))
-                           :initial-value 0)))
-                 (main-budget (or (seq-find (-partial #'budget-type-is 'goal) group-budgets)
-                                  (seq-find (-partial #'budget-type-is 'minimum) group-budgets)
-                                  (seq-find (-partial #'budget-type-is 'limit) group-budgets))))
+           (let* ((planned-sum (cl-reduce
+                                #'+
+                                (mapcar #'cdr (cl-remove-if-not
+                                               (apply-partially #'match-group group-path)
+                                               planned
+                                               :key #'car))
+                                :initial-value 0))
+                  (sum (+ (or sum
+                              (cl-reduce
+                               #'+
+                               (mapcar #'cdr (cl-remove-if-not
+                                              (apply-partially #'match-group group-path)
+                                              (alist-get span sums-by-spans)
+                                              :key #'car))
+                               :initial-value 0))
+                          (or planned-sum 0)))
+                  (main-budget (or (seq-find (-partial #'budget-type-is 'goal) group-budgets)
+                                   (seq-find (-partial #'budget-type-is 'minimum) group-budgets)
+                                   (seq-find (-partial #'budget-type-is 'limit) group-budgets))))
              (magit-insert-section (group-budgets (list span group-path) t)
                (magit-insert-heading
                  (make-string 4 ?\s)
                  (format "| %-12s | %5s%1s%5s %-6s |"
                          (string-pad (org-memento--format-group-last-node group-path)
                                      12)
-                         (org-memento--format-duration sum)
+                         (propertize (org-memento--format-duration sum)
+                                     'face
+                                     (if (and planned-sum (> planned-sum 0))
+                                         'org-memento-timeline-estimated-face
+                                       'default))
                          (if group-budgets "/" "")
                          (if main-budget
                              (org-memento--format-duration
