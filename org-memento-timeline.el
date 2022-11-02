@@ -639,6 +639,17 @@ If ARG is non-nil, create an away event."
            (or org-extend-today-until 0) 0 0)
           (make-decoded-time :hour 23 :minute 59)))))
 
+(defun org-memento-timeline--search-section (pred)
+  (let ((pos (point)))
+    (when-let (new-pos (catch 'section
+                         (save-excursion
+                           (while (setq pos (next-single-property-change pos 'magit-section))
+                             (goto-char pos)
+                             (when-let (section (magit-current-section))
+                               (when (funcall pred section)
+                                 (throw 'section pos)))))))
+      (goto-char new-pos))))
+
 ;;;; Extra hooks
 
 (defvar org-memento-timeline-progress-map
@@ -874,6 +885,18 @@ If ARG is non-nil, create an away event."
                       (concat " " (org-memento--format-duration duration)))
                     (format " (%s)" (org-memento--format-group group-path))))))))))
     (insert ?\n)))
+
+(defun org-memento-timeline-suggestions ()
+  "Return the suggestions held in the suggestions section."
+  (save-excursion
+    (goto-char (point-min))
+    (let (result)
+      (while (org-memento-timeline--search-section
+              (lambda (section)
+                (org-memento-order-p (oref section value))))
+        (push (oref (magit-current-section) value)
+              result))
+      (nreverse result))))
 
 (defun org-memento-timeline-planning-sections (taxy)
   (unless (and org-memento-timeline-hide-planning
