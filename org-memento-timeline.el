@@ -993,7 +993,7 @@ You should update the status before you call this function."
                                        (mapcar #'org-memento-duration items))))
                     (effort-sum (when effort-values
                                   (-sum effort-values))))
-               (magit-insert-section (block-feasibility (cons block effort-sum) nil)
+               (magit-insert-section (block-feasibility (cons block effort-sum) 'hide)
                  (magit-insert-heading
                    (make-string 2 ?\s)
                    (format "%4s / %4s "
