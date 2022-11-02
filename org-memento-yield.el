@@ -100,6 +100,74 @@ another type.")
       (setf (decoded-time-second decoded-time) 0))
     (decoded-time-add decoded-time (make-decoded-time :day n))))
 
+(cl-defun org-memento-yield-for-span (taxy span &key start-date end-date)
+  (declare (indent 2))
+  (pcase-let*
+      ((`(,start-date ,end-date) (cond
+                                  (start-date
+                                   (list start-date
+                                         (or end-date
+                                             (cl-ecase span
+                                               (day start-date)
+                                               (week (org-memento-yield--add-days
+                                                      start-date 6))))))
+                                  ((eq span 'day)
+                                   (list (org-memento--today-string)
+                                         (org-memento--today-string)))
+                                  ((eq span 'week)
+                                   (org-memento-week-date-range 0))))
+       (scope-end (thread-first
+                    (parse-time-string end-date)
+                    (org-memento--start-of-day)
+                    (decoded-time-add (make-decoded-time :hour 23 :minute 59))
+                    (encode-time)
+                    (float-time)))
+       (planned (when (eq span 'day)
+                  (save-current-buffer
+                    (thread-last
+                      (org-memento--blocks)
+                      (cl-remove-if #'org-memento-started-time)
+                      (mapcar (lambda (block)
+                                (org-with-point-at (org-memento-block-hd-marker block)
+                                  (cons (org-memento--get-group
+                                         (org-memento-block-headline block))
+                                        block)))))))))
+    (cl-labels
+        ((match-group (group-path group)
+           (equal group-path (seq-take group (length group-path))))
+         (block-to-record (block)
+           (let ((duration (org-memento-duration block)))
+             (list (or (org-memento-starting-time block)
+                       (when duration
+                         (- scope-end (* 60 duration)))
+                       (- scope-end 60))
+                   (or (org-memento-starting-time block)
+                       (- scope-end 1))
+                   (org-memento-title block)
+                   nil
+                   nil)))
+         (generate-tasks (yield-rule)
+           (let ((group-path (thread-first
+                               (slot-value yield-rule 'context)
+                               (slot-value 'group-path))))
+             (org-memento-yield-some
+              yield-rule
+              (thread-last
+                (org-memento-yield--activities-1 yield-rule taxy)
+                (append (thread-last
+                          (cl-remove-if-not (apply-partially #'match-group group-path)
+                                            planned :key #'car)
+                          (mapcar #'cdr)
+                          (mapcar #'block-to-record)))
+                (seq-sort-by #'car #'>))
+              :end scope-end))))
+      (thread-last
+        (org-memento-policy-rules
+         :span span :start-date start-date :end-date end-date)
+        (seq-filter #'org-memento-yield-instance-p)
+        (mapcar (lambda (rule)
+                  (cons rule (generate-tasks rule))))))))
+
 ;;;; Default constructor function that supports the built-in yield rules
 
 ;;;###autoload
