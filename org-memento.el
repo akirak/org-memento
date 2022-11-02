@@ -1556,7 +1556,8 @@ The point must be at the heading."
       (when (> (cadr (taxy-name date-taxy)) now)
         (dolist (block-taxy (taxy-taxys date-taxy))
           (when (and (not (taxy-taxys block-taxy))
-                     (> (cadr (taxy-name block-taxy)) now))
+                     (> (cadr (taxy-name block-taxy)) now)
+                     (not (nth 4 (taxy-name block-taxy))))
             (push (taxy-name block-taxy) result)))))
     result))
 
