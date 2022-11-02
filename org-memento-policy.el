@@ -72,10 +72,16 @@ DATA should be a result of `org-memento--collect-groups-1' call."
    (period :initarg :period :initform nil)
    (archived :initarg :archived :initform nil)))
 
+(cl-defmethod org-memento-group-path ((x org-memento-policy-context))
+  (oref x group-path))
+
 (defclass org-memento-policy-rule ()
   ((context :initarg :context
             :type org-memento-policy-context)
    (description :initarg :description :initform nil)))
+
+(cl-defmethod org-memento-group-path ((x org-memento-policy-rule))
+  (oref (oref x context) group-path))
 
 ;;;; Variables
 

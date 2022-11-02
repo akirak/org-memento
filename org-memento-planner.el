@@ -279,24 +279,38 @@
    :end-date (cadr org-memento-planner-date-range)))
 
 (defun org-memento-planner-policies-section ()
-  (cl-labels
-      ((insert-group (level taxy)
-         (magit-insert-section (group (taxy-name taxy))
-           (magit-insert-heading
-             (make-string (* 2 (1+ level)) ?\s)
-             (propertize (funcall (plist-get (nth level org-memento-group-taxonomy) :format)
-                                  (nth level (taxy-name taxy)))
-                         'face
-                         'magit-section-heading))
-           (dolist (subtaxy (taxy-taxys taxy))
-             (insert-group (1+ level) subtaxy)))))
-    (magit-insert-section (policies)
-      (magit-insert-heading
-        "Groups")
-      (dolist (group (taxy-taxys (org-memento-policy-group-taxy
-                                  (org-memento-policy-contexts))))
-        (insert-group 0 group)))
-    (insert ?\n)))
+  (let ((rules (org-memento-planner--rules)))
+    (cl-labels
+        ((match-group (group-path x)
+           (equal group-path
+                  (seq-take (org-memento-group-path x)
+                            (length group-path))))
+         (budgetp (group-path x)
+           (and (match-group group-path x)
+                (org-memento-policy-budget-rule-p x)
+                (not (eq 'limit (slot-value x 'level)))))
+         (yieldp (group-path x)
+           (and (match-group group-path x)
+                (org-memento-yield-rule-p x)))
+         (insert-group (level taxy)
+           (magit-insert-section (group (taxy-name taxy))
+             (magit-insert-heading
+               (make-string (* 2 (1+ level)) ?\s)
+               (propertize (funcall (plist-get (nth level org-memento-group-taxonomy) :format)
+                                    (nth level (taxy-name taxy)))
+                           'face
+                           'magit-section-heading)
+               (when (seq-find (apply-partially #'budgetp (taxy-name taxy)) rules)
+                 " ★"))
+             (dolist (subtaxy (taxy-taxys taxy))
+               (insert-group (1+ level) subtaxy)))))
+      (magit-insert-section (policies)
+        (magit-insert-heading
+          "Groups")
+        (dolist (group (taxy-taxys (org-memento-policy-group-taxy
+                                    (org-memento-policy-contexts))))
+          (insert-group 0 group)))
+      (insert ?\n))))
 
 (defun org-memento-planner-activities-section ()
   (unless org-memento-group-cache
