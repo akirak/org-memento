@@ -53,8 +53,8 @@ another type.")
   (let* ((plist (org-memento-yield-backtrack-spec rule))
          ;; (max-days (plist-get plist :max-days))
          (max-count (plist-get plist :max-count))
-         (context (oref rule context))
-         (group-path (oref context group-path)))
+         (context (eieio-oref rule 'context))
+         (group-path (eieio-oref context 'group-path)))
     (cl-labels
         ((match-group (group)
            (equal (seq-take group (length group-path))
@@ -116,7 +116,8 @@ another type.")
         :max-count 1))
 
 (cl-defmethod org-memento-yield-some ((x org-memento-yield-simple-rule)
-                                      activities &key demand start end)
+                                      activities &key start end
+                                      &allow-other-keys)
   (let* ((activity (car activities))
          (no-earlier-than (when (and activity (oref x interval))
                             (float-time (org-memento-yield--add-days
