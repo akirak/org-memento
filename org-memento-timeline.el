@@ -662,7 +662,6 @@ If ARG is non-nil, create an away event."
                                 `((week . ,(org-memento--merge-group-sums-1
                                             (list sums-for-span
                                                   org-memento-weekly-group-sums)))))))
-         (yields (seq-filter #'org-memento-yield-instance-p rules))
          (planned (save-current-buffer
                     (thread-last
                       (org-memento--blocks)
@@ -753,34 +752,7 @@ If ARG is non-nil, create an away event."
                                (minimum "(min.)")
                                (goal "(goal)")
                                (`limit "(lim.)"))
-                           "")))
-               (dolist (yield-rule (seq-filter (apply-partially #'rule-match-group group-path)
-                                               yields))
-                 (let ((past-activities (org-memento-yield--activities-1 yield-rule taxy))
-                       (planned-activities (thread-last
-                                             (cl-remove-if-not (apply-partially
-                                                                #'match-group
-                                                                (oref (oref yield-rule context)
-                                                                      group-path))
-                                                               planned
-                                                               :key #'car)
-                                             (mapcar #'cdr)
-                                             (mapcar #'block-to-record))))
-                   (magit-insert-section (yield-rule yield-rule)
-                     (dolist (task (car (org-memento-yield-some
-                                         yield-rule
-                                         (seq-sort-by #'car #'>
-                                                      (append planned-activities
-                                                              past-activities))
-                                         :end scope-end)))
-                       (magit-insert-section (task-and-slots task)
-                         (magit-insert-heading
-                           (make-string 6 ?\s)
-                           "+ "
-                           (propertize (org-memento-order-title task)
-                                       'face 'magit-section-heading)
-                           (when-let (duration (org-memento-order-duration task))
-                             (concat " " (org-memento--format-duration duration))))))))))))
+                           ""))))))
          (in-some-group (group-paths group)
            (seq-find (-partial (-flip #'match-group) group)
                      group-paths)))
