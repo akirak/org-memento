@@ -1214,9 +1214,20 @@ The point must be at the heading."
                                  (car slot) (cadr slot))
                                 slot))
                         slots))
-         (input (completing-read prompt (mapcar #'car alist)
-                                 nil t)))
-    (cdr (assoc input alist))))
+         (input (completing-read prompt (mapcar #'car alist))))
+    (or (cdr (assoc input alist))
+        (when (string-match (rx bol (group (+ digit)) ":" (group (+ digit)) eol)
+                            input)
+          (thread-first
+            (decode-time)
+            (org-memento--maybe-decrement-date)
+            (org-memento--set-time-of-day
+             (string-to-number (match-string 1 input))
+             (string-to-number (match-string 2 input))
+             0)
+            (encode-time)
+            (float-time)
+            (list))))))
 
 (cl-defun org-memento-read-group (&optional prompt &key title)
   (unless org-memento-group-cache
