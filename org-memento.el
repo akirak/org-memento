@@ -1155,17 +1155,19 @@ The point must be at the heading."
    (when check-in
      (org-memento--maybe-checkin-to-day))
    (org-narrow-to-subtree)
-   (org-map-entries #'org-memento-block-entry
-                    nil nil
-                    (lambda ()
-                      (and (looking-at org-complex-heading-regexp)
-                           (not (= 1 (length (match-string 1))))
-                           (or (> (length (match-string 1))
-                                  2)
-                               (let ((headline (match-string 4)))
-                                 (or (equal org-memento-idle-heading headline)
-                                     (string-prefix-p "COMMENT" headline))))
-                           (org-end-of-subtree))))))
+   (org-save-outline-visibility t
+     (org-show-subtree)
+     (org-map-entries #'org-memento-block-entry
+                      nil nil
+                      (lambda ()
+                        (and (looking-at org-complex-heading-regexp)
+                             (not (= 1 (length (match-string 1))))
+                             (or (> (length (match-string 1))
+                                    2)
+                                 (let ((headline (match-string 4)))
+                                   (or (equal org-memento-idle-heading headline)
+                                       (string-prefix-p "COMMENT" headline))))
+                             (org-end-of-subtree)))))))
 
 (defun org-memento-block-entry ()
   "Return information on the block at point."
