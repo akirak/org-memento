@@ -113,8 +113,7 @@ timeline as an argument."
 
 (defmacro org-memento-timeline-with-marker-point (&rest progn)
   `(when-let* ((section (magit-current-section))
-               (value (oref section value))
-               (marker (org-memento-timeline--marker value)))
+               (marker (org-memento-timeline--org-marker section)))
      (save-current-buffer
        (org-with-point-at (org-memento-planning-item-hd-marker value)
          ,@progn))))
@@ -418,15 +417,13 @@ timeline as an argument."
 (defun org-memento-timeline-open-entry ()
   (interactive)
   (when-let* ((section (magit-current-section))
-              (value (oref section value))
-              (marker (org-memento-timeline--marker value)))
+              (marker (org-memento-timeline--org-marker section)))
     (org-memento-timeline--display-entry marker #'pop-to-buffer)))
 
 (defun org-memento-timeline-show-entry ()
   (interactive)
   (when-let* ((section (magit-current-section))
-              (value (oref section value))
-              (marker (org-memento-timeline--marker value)))
+              (marker (org-memento-timeline--org-marker section)))
     (org-memento-timeline--display-entry marker #'display-buffer)))
 
 (defun org-memento-timeline--display-entry (marker fn)
@@ -619,17 +616,19 @@ If ARG is non-nil, create an away event."
          (time-less-p now
                       (cadr (taxy-name taxy))))))
 
-(defun org-memento-timeline--marker (value)
-  (pcase value
-    ((pred org-memento-planning-item-p)
-     (org-memento-planning-item-hd-marker value))
-    ((pred org-memento-block-p)
-     (org-memento-block-hd-marker value))
-    ((and `(,x . ,_)
-          (guard (org-memento-block-p x)))
-     (org-memento-block-hd-marker x))
-    (`(,_ ,_ ,_ ,marker . ,_)
-     marker)))
+(defun org-memento-timeline--org-marker (section)
+  "Return an Org marker associated with a section."
+  (when-let (value (oref section value))
+    (pcase value
+      ((pred org-memento-planning-item-p)
+       (org-memento-planning-item-hd-marker value))
+      ((pred org-memento-block-p)
+       (org-memento-block-hd-marker value))
+      ((and `(,x . ,_)
+            (guard (org-memento-block-p x)))
+       (org-memento-block-hd-marker x))
+      (`(,_ ,_ ,_ ,marker . ,_)
+       marker))))
 
 (defun org-memento-timeline-range ()
   "Return the range as a list of internal time representations."
