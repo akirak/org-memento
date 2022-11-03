@@ -618,17 +618,18 @@ If ARG is non-nil, create an away event."
 
 (defun org-memento-timeline--org-marker (section)
   "Return an Org marker associated with a section."
-  (when-let (value (oref section value))
-    (pcase value
-      ((pred org-memento-planning-item-p)
-       (org-memento-planning-item-hd-marker value))
-      ((pred org-memento-block-p)
-       (org-memento-block-hd-marker value))
-      ((and `(,x . ,_)
-            (guard (org-memento-block-p x)))
-       (org-memento-block-hd-marker x))
-      (`(,_ ,_ ,_ ,marker . ,_)
-       marker))))
+  (unless (eq 'group-budgets (oref section type))
+    (when-let (value (oref section value))
+      (pcase value
+        ((pred org-memento-planning-item-p)
+         (org-memento-planning-item-hd-marker value))
+        ((pred org-memento-block-p)
+         (org-memento-block-hd-marker value))
+        ((and `(,x . ,_)
+              (guard (org-memento-block-p x)))
+         (org-memento-block-hd-marker x))
+        (`(,_ ,_ ,_ ,marker . ,_)
+         marker)))))
 
 (defun org-memento-timeline-range ()
   "Return the range as a list of internal time representations."
