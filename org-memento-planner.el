@@ -327,7 +327,9 @@
                  group
                  olp))
          (match-group (group x)
-           (org-memento-policy-match-group x group))
+           (equal (seq-take (org-memento-group-path x)
+                            (length group))
+                  group))
          (find-group-context (group)
            (org-memento-policy-find-context
             (apply-partially #'match-group group)))

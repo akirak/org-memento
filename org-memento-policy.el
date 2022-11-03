@@ -292,7 +292,9 @@
   (org-memento-policy-find-context
    (apply-partially
     (lambda (group x)
-      (org-memento-policy-match-group x group))
+      (equal (seq-take (org-memento-group-path x)
+                       (length group))
+             group))
     group)))
 
 (defun org-memento-policy-group-archived-p (group)
