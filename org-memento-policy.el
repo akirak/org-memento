@@ -99,14 +99,16 @@
   (unless org-memento-policy-data
     (org-memento-policy-load)))
 
+(defconst org-memento-policy-skip-regexp
+  (rx (or (+ space) "\n"
+          (and bol (* blank)
+               ";" (* nonl)))))
+
 (defun org-memento-policy--read-all ()
   "Read all policies from the buffer."
   (let (exps)
     (while (not (eobp))
-      (if (looking-at (rx (or (+ space) "\n"
-                              (and bol (* blank)
-                                   (literal comment-start)
-                                   (* nonl)))))
+      (if (looking-at org-memento-policy-skip-regexp)
           (goto-char (match-end 0))
         (push (read (current-buffer)) exps)))
     (org-memento-policy--routes (nreverse exps))))
@@ -164,6 +166,46 @@
           (setq first (nconc first (list kwd (pop plist))))
         (setq second (nconc second (list kwd (pop plist))))))
     (cons first second)))
+
+(defun org-memento-policy-find-definition (group-path)
+  "Return a marker to the definition of GROUP-PATH."
+  (with-current-buffer (or (find-buffer-visiting org-memento-policy-file)
+                           (find-file-noselect org-memento-policy-file))
+    (save-excursion
+      (save-restriction
+        (widen)
+        (goto-char (point-min))
+        (cl-labels
+            ((parse-subexp (path)
+               (while (and (not (eobp))
+                           (looking-at org-memento-policy-skip-regexp))
+                 (goto-char (match-end 0)))
+               (unless (eobp)
+                 (let ((start (point))
+                       (exp (read (current-buffer)))
+                       (end (point)))
+                   (pcase exp
+                     ((and `(group ,node . ,_)
+                           (guard (equal node (car path))))
+                      (goto-char start)
+                      (pop path)
+                      (if path
+                          (progn
+                            (down-list)
+                            (narrow-to-region (point) (1- end))
+                            (parse-subexp path))
+                        (point-marker)))
+                     (`(,_ . ,_)
+                      (or (save-excursion
+                            (save-restriction
+                              (goto-char start)
+                              (down-list)
+                              (narrow-to-region (point) (1- end))
+                              (parse-subexp path)))
+                          (parse-subexp path)))
+                     (_
+                      (parse-subexp path)))))))
+          (parse-subexp group-path))))))
 
 ;;;;; Using the data
 
