@@ -200,8 +200,9 @@
                             (save-restriction
                               (goto-char start)
                               (down-list)
-                              (narrow-to-region (point) (1- end))
-                              (parse-subexp path)))
+                              (when (looking-at (rx symbol-start))
+                                (narrow-to-region (point) (1- end))
+                                (parse-subexp path))))
                           (parse-subexp path)))
                      (_
                       (parse-subexp path)))))))
