@@ -28,39 +28,6 @@
                 :value-type (function :tag "Function that instantiate a subclass of\
  org-memento-policy-rule")))
 
-;;;; Macros
-
-(defvar org-memento-policy-cache nil
-  "Memoization cache.")
-
-(defvar org-memento-policy-activities nil
-  "Activity data.")
-
-(defmacro org-memento-policy-with-data (data &rest body)
-  "Helper macro for evaluating data with policies.
-
-DATA should be a result of `org-memento--collect-groups-1' call."
-  (declare (indent 0))
-  `(progn
-     (setq org-memento-policy-activities ,data)
-     (org-memento-policy-load)
-     (unless org-memento-policy-cache
-       (setq org-memento-policy-cache (make-hash-table :test #'equal :size 50)))
-     (unwind-protect
-         (progn
-           ,@body)
-       (clrhash org-memento-policy-cache)
-       (setq org-memento-policy-activities nil))))
-
-(defmacro org-memento-policy--memoize (key exp)
-  (declare (indent 1))
-  `(let ((value (gethash ',key org-memento-policy-cache :missing)))
-     (if (eq value :missing)
-         (let ((value ,exp))
-           (puthash ',key value org-memento-policy-cache)
-           value)
-       value)))
-
 ;;;; Classes
 
 (defconst org-memento-policy-context-props
@@ -110,24 +77,7 @@ DATA should be a result of `org-memento--collect-groups-1' call."
 (cl-defmethod org-memento-policy-group ((x org-memento-policy-rule))
   (oref (oref x context) group-path))
 
-(cl-defgeneric org-memento-policy-match-group (x group)
-  "Return non-nil if an object matches a given concrete group.")
 
-(cl-defmethod org-memento-policy-match-group ((x org-memento-policy-context) group)
-  (let ((path (oref x group-path)))
-    (equal path (seq-take group (length path)))))
-
-(cl-defgeneric org-memento-policy-matching-entries (x))
-
-(cl-defmethod org-memento-policy-matching-entries ((x org-memento-policy-context))
-  (org-memento-policy--memoize (cons 'group (oref x group-path))
-    (seq-filter (apply-partially (lambda (context record)
-                                   (org-memento-policy-match-group context (car record)))
-                                 x)
-                org-memento-policy-activities)))
-
-(cl-defmethod org-memento-policy-matching-entries ((x org-memento-policy-rule))
-  (org-memento-policy-matching-entries (oref x context)))
 
 ;;;; Functions
 
