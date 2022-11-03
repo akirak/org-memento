@@ -571,6 +571,8 @@ If ARG is non-nil, create an away event."
                       (_
                        (error "There are multiple time blocks"))))
                 ;; No selection
+                (when (eq 'group-budgets (oref (magit-current-section) type))
+                  (user-error "Not supported on this type of element"))
                 (pcase (oref (magit-current-section) value)
                   (`nil
                    (user-error "No section at point"))
