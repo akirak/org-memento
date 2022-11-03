@@ -1,0 +1,18 @@
+name: Build and test
+
+on:
+  push:
+    paths:
+      - '**.el'
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - uses: cachix/install-nix-action@v18
+    - name: Lint
+      run: nix run .#nomake -- org-memento
+    - name: Test
+      run: nix run .#test
