@@ -326,17 +326,10 @@
            (list (car olp)
                  group
                  olp))
-         (match-group (group x)
-           (equal (seq-take (org-memento-group-path x)
-                            (length group))
-                  group))
-         (find-group-context (group)
-           (org-memento-policy-find-context
-            (apply-partially #'match-group group)))
          (insert-group-subsection (x)
            (pcase-exhaustive x
              (`(,date ,group ,_olp)
-              (let* ((context-taxy (find-group-context group))
+              (let* ((context-taxy (org-memento-policy-find-context-by-group group))
                      (archived (and context-taxy
                                     (slot-value (taxy-name context-taxy) 'archived))))
                 (magit-insert-section (group group)
