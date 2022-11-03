@@ -1077,7 +1077,42 @@ The point must be at the heading."
     (let* ((block (org-memento--current-block))
            (category (when block (org-memento-block-category block))))
       (setq org-memento-current-category category))
-    (run-hooks 'org-memento-status-hook)))
+    (run-hooks 'org-memento-status-hook)
+    (when (called-interactively-p 'any)
+      (org-memento--print-status))))
+
+(defun org-memento--print-status ()
+  "Briefly print the current status."
+  (if-let (block (org-memento--current-block))
+      (let* ((now (float-time))
+             (started (org-memento-started-time block))
+             (ending (org-memento-ending-time block))
+             (duration (or (org-memento-duration block)
+                           (/ (- ending started) 60)))
+             (group (save-current-buffer
+                      (org-with-point-at (org-memento-block-hd-marker block)
+                        (org-memento--get-group (org-memento-block-headline block))))))
+        (message (concat (propertize (org-memento-title block)
+                                     'face 'font-lock-string-face)
+                         (if group
+                             (propertize (format " (%s)" (org-memento--format-group group))
+                                         'face 'font-lock-comment-face)
+                           "")
+                         (propertize ":" 'face 'font-lock-comment-face)
+                         (if started
+                             (format-time-string " %R-" started)
+                           "")
+                         (if ending
+                             (format-time-string "%R" ending)
+                           "")
+                         (if (and duration started)
+                             (format-spec " %e/%a"
+                                          `((?e . ,(org-duration-from-minutes
+                                                    (/ (- now started) 60)))
+                                            (?a . ,(org-duration-from-minutes
+                                                    duration))))
+                           ""))))
+    (message "")))
 
 (defun org-memento--status ()
   "Only update `org-memento-status-data'."
