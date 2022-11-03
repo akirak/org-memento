@@ -10,7 +10,7 @@
       flake = false;
     };
     melpa = {
-      url = "github:akirak/melpa/org-memento-timeline";
+      url = "github:akirak/melpa/org-memento";
       flake = false;
     };
     epkgs = {

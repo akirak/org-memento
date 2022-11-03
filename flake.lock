@@ -152,16 +152,16 @@
     "melpa": {
       "flake": false,
       "locked": {
-        "lastModified": 1667100698,
-        "narHash": "sha256-ekVqz7VMFy3uXffypOwDk4fJH2lmjrUZmHsn2J7EKYs=",
+        "lastModified": 1667515762,
+        "narHash": "sha256-dDOrjlsW5aScxirY57CKNu02ng86Y/kAyTu+yh6rnkk=",
         "owner": "akirak",
         "repo": "melpa",
-        "rev": "ecb92db95dddacaa7cb4a8d14280f45dc03160af",
+        "rev": "dfcb7f2d2886333db15ff4511d4db6e8cccafb21",
         "type": "github"
       },
       "original": {
         "owner": "akirak",
-        "ref": "org-memento-timeline",
+        "ref": "org-memento",
         "repo": "melpa",
         "type": "github"
       }
