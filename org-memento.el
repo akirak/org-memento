@@ -240,6 +240,8 @@ Note that all property names should be upper-cased."
 
 ;;;; Variables
 
+(defvar org-memento-init-done nil)
+
 (defvar org-memento-status-data nil)
 
 (defvar org-memento-current-block nil
@@ -964,6 +966,15 @@ daily entry."
             "** " org-memento-idle-heading "\n")
     (end-of-line 0)))
 
+(defun org-memento--update-cache-1 (&optional force)
+  (when (or force
+            (not org-memento-init-done))
+    (save-excursion
+      ;; Cache information on the past activities.
+      (org-memento--cache-groups)
+      (org-memento--update-weekly-group-sums)
+      (setq org-memento-init-done t))))
+
 ;;;;; Updating properties
 
 (defun org-memento-set-duration (duration)
@@ -1023,10 +1034,7 @@ The function returns non-nil if the check-in is done."
     (when (looking-at org-ts-regexp)
       (beginning-of-line 2))
     ;; Save the position in case the cache functions move the point.
-    (save-excursion
-      ;; Cache information on the past activities.
-      (org-memento--cache-groups)
-      (org-memento--update-weekly-group-sums))
+    (org-memento--update-cache-1 t)
     (save-excursion
       (run-hooks 'org-memento-checkin-hook))
     (org-memento-status)
@@ -1057,6 +1065,7 @@ The point must be at the heading."
 (defun org-memento-status (&optional check-in)
   "Update the status."
   (interactive)
+  (org-memento--update-cache-1)
   (setq org-memento-status-data (org-memento--block-data
                                  (or check-in
                                      (called-interactively-p t))))
@@ -1136,6 +1145,7 @@ The point must be at the heading."
 (defun org-memento--status ()
   "Only update `org-memento-status-data'."
   (interactive)
+  (org-memento--update-cache-1)
   (setq org-memento-status-data (org-memento--block-data)))
 
 (defun org-memento--block-data (&optional check-in)
