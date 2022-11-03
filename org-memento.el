@@ -1118,7 +1118,18 @@ The point must be at the heading."
                                             (?a . ,(org-duration-from-minutes
                                                     duration))))
                            ""))))
-    (message "")))
+    (if-let (block (org-memento-today-as-block))
+        (let* ((now (float-time))
+               (started (org-memento-started-time block))
+               (ending (org-memento-ending-time block)))
+          (message (concat (format-time-string "%R-" started)
+                           (if ending
+                               (format-spec "%e, remaining %r"
+                                            `((?e . ,(format-time-string "%R" ending))
+                                              (?r . ,(org-duration-from-minutes
+                                                      (/ (- ending now) 60)))))
+                             ""))))
+      (message "Not checking in"))))
 
 (defun org-memento--status ()
   "Only update `org-memento-status-data'."
