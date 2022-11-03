@@ -2477,11 +2477,15 @@ denoting the type of the activity. ARGS is an optional list."
                                  (org-memento-headline-element block))))
    start-date-string end-date-string))
 
-(defun org-memento--get-group (element)
+(defun org-memento--get-group (&optional element)
   (let (result)
     (save-excursion
       (dolist (plist org-memento-group-taxonomy)
-        (push (funcall (plist-get plist :read) element) result)))
+        (push (funcall (plist-get plist :read)
+                       ;; Explicitly giving ELEMENT can slightly improve performance.
+                       (or element
+                           (org-element-headline-parser (org-entry-end-position))))
+              result)))
     (nreverse result)))
 
 (defun org-memento--merge-group-sums-1 (lists)
