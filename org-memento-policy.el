@@ -348,6 +348,11 @@
     (,(rx symbol-start (group ":" (+ alnum)))
      (1 font-lock-keyword-face))))
 
+(defvar org-memento-policy-mode-map
+  (let ((map (make-sparse-keymap)))
+    (define-key map [remap imenu] #'org-memento-policy-index)
+    map))
+
 ;;;###autoload
 (define-derived-mode org-memento-policy-mode lisp-data-mode
   "MmtPolicy"
@@ -366,6 +371,30 @@
             (goto-char (scan-lists innermost 1 -1))
             (current-column))
         (lisp-indent-specform 1 state indent-point (current-column))))))
+
+;;;###autoload
+(defun org-memento-policy-index ()
+  (interactive)
+  (if-let (marker (org-memento-policy-find-definition
+                   (org-memento-policy--read-group
+                    "Group path: "
+                    (thread-last
+                      (org-memento-policy-contexts)
+                      (mapcar #'org-memento-group-path)
+                      (seq-uniq)))))
+      (progn
+        (pop-to-buffer-same-window (marker-buffer marker))
+        (with-current-buffer (marker-buffer marker)
+          (goto-char marker)))
+    (user-error "Not found")))
+
+(defun org-memento-policy--read-group (prompt groups)
+  (let* ((alist (mapcar (lambda (x)
+                          (cons (org-memento--format-group x)
+                                x))
+                        groups))
+         (input (completing-read prompt alist nil t)))
+    (cdr (assoc input alist))))
 
 (provide 'org-memento-policy)
 ;;; org-memento-policy.el ends here
