@@ -133,6 +133,11 @@ Note that this hook is not called on blocks inside a daily entry."
   "Hook run when the status is updated with `org-memento-status'."
   :type 'hook)
 
+(defcustom org-memento-open-journal-hook
+  '(org-show-subtree)
+  "Hook run after `org-memento-open-journal' visits an Org entry."
+  :type 'hook)
+
 (defcustom org-memento-agenda-files nil
   "Function used to determine agenda files for each block.
 
@@ -729,7 +734,7 @@ should not be run inside the journal file."
            (org-back-to-heading)
            (when narrow
              (org-narrow-to-subtree))
-           (org-show-subtree))))
+           (run-hooks 'org-memento-open-journal-hook))))
     (cond
      (org-memento-current-block
       (condition-case _
@@ -746,7 +751,8 @@ should not be run inside the journal file."
                        (seq-sort-by #'org-memento-starting-time #'<)
                        (car)))
           (show-block (org-memento-title block))
-        (org-memento-open-today))))))
+        (org-memento-open-today)
+        (run-hooks 'org-memento-open-journal-hook))))))
 
 ;;;###autoload
 (defun org-memento-open-today ()
