@@ -967,10 +967,11 @@ daily entry."
     (end-of-line 0)))
 
 (defun org-memento--update-cache-1 (&optional force)
+  "Cache information on the past activities."
   (when (or force
             (not org-memento-init-done))
-    (save-excursion
-      ;; Cache information on the past activities.
+    (org-save-outline-visibility t
+      (org-show-all)
       (org-memento--cache-groups)
       (org-memento--update-weekly-group-sums)
       (setq org-memento-init-done t))))
