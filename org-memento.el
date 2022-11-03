@@ -560,8 +560,7 @@ The function takes two arguments: the date string and an
                        (re-search-forward org-complex-heading-regexp bound t))
              (beginning-of-line)
              (push (save-excursion (funcall fn)) result)
-             (org-end-of-subtree))
-           (goto-char bound)))
+             (org-end-of-subtree))))
        result))))
 
 ;;;; Predicates on blocks
@@ -1375,10 +1374,10 @@ The point must be at the heading."
 
 (defun org-memento-read-away-title (&optional prompt)
   (completing-read (or prompt "Title: ")
-                   (org-memento-map-away-events
-                    (lambda ()
-                      (when (looking-at org-complex-heading-regexp)
-                        (match-string-no-properties 4))))))
+                   (seq-uniq (org-memento-map-away-events
+                              (lambda ()
+                                (when (looking-at org-complex-heading-regexp)
+                                  (match-string-no-properties 4)))))))
 
 (defun org-memento--read-block-to-start ()
   (org-memento-status 'check-in)

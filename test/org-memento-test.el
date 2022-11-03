@@ -378,10 +378,22 @@
 (describe "org-memento-goto-today"
   (it "goes to the start of the current date"
     (expect (org-memento-with-test-context "memento1.org" "2020-01-01 12:00:00"
-                                           (save-window-excursion
-                                             (save-current-buffer
-                                               (org-memento-goto-today)
-                                               (buffer-substring (point) (pos-eol)))))
+              (save-window-excursion
+                (save-current-buffer
+                  (org-memento-goto-today)
+                  (buffer-substring (point) (pos-eol)))))
             :to-equal "* 2020-01-01")))
+
+(describe "org-memento-map-away-events"
+  (it "runs a given function on each entry under the idle heading"
+    (expect (org-memento-with-test-context "memento2.org" "2020-01-01 12:00:00"
+              (org-memento-map-away-events
+               (lambda ()
+                 (when (looking-at org-complex-heading-regexp)
+                   (match-string-no-properties 4)))))
+            :to-equal '("Interruption"
+                        "Rest"
+                        "Gym workout"
+                        "Rest"))))
 
 (provide 'org-memento-test)
