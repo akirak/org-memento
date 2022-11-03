@@ -333,6 +333,9 @@ Return a copy of the list."
 (cl-defgeneric org-memento-group-path (x)
   "Return the group path of X.")
 
+(cl-defmethod org-memento-group-path ((x list))
+  x)
+
 ;;;;; org-memento-block
 
 (cl-defstruct org-memento-block
@@ -2551,6 +2554,38 @@ TAXY must be a result of `org-memento-activity-taxy'."
         (when-let (r (funcall fn (taxy-name taxy)))
           (push r result))))
     result))
+
+(cl-defun org-memento-find-by-group-path (group-path items &key key)
+  (cl-assert (not (null group-path)))
+  (cl-labels
+      ((path (x)
+         (org-memento-group-path (if key
+                                     (funcall key x)
+                                   x)))
+       (pred (x)
+         (equal group-path
+                (seq-take (path x)
+                          (length group-path))))
+       (path-length (x)
+         (length (path x))))
+    (thread-last
+      (seq-filter #'pred items)
+      (seq-sort-by #'path-length #'>)
+      (car))))
+
+(cl-defun org-memento-filter-by-group-path (group-path items &key key)
+  (cl-assert (not (null group-path)))
+  (cl-labels
+      ((path (x)
+         (org-memento-group-path (if key
+                                     (funcall key x)
+                                   x)))
+       (pred (x)
+         (equal group-path
+                (seq-take (path x)
+                          (length group-path)))))
+    (thread-last
+      (seq-filter #'pred items))))
 
 ;;;; Utility functions for time representations and Org timestamps
 

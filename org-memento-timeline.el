@@ -720,22 +720,22 @@ If ARG is non-nil, create an away event."
                    (org-memento-title block)
                    nil
                    nil)))
+         (sum-durations (durations)
+           (cl-reduce #'+ durations :initial-value 0))
          (insert-group-status (span group-path group-budgets &optional sum)
-           (let* ((planned-sum (cl-reduce
-                                #'+
-                                (mapcar #'cdr (cl-remove-if-not
-                                               (apply-partially #'match-group group-path)
-                                               planned-sums
-                                               :key #'car))
-                                :initial-value 0))
+           (let* ((planned-sum (thread-last
+                                 (org-memento-filter-by-group-path group-path
+                                                                   planned-sums
+                                                                   :key #'car)
+                                 (mapcar #'cdr)
+                                 (sum-durations)))
                   (sum (+ (or sum
-                              (cl-reduce
-                               #'+
-                               (mapcar #'cdr (cl-remove-if-not
-                                              (apply-partially #'match-group group-path)
-                                              (alist-get span sums-by-spans)
-                                              :key #'car))
-                               :initial-value 0))
+                              (thread-last
+                                (org-memento-filter-by-group-path group-path
+                                                                  (alist-get span sums-by-spans)
+                                                                  :key #'car)
+                                (mapcar #'cdr)
+                                (sum-durations)))
                           (or planned-sum 0)))
                   (main-budget (or (seq-find (-partial #'budget-type-is 'goal) group-budgets)
                                    (seq-find (-partial #'budget-type-is 'minimum) group-budgets)
