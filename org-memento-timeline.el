@@ -416,15 +416,23 @@ timeline as an argument."
 
 (defun org-memento-timeline-open-entry ()
   (interactive)
-  (when-let* ((section (magit-current-section))
-              (marker (org-memento-timeline--org-marker section)))
-    (org-memento-timeline--display-entry marker #'pop-to-buffer)))
+  (when-let (section (magit-current-section))
+    (if-let (marker (org-memento-timeline--org-marker section))
+        (org-memento-timeline--display-entry marker #'pop-to-buffer)
+      (when-let (marker (org-memento-timeline--group-marker section))
+        (with-current-buffer (marker-buffer marker)
+          (pop-to-buffer (current-buffer))
+          (goto-char marker))))))
 
 (defun org-memento-timeline-show-entry ()
   (interactive)
-  (when-let* ((section (magit-current-section))
-              (marker (org-memento-timeline--org-marker section)))
-    (org-memento-timeline--display-entry marker #'display-buffer)))
+  (when-let (section (magit-current-section))
+    (if-let (marker (org-memento-timeline--org-marker section))
+        (org-memento-timeline--display-entry marker #'display-buffer)
+      (when-let (marker (org-memento-timeline--group-marker section))
+        (with-current-buffer (marker-buffer marker)
+          (display-buffer (current-buffer))
+          (goto-char marker))))))
 
 (defun org-memento-timeline--display-entry (marker fn)
   (interactive)
@@ -630,6 +638,12 @@ If ARG is non-nil, create an away event."
          (org-memento-block-hd-marker x))
         (`(,_ ,_ ,_ ,marker . ,_)
          marker)))))
+
+(defun org-memento-timeline--group-marker (section)
+  (when (eq 'group-budgets (oref section type))
+    (pcase (oref section value)
+      (`(,_ ,path)
+       (org-memento-policy-find-definition path)))))
 
 (defun org-memento-timeline-range ()
   "Return the range as a list of internal time representations."
