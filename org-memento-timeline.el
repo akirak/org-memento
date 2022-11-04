@@ -65,6 +65,11 @@ timeline as an argument."
   "Hook run inside `org-memento-timeline-planning-sections'."
   :type 'hook)
 
+(defcustom org-memento-timeline-initial-position 'now
+  "Position after the timeline is loaded."
+  :type '(choice (const :tag "Now, if available" now)
+                 (const :tag "Beginning of the buffer" nil)))
+
 (defcustom org-memento-timeline-hide-planning t
   "Whether to hide the planning section when in a block."
   :type 'boolean)
@@ -145,13 +150,25 @@ timeline as an argument."
                     org-memento-block-start-hook
                     org-memento-block-exit-hook))
       (add-hook hook 'org-memento-timeline-refresh))
-    (goto-char (point)))
+    (pcase org-memento-timeline-initial-position
+      (`now
+       (org-memento-timeline-goto-now))
+      (_
+       (goto-char (point-min)))))
   (when org-memento-timeline-refresh-timer
     (cancel-timer org-memento-timeline-refresh-timer))
   (when org-memento-timeline-refresh-interval
     (setq org-memento-timeline-refresh-timer
           (run-with-timer org-memento-timeline-refresh-interval t
                           #'org-memento-timeline-refresh-1))))
+
+;;;###autoload
+(defun org-memento-timeline-goto-now ()
+  (org-memento-timeline--search-section
+   (lambda (section)
+     (pcase (oref section value)
+       (`(,_ ,_ ,_ ,_ now)
+        t)))))
 
 ;;;###autoload
 (defun org-memento-timeline-for-week (&optional arg)
@@ -669,6 +686,10 @@ If ARG is non-nil, create an away event."
           (make-decoded-time :hour 23 :minute 59)))))
 
 (defun org-memento-timeline--search-section (pred)
+  "Move the point to a section that matches PRED.
+
+If there is a match, the function returns the position of the
+section."
   (let ((pos (point)))
     (when-let (new-pos (catch 'section
                          (save-excursion
