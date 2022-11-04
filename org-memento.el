@@ -2973,6 +2973,12 @@ range."
                            :interactive nil
                            :start start)))
 
+;;;###autoload
+(defun org-memento-start-quick-event (text)
+  (let ((title (string-trim text)))
+    (org-memento--add-immediate-block title)
+    (org-memento-start-block title)))
+
 (cl-defun org-memento-schedule-block (start end-bound
                                             &key confirmed-time
                                             suggestions)
