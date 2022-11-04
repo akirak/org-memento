@@ -1324,14 +1324,18 @@ The point must be at the heading."
          (input (completing-read prompt alist nil t)))
     (cdr (assoc input alist))))
 
-(cl-defun org-memento-read-group (&optional prompt &key title)
+(cl-defun org-memento-read-group (&optional prompt &key title default)
+  (declare (indent 1))
   (unless org-memento-group-cache
     (org-memento--cache-groups))
-  (let ((cache (make-hash-table :test #'equal :size 100))
-        (prompt (or prompt
-                    (format "Select a group for \"%s\" (or empty to nil): "
-                            title)))
-        candidates)
+  (let* ((default-formatted (when default
+                              (org-memento--format-group default)))
+         (cache (make-hash-table :test #'equal :size 100))
+         (prompt (or prompt
+                     (format-prompt "Select a group for \"%s\" (or empty to nil)"
+                                    default-formatted
+                                    title)))
+         candidates)
     (cl-labels
         ((group (candidate transform)
            (if transform
@@ -1365,7 +1369,8 @@ The point must be at the heading."
               (push title candidates))))
         (setq candidates (nreverse candidates))
         (unwind-protect
-            (let ((input (completing-read prompt #'completions)))
+            (let ((input (completing-read prompt #'completions nil nil
+                                          nil nil default-formatted)))
               (unless (string-empty-p input)
                 (gethash input cache input)))
           (clrhash cache))))))
@@ -2606,6 +2611,18 @@ TAXY must be a result of `org-memento-activity-taxy'."
                           (length group-path)))))
     (thread-last
       (seq-filter #'pred items))))
+
+(defun org-memento-set-group (group)
+  "Set the group of the entry at point."
+  (interactive (list (save-excursion
+                       (org-back-to-heading)
+                       (org-memento-read-group nil
+                         :default (org-memento--get-group)))))
+  (pcase-exhaustive (org-memento--template-group group)
+    ((map :properties :tags)
+     (org-set-tags tags)
+     (pcase-dolist (`(,key . ,value) properties)
+       (org-entry-put nil key value)))))
 
 ;;;; Utility functions for time representations and Org timestamps
 
