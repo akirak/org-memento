@@ -3125,13 +3125,7 @@ range."
 (defun org-memento-export-groups-to-csv (file &optional append
                                               start-date end-date)
   "Export the data to CSV."
-  (let ((groups (mapcar (lambda (section)
-                          (oref section value))
-                        (magit-region-sections)))
-        (data (org-memento--collect-groups-1 start-date end-date)))
-    (when groups
-      (cl-delete-if `(lambda (x) (member (caar x) ',groups))
-                    data))
+  (let ((data (org-memento--collect-groups-1 start-date end-date)))
     (cl-flet*
         ((escape-quote (text)
            (replace-regexp-in-string "\"" "\\\"" text))
