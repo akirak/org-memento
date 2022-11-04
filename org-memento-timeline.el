@@ -144,7 +144,8 @@ timeline as an argument."
                     org-clock-out-hook
                     org-memento-block-start-hook
                     org-memento-block-exit-hook))
-      (add-hook hook 'org-memento-timeline-refresh)))
+      (add-hook hook 'org-memento-timeline-refresh))
+    (goto-char (point)))
   (when org-memento-timeline-refresh-timer
     (cancel-timer org-memento-timeline-refresh-timer))
   (when org-memento-timeline-refresh-interval
