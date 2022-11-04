@@ -19,5 +19,5 @@ jobs:
 
     - name: Lint
       run: nix run .#nomake -- org-memento
-    - name: Test
-      run: nix run .#test
+    # - name: Test
+    #   run: nix run .#test
