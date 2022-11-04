@@ -389,7 +389,7 @@ timeline as an argument."
                                          60)))
                            "\n")))))
            (insert ?\n)))
-      (magit-insert-section (magit-section)
+      (magit-insert-section (org-memento-timeline)
         (dolist (taxy (taxy-taxys root-taxy))
           (insert-date taxy)))
       (goto-char (point-min)))))
@@ -783,7 +783,7 @@ If ARG is non-nil, create an away event."
          (in-some-group (group-paths group)
            (seq-find (-partial (-flip #'match-group) group)
                      group-paths)))
-      (magit-insert-section (magit-section)
+      (magit-insert-section (org-memento-progress)
         (magit-insert-heading
           "Progress")
         (pcase-dolist (`(,span . ,budget-rules-for-span)
@@ -835,7 +835,7 @@ If ARG is non-nil, create an away event."
          (thread-first
            (slot-value rule 'context)
            (slot-value 'group-path))))
-    (magit-insert-section (magit-section)
+    (magit-insert-section (org-memento-suggestions)
       (magit-insert-heading "Suggestions")
       (pcase-dolist
           (`(,rule . ,plans)
@@ -974,7 +974,7 @@ If ARG is non-nil, create an away event."
              (assoc (org-memento-planning-item-id item) planned-items)))
         (when-let (planning-items
                    (cl-remove-if #'planned (org-memento--planning-items)))
-          (magit-insert-section (magit-section)
+          (magit-insert-section (org-memento-agenda)
             (magit-insert-heading "Planning Items")
             (org-memento-timeline-with-overlay
              ((keymap . org-memento-timeline-planning-map))
@@ -1014,7 +1014,7 @@ If ARG is non-nil, create an away event."
         (when-let (blocks (thread-last
                             (org-memento--blocks)
                             (seq-filter #'block-due-p)))
-          (magit-insert-section (magit-section)
+          (magit-insert-section (org-memento-behind)
             (magit-insert-heading "Late blocks")
             (insert (make-string 2 ?\s)
                     "There are overdue events.\n")
@@ -1033,7 +1033,7 @@ You should update the status before you call this function."
              (and (org-memento-block-not-closed-p block)
                   (org-memento-starting-time block)
                   (> (org-memento-starting-time block) now))))
-        (magit-insert-section (magit-section)
+        (magit-insert-section (org-memento-next-event)
           (magit-insert-heading "Next Event")
           (let* ((next-block (thread-last
                                (org-memento--blocks)
@@ -1060,7 +1060,7 @@ You should update the status before you call this function."
       (when-let (blocks (thread-last
                           (org-memento--blocks)
                           (seq-filter #'block-unscheduled-p)))
-        (magit-insert-section (magit-section)
+        (magit-insert-section (org-memento-unscheduled)
           (magit-insert-heading "Blocks without time")
           (dolist (block blocks)
             (org-memento-timeline--insert-block 1 block :omit-time t)))
@@ -1170,7 +1170,7 @@ You should update the status before you call this function."
         (when-let (blocks (thread-last
                             (org-memento--blocks)
                             (seq-filter #'block-not-started-p)))
-          (magit-insert-section (magit-section)
+          (magit-insert-section (org-memento-feasibility)
             (magit-insert-heading
               "Feasibility")
             (let (overlaps)
