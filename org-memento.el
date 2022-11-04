@@ -2391,7 +2391,14 @@ denoting the type of the activity. ARGS is an optional list."
                                      hd-marker
                                      'away)
                                blocks))))))))
-           blocks)))
+           blocks))
+       (end-of-day-float-time (float-time)
+         (thread-first
+           (decode-time float-time)
+           (org-memento--start-of-day)
+           (decoded-time-add (make-decoded-time :hour 23 :minute 59))
+           (encode-time)
+           (float-time))))
     (with-current-buffer (org-memento--buffer)
       (org-save-outline-visibility t
         (widen)
@@ -2419,7 +2426,13 @@ denoting the type of the activity. ARGS is an optional list."
                                                            (org-memento--current-time)))))))
                   (pcase (parse-entry include-future)
                     (`(,start ,end . ,_)
-                     (let ((day (list start end date-string marker 'date))
+                     (let ((day (list start
+                                      ;; If the end time is missing, e.g. it has
+                                      ;; already passed the expected checkout
+                                      ;; time, set it to the time right before
+                                      ;; the start of the next day.
+                                      (or end (end-of-day-float-time start))
+                                      date-string marker 'date))
                            (subtree-end (save-excursion (org-end-of-subtree)))
                            blocks)
                        (while (re-search-forward org-complex-heading-regexp subtree-end t)
