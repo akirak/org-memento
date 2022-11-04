@@ -56,6 +56,7 @@
 (declare-function thing-at-point-looking-at "thingatpt")
 (defvar org-capture-entry)
 (defvar org-agenda-start-on-weekday)
+(defvar org-archive-tag)
 
 (defgroup org-memento nil
   "Time blocking with Org mode."
@@ -192,6 +193,14 @@ distractions."
     " >")
   ""
   :type 'sexp)
+
+(defcustom org-memento-agenda-excluded-tags (list org-archive-tag)
+  "List of tags used to determine entries to be excluded.
+
+Entries with these tags will not be shown in some views in
+`org-memento-timeline' and `org-memento-planner', even if they
+are contained in `org-agenda-files' and have planning timestamps."
+  :type '(repeat (string :tag "Org tag")))
 
 (defcustom org-memento-group-taxonomy
   '((:read
@@ -1784,7 +1793,8 @@ marker to the time stamp, and the margin in seconds."
                          (mtime (- time margin)))
                (when (and (or (not min-time)
                               (< mtime min-time))
-                          (not (org-entry-is-done-p)))
+                          (not (org-entry-is-done-p))
+                          (not (org-memento--maybe-skip-by-tag)))
                  (let ((marker (save-excursion
                                  (org-back-to-heading)
                                  (point-marker))))
@@ -1809,13 +1819,14 @@ marker to the time stamp, and the margin in seconds."
         (org-with-wide-buffer
          (goto-char (point-min))
          (while (re-search-forward ts-regexp nil t)
-           (let ((obj (make-org-memento-org-event
-                       :marker (point-marker)
-                       :active-ts (org-timestamp-from-string (match-string 0)))))
-             (push (cons (org-memento-starting-time obj)
-                         obj)
-                   result)
-             (goto-char (org-entry-end-position)))))))
+           (unless (org-memento--maybe-skip-by-tag t)
+             (let ((obj (make-org-memento-org-event
+                         :marker (point-marker)
+                         :active-ts (org-timestamp-from-string (match-string 0)))))
+               (push (cons (org-memento-starting-time obj)
+                           obj)
+                     result)
+               (goto-char (org-entry-end-position))))))))
     (thread-last
       result
       ;; (org-memento--sort-by-car result)
@@ -1956,7 +1967,7 @@ marker to the time stamp, and the margin in seconds."
                    (org-back-to-heading)
                    (looking-at org-complex-heading-regexp)
                    (unless (or (member (match-string 2) org-done-keywords)
-                               (archivedp)
+                               (org-memento--maybe-skip-by-tag t)
                                (has-future-time))
                      (push (make-org-memento-planning-item
                             :hd-marker (point-marker)
@@ -1966,6 +1977,30 @@ marker to the time stamp, and the margin in seconds."
                            result)))
                  (re-search-forward org-heading-regexp nil t))))))))
     result))
+
+(defun org-memento--maybe-skip-by-tag (&optional goto-end)
+  "Return non-nil if an Org entry at point has a skip tag.
+
+This function returns non-nil if the entry has one of
+`org-memento-agenda-excluded-tags'. Also, if GOTO-END is non-nil,
+it moves the point to the end of the subtree if the result is
+non-nil.
+
+This function must be called at the beginning of the entry."
+  (let ((regexp (rx-to-string `(and ":" (or ,@org-memento-agenda-excluded-tags) ":"))))
+    (when-let (skipped (save-match-data
+                         (save-excursion
+                           (catch 'skipped
+                             (while (looking-at org-complex-heading-regexp)
+                               (when (and (nth 10 (match-data))
+                                          (string-match-p regexp (match-string 5)))
+                                 (throw 'skipped t))
+                               (when (= 1 (length (match-string 1)))
+                                 (throw 'skipped nil))
+                               (org-up-heading-all 1))))))
+      (when goto-end
+        (org-end-of-subtree))
+      skipped)))
 
 ;;;; Collect data for analytic purposes
 
@@ -2259,7 +2294,8 @@ denoting the type of the activity. ARGS is an optional list."
                                        'clock-unfinished))
                                result)))))))
              (when (and contains-future
-                        (not (org-entry-is-done-p)))
+                        (not (org-entry-is-done-p))
+                        (not (org-memento--maybe-skip-by-tag)))
                (catch 'active-ts
                  (goto-char hd-marker)
                  (while (and (< (point) bound)
