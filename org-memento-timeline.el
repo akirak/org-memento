@@ -173,10 +173,19 @@ timeline as an argument."
       (org-memento--status)
       (setq org-memento-timeline-slots (org-memento--empty-slots taxy))
       (org-memento-policy-maybe-load))
-    (let ((inhibit-read-only t))
+    (let* ((section (magit-current-section))
+           (type (when section (oref section type)))
+           (value (when section (oref section value)))
+           (inhibit-read-only t))
       (delete-all-overlays)
       (erase-buffer)
-      (run-hook-with-args 'org-memento-timeline-hook taxy))))
+      (run-hook-with-args 'org-memento-timeline-hook taxy)
+      (if type
+          (org-memento-timeline--search-section
+           `(lambda (section)
+              (and (eq ',type (oref section type))
+                   (equal ',value (oref section value)))))
+        (goto-char (point-min))))))
 
 (defun org-memento-timeline-refresh ()
   (when-let (buffer (get-buffer org-memento-timeline-ms-buffer))
