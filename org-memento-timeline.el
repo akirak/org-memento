@@ -193,16 +193,27 @@ timeline as an argument."
     (let* ((section (magit-current-section))
            (type (when section (oref section type)))
            (value (when section (oref section value)))
+           (head (if-let (values (magit-region-values))
+                     (when (seq-every-p #'listp values)
+                       (car (seq-sort-by #'car #'< values)))
+                   value))
+           (time (and (listp head)
+                      (numberp (car head))
+                      (car head)))
            (inhibit-read-only t))
       (delete-all-overlays)
       (erase-buffer)
       (run-hook-with-args 'org-memento-timeline-hook taxy)
-      (if type
-          (org-memento-timeline--search-section
+      (or (org-memento-timeline--search-section
            `(lambda (section)
-              (and (eq ',type (oref section type))
-                   (equal ',value (oref section value)))))
-        (goto-char (point-min))))))
+              (or (and (and ',type
+                            (eq ',type (oref section type)))
+                       (equal ',value (oref section value)))
+                  (and ,time
+                       (listp (oref section value))
+                       (ignore-errors
+                         (= ,time (car (oref section value))))))))
+          (goto-char (point-min))))))
 
 (defun org-memento-timeline-refresh ()
   (when-let (buffer (get-buffer org-memento-timeline-ms-buffer))
