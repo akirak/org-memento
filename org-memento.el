@@ -2964,31 +2964,14 @@ range."
 
 (defun org-memento--add-immediate-block (title)
   "Add a block that has just started."
-  (let* ((start (float-time (org-memento--current-time)))
-         (limit (thread-last
-                  (org-memento--blocks)
-                  (seq-filter `(lambda (block)
-                                 (when-let (time (org-memento-starting-time block))
-                                   (< ,start time))))
-                  (apply #'min)))
-         (limit (if-let (event (org-memento--next-agenda-event nil limit))
-                    (org-memento-starting-time event)
-                  limit))
-         (event (org-memento-read-future-event start limit
-                                               :reschedule nil
-                                               :title title)))
-    (cl-typecase event
-      (org-memento-order
-       (org-memento-add-event :title title
-                              :group (org-memento--default-group
-                                      (org-memento-order-group event))
-                              :copy-from (org-memento-order-sample-marker event)
-                              :interactive nil
-                              :start start))
-      (`nil
-       (org-memento-add-event :title title
-                              :interactive nil
-                              :start start)))))
+  (when org-memento-current-block
+    (user-error "Already in a block"))
+  (let ((start (float-time (org-memento--current-time)))
+        (group (org-memento-read-group nil :title title)))
+    (org-memento-add-event :title title
+                           :group group
+                           :interactive nil
+                           :start start)))
 
 (cl-defun org-memento-schedule-block (start end-bound
                                             &key confirmed-time
