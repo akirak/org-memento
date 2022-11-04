@@ -230,22 +230,21 @@
              (slot-value rule 'duration-minutes)))
          (insert-taxy (level taxy)
            (magit-insert-section (group (taxy-name taxy))
-             (let ((indent level))
-               (magit-insert-heading
-                 (apply #'format "  | %-18s | %5s | %5s | %5s | %6s | %6s | %6s |"
-                        (concat (make-string level ?\s)
-                                (truncate-string-to-width
-                                 (funcall (plist-get (nth level org-memento-group-taxonomy)
-                                                     :format)
-                                          (nth level (taxy-name taxy)))
-                                 (- 18 level)))
-                        (thread-last
-                          columns
-                          (mapcar (apply-partially #'taxy-budget taxy))
-                          (mapcar (lambda (duration)
-                                    (if duration
-                                        (org-memento--format-duration duration)
-                                      "")))))))
+             (magit-insert-heading
+               (apply #'format "  | %-18s | %5s | %5s | %5s | %6s | %6s | %6s |"
+                      (concat (make-string level ?\s)
+                              (truncate-string-to-width
+                               (funcall (plist-get (nth level org-memento-group-taxonomy)
+                                                   :format)
+                                        (nth level (taxy-name taxy)))
+                               (- 18 level)))
+                      (thread-last
+                        columns
+                        (mapcar (apply-partially #'taxy-budget taxy))
+                        (mapcar (lambda (duration)
+                                  (if duration
+                                      (org-memento--format-duration duration)
+                                    ""))))))
              (insert-taxys (1+ level) (taxy-taxys taxy))))
          (insert-taxys (level taxys)
            (dolist (taxy taxys)

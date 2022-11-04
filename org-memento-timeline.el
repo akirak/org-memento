@@ -120,7 +120,7 @@ timeline as an argument."
   `(when-let* ((section (magit-current-section))
                (marker (org-memento-timeline--org-marker section)))
      (save-current-buffer
-       (org-with-point-at (org-memento-planning-item-hd-marker value)
+       (org-with-point-at (org-memento-planning-item-hd-marker (oref section value))
          ,@progn))))
 
 ;;;; Display the timeline
@@ -921,7 +921,8 @@ section."
             (pcase-let*
                 ((slots org-memento-timeline-slots)
                  (title (or (org-memento-order-title value)
-                            (org-memento-read-title nil :default title)))
+                            (org-memento-read-title nil
+                              :default (org-memento-order-title value))))
                  (duration (org-memento-order-duration value))
                  (slot (when (and interactive slots)
                          (org-memento-select-slot
@@ -979,7 +980,8 @@ section."
            ((org-memento-order-p (oref section value))
             (add-item (oref section value) t))
            (t
-            (if-let (group-path (ignore-errors (org-memento-group-path value)))
+            (if-let (group-path (ignore-errors
+                                  (org-memento-group-path (oref section value))))
                 (select-suggestion group-path)
               (fallback))))
         (fallback)))))

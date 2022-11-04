@@ -37,6 +37,10 @@
 (require 'org-element)
 (require 'eieio)
 
+(declare-function org-memento-policy-group-leaves "org-memento-policy")
+(declare-function org-memento-policy-contexts "org-memento-policy")
+(declare-function org-memento-policy-group-archived-p "org-memento-policy")
+
 (declare-function org-element-headline-parser "org-element")
 (declare-function org-day-of-week "org-clock")
 (declare-function taxy-emptied "ext:taxy" t t)
@@ -45,9 +49,11 @@
 (declare-function taxy-taxys "ext:taxy" t t)
 (declare-function taxy-items "ext:taxy" t t)
 (declare-function taxy-name "ext:taxy" t t)
+(declare-function taxy-p "ext:taxy" t t)
 (declare-function make-taxy "ext:taxy" t t)
 (declare-function org-capture "org-capture")
 (declare-function org-clocking-p "org-clock")
+(declare-function thing-at-point-looking-at "thingatpt")
 (defvar org-capture-entry)
 (defvar org-agenda-start-on-weekday)
 
@@ -1339,10 +1345,9 @@ The point must be at the heading."
                (cons 'metadata
                      (list (cons 'category 'org-memento-group)
                            (cons 'group-function #'group)))
-             (complete-with-action action candidates string pred)))
-         (context-group-path (context)
-           (slot-value context 'group-path)))
+             (complete-with-action action candidates string pred))))
       (progn
+        (require 'org-memento-policy)
         (dolist (group (map-keys org-memento-group-cache))
           (unless (org-memento-policy-group-archived-p group)
             (let ((title (org-memento--format-group group)))
@@ -1351,7 +1356,7 @@ The point must be at the heading."
         (when (and (bound-and-true-p org-memento-policy-data)
                    (taxy-p org-memento-policy-data))
           (dolist (group-path (cl-remove-duplicates
-                               (mapcar #'context-group-path
+                               (mapcar #'org-memento-group-path
                                        (org-memento-policy-contexts))
                                :test #'equal))
             (let ((title (org-memento--format-group group-path)))
@@ -1474,14 +1479,15 @@ The point must be at the heading."
                                       'face 'font-lock-doc-face)))))
              ((and (pred org-memento-order-p)
                    order)
-              (let ((group (org-memento-group-path order))
-                    (duration (or (org-memento-duration order)
-                                  (when (and ending-time time)
-                                    (/ (- ending-time time) 60)))))
+              (let* ((group (org-memento-group-path order))
+                     (time (org-memento-starting-time order))
+                     (ending-time (org-memento-ending-time order))
+                     (duration (or (org-memento-duration order)
+                                   (when (and ending-time time)
+                                     (/ (- ending-time time) 60)))))
                 (concat (when group
                           (propertize (concat " " (org-memento--format-group group))
-                                      'face 'font-lock-doc-face
-                                      ))
+                                      'face 'font-lock-doc-face))
                         (when duration
                           (propertize (concat " " (org-duration-from-minutes duration))
                                       'face 'font-lock-doc-face)))))
@@ -1560,6 +1566,7 @@ The point must be at the heading."
               (push title candidates))))
         (when (and (bound-and-true-p org-memento-policy-data)
                    (taxy-p org-memento-policy-data))
+          (require 'org-memento-policy)
           (dolist (group-path (org-memento-policy-group-leaves))
             (let ((title (string-join (org-memento--format-group-entries group-path)
                                       " > ")))
