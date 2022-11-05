@@ -985,6 +985,9 @@ daily entry."
   "Cache information on the past activities."
   (when (or force
             (not org-memento-init-done))
+    ;; I am not sure when I should perform this update.
+    (when (fboundp 'org-element-cache-reset)
+      (org-element-cache-reset))
     (org-save-outline-visibility t
       (org-show-all)
       (org-memento--cache-groups)
