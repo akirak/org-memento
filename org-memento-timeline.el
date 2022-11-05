@@ -39,7 +39,7 @@
   :prefix "org-memento-"
   :group 'org-memento)
 
-(defconst org-memento-timeline-ms-buffer "*Org-Memento Timeline*")
+(defconst org-memento-timeline-buffer "*Org-Memento Timeline*")
 
 ;;;; Custom variables
 
@@ -138,7 +138,7 @@ timeline as an argument."
                    (list today today :span 'day))))
   (when (string-lessp end-day start-day)
     (user-error "The end day must be no earlier than the start day"))
-  (with-current-buffer (get-buffer-create org-memento-timeline-ms-buffer)
+  (with-current-buffer (get-buffer-create org-memento-timeline-buffer)
     (org-memento-timeline-mode)
     (setq-local org-memento-timeline-date-range (list start-day end-day)
                 org-memento-timeline-span span
@@ -216,12 +216,12 @@ timeline as an argument."
           (goto-char (point-min))))))
 
 (defun org-memento-timeline-refresh ()
-  (when-let (buffer (get-buffer org-memento-timeline-ms-buffer))
+  (when-let (buffer (get-buffer org-memento-timeline-buffer))
     (with-current-buffer buffer
       (org-memento-timeline-revert))))
 
 (defun org-memento-timeline-refresh-1 ()
-  (when-let (buffer (get-buffer org-memento-timeline-ms-buffer))
+  (when-let (buffer (get-buffer org-memento-timeline-buffer))
     (unless (or org-memento-block-idle-logging
                 (org-clocking-p))
       (with-current-buffer buffer
