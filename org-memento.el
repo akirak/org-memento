@@ -1049,7 +1049,6 @@ The function returns non-nil if the check-in is done."
     (org-end-of-meta-data t)
     (when (looking-at org-ts-regexp)
       (beginning-of-line 2))
-    ;; Save the position in case the cache functions move the point.
     (org-memento--update-cache-1 t)
     (save-excursion
       (run-hooks 'org-memento-checkin-hook))
