@@ -215,6 +215,7 @@ timeline as an argument."
                          (= ,time (car (oref section value))))))))
           (goto-char (point-min))))))
 
+;;;###autoload
 (defun org-memento-timeline-refresh ()
   (when-let (buffer (get-buffer org-memento-timeline-buffer))
     (with-current-buffer buffer

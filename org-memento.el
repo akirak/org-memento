@@ -3032,7 +3032,8 @@ range."
                   '(:immediate-finish t)))
          (org-capture-entry `("" ""
                               entry (file+function ,org-memento-file ,jump-fn)
-                              ,template ,@plist)))
+                              ,template ,@plist
+                              :after-finalize org-memento-timeline-refresh)))
     (org-capture)))
 
 (defun org-memento--add-immediate-block (title)
