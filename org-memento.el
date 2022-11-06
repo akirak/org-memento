@@ -798,11 +798,17 @@ point to the heading.
       (pop-to-buffer (current-buffer)))))
 
 ;;;###autoload
-(defun org-memento-checkout-from-day ()
-  "Run this command when you finish all your work on the day."
-  (interactive)
+(defun org-memento-checkout-from-day (&optional arg)
+  "Run this command when you finish all your work on the day.
+
+With a universal argument, you can specify the time of check out."
+  (interactive "P")
   (org-memento-with-today-entry
-   (org-todo 'done)
+   ;; If org-read-date is aborted, the entire checkout command will be aborted.
+   (let ((time (when arg (org-read-date t t))))
+     (org-todo 'done)
+     (when arg
+       (org-add-planning-info 'closed time)))
    (org-memento--save-buffer)
    (setq org-memento-block-idle-logging t)
    (run-hooks 'org-memento-checkout-hook)))
