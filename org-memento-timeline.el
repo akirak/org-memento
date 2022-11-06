@@ -990,6 +990,11 @@ section."
          (equal group-path
                 (seq-take (org-memento-group-path x)
                           (length group-path))))
+       (fallback (&optional group-path)
+         (let ((group (org-memento-read-group
+                          "Select a group: " :group-path group-path)))
+           (org-memento-add-event :group group
+                                  :interactive t)))
        (select-suggestion (&optional group-path)
          (if-let (suggestions (if group-path
                                   (seq-filter (apply-partially #'match-group group-path)
@@ -998,9 +1003,7 @@ section."
              (add-item (or (org-memento-select-order "Select a task to add: "
                                                      suggestions)
                            (user-error "Not selected")))
-           (user-error "No suggestion")))
-       (fallback ()
-         (select-suggestion)))
+           (fallback group-path))))
     (if-let (values (magit-region-values))
         (dolist (value values)
           (when (org-memento-order-p value)
