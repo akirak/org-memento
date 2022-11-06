@@ -54,6 +54,7 @@
 (declare-function org-capture "org-capture")
 (declare-function org-clocking-p "org-clock")
 (declare-function thing-at-point-looking-at "thingatpt")
+(declare-function org-notify "org-clock")
 (defvar org-capture-entry)
 (defvar org-agenda-start-on-weekday)
 (defvar org-archive-tag)
@@ -253,6 +254,31 @@ to an entry template."
 Note that all property names should be upper-cased."
   :type '(repeat string))
 
+(defcustom org-memento-timer-generator nil
+  "Function that determines timings of countdown.
+
+When a block starts, the function is called with an argument,
+the number of minutes until the end time of the block.
+
+The function should return a list of entries specifying when a
+timer will be run.
+
+Each spec can be one of the following types:
+
+ * The number of minutes from the current time at which a timer
+will be run.
+
+ * (MINUTE . MESSAGE) where MINUTE is a number and MESSAGE is a
+string to be used as the format of a notification message. The
+message format can contain %s which will be replaced with the
+headline of the block.
+
+ * t, which is the exact ending time of the block.
+
+If this variable is nil, no timer will be run when you start a
+block."
+  :type '(choice function (const nil)))
+
 ;;;; Variables
 
 (defvar org-memento-init-done nil)
@@ -267,7 +293,7 @@ Note that all property names should be upper-cased."
 (defvar org-memento-current-time nil
   "When non-nil, use this as the current time for testing.")
 
-(defvar org-memento-block-timer nil)
+(defvar org-memento-block-timers nil)
 
 (defvar org-memento-daily-timer nil)
 
@@ -710,7 +736,7 @@ should not be run inside the journal file."
   (org-memento-setup-daily-timer)
   (org-memento-status)
   (run-hooks 'org-memento-block-start-hook)
-  (org-memento--setup-block-end-timer))
+  (org-memento--setup-block-timers))
 
 (defun org-memento-finish-block ()
   "Mark the current block as done."
@@ -721,7 +747,7 @@ should not be run inside the journal file."
       (org-todo org-memento-todo-keyword-for-success)
       (org-memento--save-buffer))
     (setq org-memento-current-block nil)
-    (org-memento--cancel-block-timer)
+    (org-memento--cancel-block-timers)
     (run-hooks 'org-memento-block-exit-hook)))
 
 (defun org-memento-stop-block ()
@@ -733,7 +759,7 @@ should not be run inside the journal file."
       (org-todo (completing-read "Change the state: " org-done-keywords))
       (org-memento--save-buffer))
     (setq org-memento-current-block nil)
-    (org-memento--cancel-block-timer)
+    (org-memento--cancel-block-timers)
     (run-hooks 'org-memento-block-exit-hook)))
 
 ;;;###autoload
@@ -852,24 +878,45 @@ With a universal argument, you can specify the time of check out."
 
 ;;;; Timers and notifications
 
-(defun org-memento-block-timeout ()
-  ;; TODO: Use alert.el
-  (message "The event has timed out"))
+(defun org-memento--setup-block-timers ()
+  "Start timers for running notifications."
+  (org-memento--cancel-block-timers)
+  (when org-memento-timer-generator
+    (let* ((time (org-memento-ending-time (org-memento--current-block)))
+           (now (float-time (org-memento--current-time)))
+           (minutes (when time
+                      (/ (- time now) 60))))
+      (when minutes
+        (dolist (spec (funcall org-memento-timer-generator minutes))
+          (push (pcase spec
+                  ((and (pred numberp)
+                        (guard (> spec 0)))
+                   (run-with-timer (* spec 60) nil
+                                   `(lambda (_)
+                                      (org-memento--notify-end
+                                       ,(unless (< (- minutes spec) 1)
+                                          (- minutes spec))))))
+                  (`t
+                   (run-with-timer (* minutes 60) nil #'org-memento--notify-end))
+                  (`(,diff . ,fmt)
+                   (run-with-timer (* diff 60) nil
+                                   `(lambda (_)
+                                      (org-notify
+                                       (format ,fmt org-memento-current-block)))))
+                  (_
+                   (run-with-timer (* spec 60) nil #'org-memento--notify-end)))
+                org-memento-block-timers))))))
 
-(defun org-memento--setup-block-end-timer ()
-  "Start a timer that finishes the current block."
-  (org-memento--cancel-block-timer)
-  (let ((time (org-memento-ending-time (org-memento--current-block)))
-        (now (float-time (org-memento--current-time))))
-    (when (and time (> time now))
-      (setq org-memento-block-timer
-            (run-with-timer (- time now)
-                            nil #'org-memento-block-timeout)))))
+(defun org-memento--notify-end (&optional minutes)
+  (org-notify (if minutes
+                  (format "%s is about to end in %d minutes."
+                          org-memento-current-block
+                          minutes)
+                (format "%s must end now." org-memento-current-block))))
 
-(defun org-memento--cancel-block-timer ()
-  (when org-memento-block-timer
-    (cancel-timer org-memento-block-timer)
-    (setq org-memento-block-timer nil)))
+(defun org-memento--cancel-block-timers ()
+  (mapc #'cancel-timer org-memento-block-timers)
+  (setq org-memento-block-timers nil))
 
 (defun org-memento-setup-daily-timer ()
   (unless org-memento-daily-timer
