@@ -254,7 +254,7 @@ to an entry template."
 Note that all property names should be upper-cased."
   :type '(repeat string))
 
-(defcustom org-memento-timer-generator nil
+(defcustom org-memento-timer-generator #'org-memento-default-timer-generator
   "Function that determines timings of countdown.
 
 When a block starts, the function is called with an argument,
@@ -917,6 +917,11 @@ With a universal argument, you can specify the time of check out."
 (defun org-memento--cancel-block-timers ()
   (mapc #'cancel-timer org-memento-block-timers)
   (setq org-memento-block-timers nil))
+
+(defun org-memento-default-timer-generator (duration)
+  (if (>= duration 15)
+      (list (- duration 5) t)
+    (list t)))
 
 (defun org-memento-setup-daily-timer ()
   (unless org-memento-daily-timer
