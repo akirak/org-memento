@@ -1008,7 +1008,7 @@ section."
       (if-let (section (magit-current-section))
           (cond
            ((eq 'group-budgets (oref section type))
-            (select-suggestion (cdr (oref section value))))
+            (select-suggestion (cadr (oref section value))))
            ((org-memento-order-p (oref section value))
             (add-item (oref section value) t))
            (t
