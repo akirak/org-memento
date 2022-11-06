@@ -1077,19 +1077,26 @@ You should update the status before you call this function."
              (and (org-memento-block-not-closed-p block)
                   (org-memento-starting-time block)
                   (> (org-memento-starting-time block) now))))
-        (magit-insert-section (org-memento-next-event)
-          (magit-insert-heading "Next Event")
-          (let* ((next-block (thread-last
-                               (org-memento--blocks)
-                               (seq-filter #'block-scheduled-future-p)
-                               (seq-sort-by #'org-memento-starting-time #'<)
-                               (car)))
-                 (event (org-memento--next-agenda-event
-                         nil
-                         (when next-block
-                           (org-memento-starting-time next-block)))))
-            (if (or event next-block)
-                (org-memento-timeline--insert-block 1 (or event next-block))
+        (let* ((next-block (thread-last
+                             (org-memento--blocks)
+                             (seq-filter #'block-scheduled-future-p)
+                             (seq-sort-by #'org-memento-starting-time #'<)
+                             (car)))
+               (event (org-memento--next-agenda-event
+                       nil
+                       (when next-block
+                         (org-memento-starting-time next-block))))
+               (the-event (or event next-block)))
+          (magit-insert-section (org-memento-next-event)
+            (magit-insert-heading "Next Event")
+            (if the-event
+                (org-memento-timeline--insert-block 1
+                  (or event next-block)
+                  :suffix (format " (in %s)"
+                                  (org-memento--format-duration
+                                   (/ (- (org-memento-starting-time the-event)
+                                         now)
+                                      60))))
               (insert (make-string 2 ?\s)
                       "No next event.\n"))))
         (insert ?\n)))))
@@ -1110,7 +1117,9 @@ You should update the status before you call this function."
             (org-memento-timeline--insert-block 1 block :omit-time t)))
         (insert ?\n)))))
 
-(cl-defun org-memento-timeline--insert-block (level block &key omit-time type)
+(cl-defun org-memento-timeline--insert-block (level block
+                                                    &key omit-time type suffix)
+  (declare (indent 1))
   (let ((start (org-memento-starting-time block))
         (end (org-memento-ending-time block))
         (title (org-memento-title block))
@@ -1134,7 +1143,8 @@ You should update the status before you call this function."
                                   'face 'font-lock-warning-face)
                     (make-string 5 ?\s))
                   " "))
-        (propertize title 'face 'magit-section-heading)))))
+        (propertize title 'face 'magit-section-heading)
+        suffix))))
 
 (defvar org-memento-timeline-feasibility-map
   (let ((map (make-sparse-keymap)))
