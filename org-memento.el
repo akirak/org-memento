@@ -1455,7 +1455,7 @@ The point must be at the heading."
          (input (completing-read prompt alist nil t)))
     (cdr (assoc input alist))))
 
-(cl-defun org-memento-read-group (&optional prompt &key title default)
+(cl-defun org-memento-read-group (&optional prompt &key title default group-path)
   (declare (indent 1))
   (unless org-memento-group-cache
     (org-memento--cache-groups))
@@ -1480,24 +1480,30 @@ The point must be at the heading."
                (cons 'metadata
                      (list (cons 'category 'org-memento-group)
                            (cons 'group-function #'group)))
-             (complete-with-action action candidates string pred))))
+             (complete-with-action action candidates string pred)))
+         (check-group (group)
+           (or (not group-path)
+               (equal (seq-take group (length group-path))
+                      group-path))))
       (progn
         (require 'org-memento-policy)
         (dolist (group (map-keys org-memento-group-cache))
-          (unless (org-memento-policy-group-archived-p group)
-            (let ((title (org-memento--format-group group)))
-              (puthash title group cache)
-              (push title candidates))))
+          (when (check-group group)
+            (unless (org-memento-policy-group-archived-p group)
+              (let ((title (org-memento--format-group group)))
+                (puthash title group cache)
+                (push title candidates)))))
         (when (and (bound-and-true-p org-memento-policy-data)
                    (taxy-p org-memento-policy-data))
           (dolist (group-path (cl-remove-duplicates
                                (mapcar #'org-memento-group-path
                                        (org-memento-policy-contexts))
                                :test #'equal))
-            (let ((title (org-memento--format-group group-path)))
-              (unless (gethash title cache)
-                (puthash title group-path cache))
-              (push title candidates))))
+            (when (check-group group-path)
+              (let ((title (org-memento--format-group group-path)))
+                (unless (gethash title cache)
+                  (puthash title group-path cache))
+                (push title candidates)))))
         (setq candidates (nreverse candidates))
         (unwind-protect
             (let ((input (completing-read prompt #'completions nil nil
