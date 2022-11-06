@@ -1005,9 +1005,14 @@ section."
          (pcase-let*
              ((group (org-memento-read-group
                          "Select a group: " :group-path group-path))
-              (`(,start ,end) (get-time-range (org-memento--format-group group-path)
+              (context-taxy (org-memento-policy-find-context-by-group group))
+              (title (when context-taxy
+                       (slot-value (taxy-name context-taxy) 'title)))
+              (`(,start ,end) (get-time-range (or title
+                                                  (org-memento--format-group group-path))
                                               duration)))
            (org-memento-add-event :group group
+                                  :title title
                                   :interactive t
                                   :duration duration
                                   :start start

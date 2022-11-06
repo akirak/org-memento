@@ -222,7 +222,12 @@ another type.")
                                   (when-let (duration (plist-get plist :duration))
                                     (cl-etypecase duration
                                       (string (org-duration-to-minutes duration))
-                                      (number duration))))))))
+                                      (number duration))))
+                       (plist-put :title
+                                  (or (plist-get plist :title)
+                                      (thread-first
+                                        (slot-value x 'context)
+                                        (slot-value 'title))))))))
     (unless (and end no-earlier-than
                  (> no-earlier-than end))
       (when (and no-earlier-than

@@ -32,10 +32,12 @@
 
 (defconst org-memento-policy-context-props
   '(:archived
+    :title
     :link))
 
 (defclass org-memento-policy-context ()
   ((label :initarg :label)
+   (title :initarg :title :initform nil :type (or string null))
    (group-path :initarg :group-path)
    (period :initarg :period :initform nil)
    (link :initarg :link :initform nil :type (or string null))
