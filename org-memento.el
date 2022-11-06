@@ -1449,11 +1449,27 @@ The point must be at the heading."
             (list))))))
 
 (defun org-memento-select-order (prompt orders)
-  (let* ((alist (mapcar (lambda (x)
-                          (cons (org-memento-order-title x) x))
-                        orders))
-         (input (completing-read prompt alist nil t)))
-    (cdr (assoc input alist))))
+  (let ((alist (mapcar (lambda (x)
+                         (cons (org-memento-order-title x) x))
+                       orders)))
+    (cl-labels
+        ((annotator (candidate)
+           (let ((order (cdr (assoc candidate alist))))
+             (concat (if-let (duration (org-memento-duration order))
+                         (propertize (format " (%s)" (org-duration-from-minutes duration))
+                                     'face 'font-lock-doc-face)
+                       "")
+                     " "
+                     (propertize (org-memento--format-group (org-memento-order-group order))
+                                 'face 'font-lock-comment-face))))
+         (completions (string pred action)
+           (if (eq action 'metadata)
+               (cons 'metadata
+                     (list (cons 'category 'org-memento-order)
+                           (cons 'annotation-function #'annotator)))
+             (complete-with-action action alist string pred))))
+      (cdr (assoc (completing-read prompt #'completions nil t)
+                  alist)))))
 
 (cl-defun org-memento-read-group (&optional prompt &key title default group-path)
   (declare (indent 1))
