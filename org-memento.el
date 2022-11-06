@@ -55,6 +55,7 @@
 (declare-function org-clocking-p "org-clock")
 (declare-function thing-at-point-looking-at "thingatpt")
 (declare-function org-notify "org-clock")
+(declare-function org-memento-timeline-refresh "org-memento-timeline")
 (defvar org-capture-entry)
 (defvar org-agenda-start-on-weekday)
 (defvar org-archive-tag)
@@ -1945,8 +1946,7 @@ marker to the time stamp, and the margin in seconds."
                      (setq min-time time)
                      (setq result (make-org-memento-org-event
                                    :marker marker
-                                   :active-ts ts
-                                   :margin-secs margin)))))))))))
+                                   :active-ts ts)))))))))))
     result))
 
 (defun org-memento--agenda-events (from-date to-date)
