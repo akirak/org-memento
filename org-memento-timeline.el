@@ -386,10 +386,29 @@ timeline as an argument."
                              (when (title taxy)
                                end))
                (setq last-block-end end))))
+         (sum-past-durations (records)
+           (cl-reduce #'+
+                      (thread-last
+                        records
+                        (seq-filter (lambda (record)
+                                      (and (cadr record)
+                                           (< (cadr record) now))))
+                        (mapcar (lambda (record)
+                                  (/ (- (cadr record)
+                                        (car record))
+                                     60))))
+                      :initial-value 0))
+         (block-record-p (record)
+           (eq (nth 4 record) 'block))
          (insert-date (taxy)
            (magit-insert-section (date (taxy-name taxy))
              (let ((title (title taxy))
-                   (indent (make-string 2 ?\s)))
+                   (indent (make-string 2 ?\s))
+                   (sum (thread-last
+                          (taxy-taxys taxy)
+                          (mapcar #'taxy-name)
+                          (seq-filter #'block-record-p)
+                          (sum-past-durations))))
                (magit-insert-heading
                  (if title
                      (propertize (thread-last
@@ -403,7 +422,10 @@ timeline as an argument."
                                         (/ (- (end-time taxy)
                                               (start-time taxy))
                                            60)))
-                               'face 'font-lock-comment-face)))
+                               'face 'font-lock-comment-face))
+                 (propertize (format " (%s)"
+                                     (org-memento--format-duration sum))
+                             'face 'default))
                (insert indent
                        (if-let (time (start-time taxy))
                            (format-time-string "%R" time)
