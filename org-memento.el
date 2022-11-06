@@ -1851,7 +1851,7 @@ marker to the time stamp, and the margin in seconds."
                          ;; The default margin is 10 minutes. It would be better
                          ;; if we had a different margin depending on the
                          ;; task/event type.
-                         (margin 600)
+                         (margin (* 60 org-memento-margin-minutes))
                          (mtime (- time margin)))
                (when (and (or (not min-time)
                               (< mtime min-time))
