@@ -283,6 +283,14 @@ If this variable is nil, no timer will be run when you start a
 block."
   :type '(choice function (const nil)))
 
+(defcustom org-memento-extend-on-end 'ask
+  "Whether to ask if the user wants to extend the time.
+
+If this variable is set to \\='ask, it will ask if the user wants
+to extend the time for the current block when the time runs out."
+  :type '(choice (const :tag "Ask" ask)
+                 (const :tag "Default (send a notification)" nil)))
+
 ;;;; Variables
 
 (defvar org-memento-init-done nil)
@@ -912,11 +920,64 @@ With a universal argument, you can specify the time of check out."
                 org-memento-block-timers))))))
 
 (defun org-memento--notify-end (&optional minutes)
-  (org-notify (if minutes
-                  (format "%s is about to end in %d minutes."
-                          org-memento-current-block
-                          minutes)
-                (format "%s must end now." org-memento-current-block))))
+  (if (and (not minutes)
+           org-memento-extend-on-end)
+      (when (yes-or-no-p (format "The time for %s has reached an end. Extend it?"
+                                 org-memento-current-block))
+        (org-memento-extend-current-block))
+    (org-notify (if minutes
+                    (format "%s is about to end in %d minutes."
+                            org-memento-current-block
+                            minutes)
+                  (format "%s must end now." org-memento-current-block)))))
+
+(defun org-memento-extend-current-block ()
+  (unless org-memento-current-block
+    (user-error "No current block"))
+  (let* ((upnext-event (org-memento--next-agenda-event
+                        nil nil :include-memento-file))
+         (now (float-time (org-memento--current-time)))
+         (limit (when upnext-event
+                  (/ (- (org-memento-starting-time upnext-event)
+                        (* 60 org-memento-margin-minutes)
+                        now)
+                     60)))
+         (default 30)
+         (default (if limit
+                      (min limit default)
+                    default))
+         (input (read-from-minibuffer
+                 (format-prompt
+                  (concat (if upnext-event
+                              (format "The next event \"%s\" starts at %s. "
+                                      (org-memento-title upnext-event)
+                                      (format-time-string
+                                       "%R" (org-memento-starting-time upnext-event)))
+                            "")
+                          "How long do you want to extend from now?")
+                  (org-memento--format-duration default))
+                 nil nil nil nil (org-memento--format-duration default)))
+         (new-end-time (+ now (* 60 (org-duration-to-minutes input)))))
+    (org-memento-with-current-block
+      (org-back-to-heading)
+      (org-end-of-meta-data)
+      (when (looking-at org-logbook-drawer-re)
+        (goto-char (match-end 0)))
+      (let* ((had-ts (looking-at org-ts-regexp))
+             (start (save-match-data
+                      (thread-last
+                        (org-entry-get nil "MEMENTO_CHECKIN_TIME")
+                        (org-timestamp-from-string)
+                        (org-timestamp-to-time)))))
+        (when had-ts
+          (replace-match ""))
+        (org-insert-time-stamp start
+                               t nil nil nil
+                               (concat "-" (org-memento--format-army-time
+                                            new-end-time (org-memento--midnight start))))
+        (unless had-ts (insert "\n"))))
+    (org-memento--setup-block-timers)
+    (org-memento-timeline-refresh)))
 
 (defun org-memento--cancel-block-timers ()
   (mapc #'cancel-timer org-memento-block-timers)
@@ -1847,14 +1908,9 @@ marker to the time stamp, and the margin in seconds."
                                (org-outline-level))))
              (when-let* ((ts (org-timestamp-from-string (match-string 0)))
                          (time (when (org-timestamp-has-time-p ts)
-                                 (float-time (org-timestamp-to-time ts))))
-                         ;; The default margin is 10 minutes. It would be better
-                         ;; if we had a different margin depending on the
-                         ;; task/event type.
-                         (margin (* 60 org-memento-margin-minutes))
-                         (mtime (- time margin)))
+                                 (float-time (org-timestamp-to-time ts)))))
                (when (and (or (not min-time)
-                              (< mtime min-time))
+                              (< time min-time))
                           (not (org-entry-is-done-p))
                           (not (org-memento--maybe-skip-by-tag)))
                  (let ((marker (save-excursion
@@ -1862,7 +1918,7 @@ marker to the time stamp, and the margin in seconds."
                                  (point-marker))))
                    (unless (and hd-marker
                                 (equal marker hd-marker))
-                     (setq min-time mtime)
+                     (setq min-time time)
                      (setq result (make-org-memento-org-event
                                    :marker marker
                                    :active-ts ts
