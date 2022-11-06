@@ -200,6 +200,9 @@ timeline as an argument."
            (time (and (listp head)
                       (numberp (car head))
                       (car head)))
+           (time2 (and (listp head)
+                       (numberp (cadr head))
+                       (cadr head)))
            (inhibit-read-only t))
       (delete-all-overlays)
       (erase-buffer)
@@ -212,7 +215,11 @@ timeline as an argument."
                   (and ,time
                        (listp (oref section value))
                        (ignore-errors
-                         (= ,time (car (oref section value))))))))
+                         (= ,time (car (oref section value)))))
+                  (and ,time2
+                       (listp (oref section value))
+                       (ignore-errors
+                         (= ,time2 (cadr (oref section value))))))))
           (goto-char (point-min))))))
 
 ;;;###autoload
