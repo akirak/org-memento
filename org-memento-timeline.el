@@ -585,7 +585,7 @@ If ARG is non-nil, create an away event."
          (pcase-exhaustive (org-memento--read-time-span
                             (org-memento--format-active-range
                              (if (and start (< start (float-time)))
-                                 (+ (float-time) (* 5 60))
+                                 (+ (float-time) (* 60 org-memento-margin-minutes))
                                start)
                              end-bound)
                             start)
@@ -955,14 +955,16 @@ section."
                               (seq-filter `(lambda (slot)
                                              (>= (- (cadr slot)
                                                     (car slot))
-                                                 ,(* 60 duration)))
+                                                 ,(* 60
+                                                     (+ duration
+                                                        (* 2 org-memento-margin-minutes)))))
                                           slots)
                             slots))))
                  (`(,start ,end) (when interactive
                                    (org-memento--read-time-span
                                     (when slot
                                       (org-memento--format-timestamp
-                                       (car slot)
+                                       (+ (car slot) (* 60 org-memento-margin-minutes))
                                        (if duration
                                            (+ (car slot) (* 60 duration))
                                          (cadr slot))))

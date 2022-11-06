@@ -179,6 +179,10 @@ distractions."
                                     ((const :normal-saving)
                                      org-memento-duration-type)))))
 
+(defcustom org-memento-margin-minutes 5
+  "Default amount of gaps between blocks."
+  :type 'number)
+
 (defcustom org-memento-schedule-away-alist nil
   ""
   :type '(alist :key-type string
