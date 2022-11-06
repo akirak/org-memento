@@ -1843,7 +1843,8 @@ marker to the time stamp, and the margin in seconds."
          (goto-char (point-min))
          (while (re-search-forward ts-regexp nil t)
            (unless (and (equal file (expand-file-name org-memento-file))
-                        (= 1 (org-outline-level)))
+                        (= 1 (save-match-data
+                               (org-outline-level))))
              (when-let* ((ts (org-timestamp-from-string (match-string 0)))
                          (time (when (org-timestamp-has-time-p ts)
                                  (float-time (org-timestamp-to-time ts))))
