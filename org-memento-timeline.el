@@ -107,6 +107,8 @@ timeline as an argument."
 (defvar org-memento-timeline-slots nil
   "Empty time slots in the current span.")
 
+(defvar org-memento-timeline-dismissed-items nil)
+
 ;;;; Macros
 
 (defmacro org-memento-timeline-with-overlay (props &rest progn)
@@ -582,6 +584,11 @@ timeline as an argument."
                      (org-cut-subtree)))))
               (t
                (user-error "Nothing to do"))))
+            ((cl-type org-memento-order)
+             (let ((title (org-memento-order-title value)))
+               (when (yes-or-no-p (format "Dismiss \"%s\"?" title))
+                 (push title org-memento-timeline-dismissed-items)))
+             (org-memento-timeline-revert))
             (_
              (user-error "Nothing to do")))
       (org-memento-timeline-revert))))
@@ -959,14 +966,16 @@ section."
           (let ((group-path (rule-group-path rule)))
             (let ((tasks (car plans)))
               (dolist (task tasks)
-                (magit-insert-section (generated-task task)
-                  (magit-insert-heading
-                    (make-string 2 ?\s)
-                    (propertize (org-memento-order-title task)
-                                'face 'magit-section-heading)
-                    (when-let (duration (org-memento-order-duration task))
-                      (concat " " (org-memento--format-duration duration)))
-                    (format " (%s)" (org-memento--format-group group-path))))))))))
+                (unless (member (org-memento-order-title task)
+                                org-memento-timeline-dismissed-items)
+                  (magit-insert-section (generated-task task)
+                    (magit-insert-heading
+                      (make-string 2 ?\s)
+                      (propertize (org-memento-order-title task)
+                                  'face 'magit-section-heading)
+                      (when-let (duration (org-memento-order-duration task))
+                        (concat " " (org-memento--format-duration duration)))
+                      (format " (%s)" (org-memento--format-group group-path)))))))))))
     (insert ?\n)))
 
 (defun org-memento-timeline-suggestions ()

@@ -59,6 +59,7 @@
 (defvar org-capture-entry)
 (defvar org-agenda-start-on-weekday)
 (defvar org-archive-tag)
+(defvar org-memento-timeline-dismissed-items)
 
 (defgroup org-memento nil
   "Time blocking with Org mode."
@@ -1174,6 +1175,8 @@ The function returns non-nil if the check-in is done."
     (when (looking-at org-ts-regexp)
       (beginning-of-line 2))
     (org-memento--update-cache-1 t)
+    (when (boundp 'org-memento-timeline-dismissed-items)
+      (setq org-memento-timeline-dismissed-items nil))
     (save-excursion
       (run-hooks 'org-memento-checkin-hook))
     (org-memento-status)
