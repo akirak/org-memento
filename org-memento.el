@@ -161,6 +161,13 @@ distractions."
   :type '(choice (const nil)
                  (function :tag "Function without an argument")))
 
+(defcustom org-memento-next-action-fallback #'org-memento-timeline
+  "Command run if there is no suggested next action.
+
+This is called in `org-memento-next-action'. The function will be
+called interactively."
+  :type 'function)
+
 (define-widget 'org-memento-duration-type 'lazy
   "String representing a duration."
   :tag "Duration (h:mm)"
@@ -746,9 +753,7 @@ should not be run inside the journal file."
          ((seq-find #'org-memento-block-not-closed-p (org-memento--blocks))
           (call-interactively #'org-memento-start-block))
          (t
-          ;; Otherwise, I have no idea what would be the best thing to do in
-          ;; general. Just display the status.
-          (org-agenda)))))))
+          (call-interactively org-memento-next-action-fallback)))))))
 
 ;;;###autoload
 (defun org-memento-start-block (title)
