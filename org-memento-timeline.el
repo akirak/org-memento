@@ -1010,16 +1010,20 @@ section."
                              (org-memento-select-slot
                               (format "Choose a slot for \"%s\": " title)
                               slots))))
-           (org-memento--read-time-span
-            (when slot
-              (org-memento--format-timestamp
-               (+ (car slot) (* 60 org-memento-margin-minutes))
-               (if duration
-                   (+ (car slot)
-                      (* 60 duration)
-                      (* 60 org-memento-margin-minutes))
-                 (cadr slot))))
-            (float-time (org-memento--current-time)))))
+           (pcase-exhaustive (org-memento--read-time-span
+                              (when slot
+                                (org-memento--format-timestamp
+                                 (+ (car slot) (* 60 org-memento-margin-minutes))
+                                 (if duration
+                                     (+ (car slot)
+                                        (* 60 duration)
+                                        (* 60 org-memento-margin-minutes))
+                                   (cadr slot))))
+                              (float-time (org-memento--current-time)))
+             (`(,start ,end)
+              (list (float-time start)
+                    (when end
+                      (float-time end)))))))
        (add-item (value &optional interactive)
          (cl-etypecase value
            (org-memento-order
