@@ -2815,6 +2815,18 @@ TAXY must be a result of `org-memento-activity-taxy'."
      (pcase-dolist (`(,key . ,value) properties)
        (org-entry-put nil key value)))))
 
+(cl-defun org-memento-group-agenda-files (group &key title)
+  "Return a list of Org agenda files associated with GROUP."
+  (with-temp-buffer
+    (let ((org-inhibit-startup t)
+          ;; Don't load modules.
+          (org-modules-loaded t))
+      (delay-mode-hooks (org-mode)))
+    (insert (apply #'org-memento--event-template :title (or title "")
+                   (org-memento--template-group group)))
+    (goto-char (point-min))
+    (funcall org-memento-agenda-files)))
+
 ;;;; Utility functions for time representations and Org timestamps
 
 (defun org-memento-week-date-range (n)
