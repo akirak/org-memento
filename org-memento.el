@@ -2280,7 +2280,7 @@ This function must be called at the beginning of the entry."
                            (and ,start
                                 ,end
                                 (>= (car record) ,start)
-                                (< (cadr record) ,end)))
+                                (<= (cadr record) ,end)))
              :then #'identity))))
        (prepend-unless-empty (list1 list2)
          (when list2
@@ -2307,7 +2307,7 @@ This function must be called at the beginning of the entry."
                :name (car date-record)
                :predicate `(lambda (record)
                              (and (>= (car record) ,computed-start)
-                                  (< (cadr record) ,computed-end)))
+                                  (<= (cadr record) ,computed-end)))
                :then #'identity
                :taxys (let ((now (float-time (org-memento--current-time))))
                         (or (thread-last
