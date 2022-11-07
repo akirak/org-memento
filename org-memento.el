@@ -731,23 +731,35 @@ should not be run inside the journal file."
       ;; supposed to properly address the issue. I am not sure if it is possible
       ;; to make the decision deterministically.
       (let* ((now (float-time (org-memento--current-time)))
+             (unclosed-blocks (thread-last
+                                (org-memento--blocks)
+                                (seq-filter #'org-memento-block-not-closed-p)))
+             (late-block (seq-find `(lambda (block)
+                                      (and (org-memento-starting-time block)
+                                           (< (org-memento-starting-time block)
+                                              ,now)))
+                                   unclosed-blocks))
              (next-block (thread-last
-                           (org-memento--blocks)
-                           (seq-filter #'org-memento-block-not-closed-p)
-                           (seq-filter #'org-memento-starting-time)
+                           unclosed-blocks
+                           (seq-filter `(lambda (block)
+                                          (and (org-memento-starting-time block)
+                                               (> (org-memento-starting-time block)
+                                                  ,now))))
                            (seq-sort-by #'org-memento-starting-time #'<)
                            (car)))
-             (upnext-event (or (org-memento--next-agenda-event
-                                nil (when next-blcok
-                                      (org-memento-starting-time next-block)))
+             (next-agenda-event (org-memento--next-agenda-event
+                                 nil (when next-block
+                                       (org-memento-starting-time next-block))))
+             (upnext-event (or next-agenda-event
                                next-block))
              (next-event-time (when upnext-event (org-memento-starting-time upnext-event)))
              (checkout-time (org-memento-ending-time (org-memento-today-as-block))))
         (if (and checkout-time
-                 (< now checkout-time))
+                 (> now checkout-time))
             (pcase-exhaustive (read-multiple-choice
                                (format-time-string "You are supposed to have already checked\
- out at %s." checkout-time)
+ out at %R."
+                                                   checkout-time)
                                '((?x "Extend the time" nil org-memento-set-checkout-time)
                                  (?m "Moderate the events" nil org-memento-timeline)
                                  (?o "Check out now" nil org-memento-checkout-from-day)))
@@ -759,12 +771,45 @@ should not be run inside the journal file."
            ((and next-event-time
                  (> next-event-time now)
                  (< (- next-event-time now) (* 10 60)))
-            (org-goto-marker-or-bmk (org-memento-marker upnext-event)))
-           ;; Start working on one of the remaining blocks.
-           ((seq-find #'org-memento-block-not-closed-p (org-memento--blocks))
+            (if next-agenda-event
+                (org-goto-marker-or-bmk (org-memento-marker upnext-event))
+              (with-current-buffer (org-memento--buffer)
+                (goto-char (org-memento-marker upnext-event))
+                (org-narrow-to-subtree)
+                (run-hooks 'org-memento-open-journal-hook))))
+           (late-block
+            (if (and (or (org-memento-duration late-block)
+                         (org-memento-ending-time late-block))
+                     (< (+ now (if-let (duration (org-memento-duration late-block))
+                                   (* 60 duration)
+                                 (- (org-memento-ending-time late-block)
+                                    (org-memento-starting-time late-block))))
+                        (or next-event-time
+                            (org-memento-ending-time (org-memento-today-as-block))
+                            (error "No checkout time is set"))))
+                (if (yes-or-no-p (format "Start \"%s\" right now? "
+                                         (org-memento-title late-block)))
+                    (org-memento-start-block (org-memento-title late-block))
+                  (org-memento-moderate))
+              (org-memento-moderate "There is a block you should have started.")))
+           ;; If there is a block that have no starting time, start working on
+           ;; it.
+           ((seq-filter (lambda (block)
+                          (not (org-memento-starting-time block)))
+                        unclosed-blocks)
             (call-interactively #'org-memento-start-block))
            (t
             (call-interactively org-memento-next-action-fallback))))))))
+
+;;;###autoload
+(defun org-memento-moderate (&optional message-text)
+  "Moderate the schedule.
+
+At present, it runs `org-memento-timeline'."
+  (interactive)
+  (when message-text
+    (message message-text))
+  (call-interactively #'org-memento-timeline))
 
 ;;;###autoload
 (defun org-memento-start-block (title)
