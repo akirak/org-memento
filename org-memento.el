@@ -2827,6 +2827,37 @@ TAXY must be a result of `org-memento-activity-taxy'."
     (goto-char (point-min))
     (funcall org-memento-agenda-files)))
 
+(defun org-memento--groups-for-agenda-file (file)
+  (thread-last
+    (cl-remove-if-not (apply-partially #'equal file)
+                      (org-memento--collect-group-files)
+                      :key #'cdr)
+    (mapcar #'car)))
+
+(defun org-memento--collect-group-files ()
+  "Returns a list of mappings between a group and an Org file.
+
+This function collects information from planning blocks in past
+activities. The returned value is a list of (GROUP . FILE) where
+GROUP is a group path and FILE is an Org file."
+  (thread-last
+    (org-memento-map-past-blocks-1
+     (lambda (_)
+       (when-let (items (save-excursion
+                          (org-memento-get-planning-items (point-marker))))
+         (let ((group (org-memento--get-group))
+               (files (thread-last
+                        items
+                        (mapcar #'car)
+                        (mapcar #'org-id-find-id-file)
+                        ;; (cl-remove-if-not #'cdr)
+                        (seq-uniq))))
+           (thread-last
+             files
+             (mapcar (apply-partially #'cons group)))))))
+    ;; flatten the lists.
+    (apply #'append)))
+
 ;;;; Utility functions for time representations and Org timestamps
 
 (defun org-memento-week-date-range (n)
