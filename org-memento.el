@@ -741,19 +741,30 @@ should not be run inside the journal file."
                                 nil (when next-blcok
                                       (org-memento-starting-time next-block)))
                                next-block))
-             (time (when upnext-event (org-memento-starting-time upnext-event))))
-        (cond
-         ;; If there is an upcoming event that should be started within 10
-         ;; minutes, display it.
-         ((and time
-               (> time now)
-               (< (- time now) (* 10 60)))
-          (org-goto-marker-or-bmk (org-memento-marker upnext-event)))
-         ;; Start working on one of the remaining blocks.
-         ((seq-find #'org-memento-block-not-closed-p (org-memento--blocks))
-          (call-interactively #'org-memento-start-block))
-         (t
-          (call-interactively org-memento-next-action-fallback)))))))
+             (next-event-time (when upnext-event (org-memento-starting-time upnext-event)))
+             (checkout-time (org-memento-ending-time (org-memento-today-as-block))))
+        (if (and checkout-time
+                 (< now checkout-time))
+            (pcase-exhaustive (read-multiple-choice
+                               (format-time-string "You are supposed to have already checked\
+ out at %s." checkout-time)
+                               '((?x "Extend the time" nil org-memento-set-checkout-time)
+                                 (?m "Moderate the events" nil org-memento-timeline)
+                                 (?o "Check out now" nil org-memento-checkout-from-day)))
+              (`(,_ ,_ ,_ ,command)
+               (call-interactively command)))
+          (cond
+           ;; If there is an upcoming event that should be started within 10
+           ;; minutes, display it.
+           ((and next-event-time
+                 (> next-event-time now)
+                 (< (- next-event-time now) (* 10 60)))
+            (org-goto-marker-or-bmk (org-memento-marker upnext-event)))
+           ;; Start working on one of the remaining blocks.
+           ((seq-find #'org-memento-block-not-closed-p (org-memento--blocks))
+            (call-interactively #'org-memento-start-block))
+           (t
+            (call-interactively org-memento-next-action-fallback))))))))
 
 ;;;###autoload
 (defun org-memento-start-block (title)
@@ -875,6 +886,21 @@ With a universal argument, you can specify the time of check out."
    (org-memento--save-buffer)
    (setq org-memento-block-idle-logging t)
    (run-hooks 'org-memento-checkout-hook)))
+
+(defun org-memento-set-checkout-time ()
+  "Extend the checkout time of the day."
+  (interactive)
+  (org-memento-with-today-entry
+   (org-end-of-meta-data)
+   (let* ((org-read-date-prefer-future nil)
+          (orig-ts (org-element-timestamp-parser))
+          (string (org-read-date t nil nil "Checkout time"
+                                 (org-memento-ending-time (org-memento-today-as-block)))))
+     (delete-region (org-element-property :begin orig-ts)
+                    (org-element-property :end orig-ts))
+     (insert (org-memento--format-timestamp
+              (org-timestamp-to-time orig-ts)
+              (encode-time (parse-time-string string)))))))
 
 (cl-defun org-memento-adjust-time (&key allow-edit-clock)
   "Adjust the active timestamp of the entry."
