@@ -623,10 +623,10 @@ If ARG is non-nil, create an away event."
                  (replace-match (format-inactive end) nil nil nil 1)
                  (setq updated (or updated t)))
                updated))))
-       (adjust-ts (marker)
+       (adjust-ts (marker &optional away)
          (save-current-buffer
            (org-with-point-at marker
-             (org-memento-adjust-time))))
+             (org-memento-adjust-time :allow-edit-clock away))))
        (schedule-new-block (start end-bound)
          (pcase-exhaustive (org-memento--read-time-span
                             (org-memento--format-active-range
@@ -699,7 +699,7 @@ If ARG is non-nil, create an away event."
                         (adjust-ts marker)
                         t))
                      (away
-                      (adjust-ts marker)
+                      (adjust-ts marker t)
                       t)
                      (gap
                       (add-event start end t arg))

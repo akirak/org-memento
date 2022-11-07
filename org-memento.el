@@ -853,42 +853,74 @@ With a universal argument, you can specify the time of check out."
    (setq org-memento-block-idle-logging t)
    (run-hooks 'org-memento-checkout-hook)))
 
-(defun org-memento-adjust-time ()
+(cl-defun org-memento-adjust-time (&key allow-edit-clock)
   "Adjust the active timestamp of the entry."
   (interactive)
   (save-excursion
     (org-back-to-heading)
     (org-end-of-meta-data)
-    (when (looking-at org-logbook-drawer-re)
-      (goto-char (match-end 0)))
-    (let* ((had-ts (looking-at org-ts-regexp))
-           (orig-ts (when had-ts
-                      (org-timestamp-from-string (match-string 0)))))
-      (when (org-time-stamp nil)
-        (thing-at-point-looking-at org-ts-regexp)
-        (let* ((new-ts (org-timestamp-from-string (match-string 0)))
-               (start (org-timestamp-to-time new-ts)))
-          (when (and orig-ts
-                     (eq 'active-range (org-element-property :type orig-ts))
-                     (not (eq 'active-range (org-element-property :type new-ts))))
-            (thing-at-point-looking-at org-ts-regexp)
-            (replace-match "")
-            (org-insert-time-stamp
-             start
-             t nil nil nil
-             (concat "-"
-                     (org-memento--format-army-time
-                      (time-add start
-                                (- (float-time (org-timestamp-to-time orig-ts t))
-                                   (float-time (org-timestamp-to-time orig-ts))))
-                      (float-time
-                       (encode-time
-                        (make-decoded-time
-                         :year (org-element-property :year-start new-ts)
-                         :month (org-element-property :month-start new-ts)
-                         :day (org-element-property :day-start new-ts)
-                         :hour 0 :minute 0 :second 0))))))))
-        (unless had-ts (insert "\n"))))))
+    (let ((has-drawer (looking-at org-logbook-drawer-re)))
+      (if (and has-drawer
+               allow-edit-clock
+               (save-match-data
+                 (re-search-forward org-clock-line-re (match-end 0) t)))
+          (org-memento--edit-clock)
+        (when has-drawer
+          (goto-char (match-end 0)))
+        (org-memento--edit-timestamp)))))
+
+(defun org-memento--edit-clock ()
+  "Edit the clock entry at point.
+
+The point must be after a \"CLOCK:\" string."
+  (let* ((orig-clock (org-element-clock-parser (pos-eol)))
+         (orig-ts (org-element-property :value orig-clock)))
+    (pcase-exhaustive (org-memento--read-time-span
+                       (org-memento--format-timestamp
+                        (org-timestamp-to-time orig-ts)
+                        (org-timestamp-to-time orig-ts t))
+                       (org-memento--start-of-day
+                        (decode-time
+                         (org-timestamp-to-time orig-ts))))
+      (`(,start ,end)
+       (goto-char (org-element-property :begin orig-ts))
+       (delete-region (org-element-property :begin orig-ts)
+                      (org-element-property :end orig-ts))
+       (insert (org-memento--format-timestamp start nil t)
+               "--"
+               (org-memento--format-timestamp end nil t))
+       (org-clock-update-time-maybe)))))
+
+(defun org-memento--edit-timestamp ()
+  "Edit the timestamp at point or insert a new one."
+  (let* ((had-ts (looking-at org-ts-regexp))
+         (orig-ts (when had-ts
+                    (org-timestamp-from-string (match-string 0)))))
+    (when (org-time-stamp t)
+      (thing-at-point-looking-at org-ts-regexp)
+      (let* ((new-ts (org-timestamp-from-string (match-string 0)))
+             (start (org-timestamp-to-time new-ts)))
+        (when (and orig-ts
+                   (eq 'active-range (org-element-property :type orig-ts))
+                   (not (eq 'active-range (org-element-property :type new-ts))))
+          (thing-at-point-looking-at org-ts-regexp)
+          (replace-match "")
+          (org-insert-time-stamp
+           start
+           t nil nil nil
+           (concat "-"
+                   (org-memento--format-army-time
+                    (time-add start
+                              (- (float-time (org-timestamp-to-time orig-ts t))
+                                 (float-time (org-timestamp-to-time orig-ts))))
+                    (float-time
+                     (encode-time
+                      (make-decoded-time
+                       :year (org-element-property :year-start new-ts)
+                       :month (org-element-property :month-start new-ts)
+                       :day (org-element-property :day-start new-ts)
+                       :hour 0 :minute 0 :second 0))))))))
+      (unless had-ts (insert "\n")))))
 
 ;;;; Timers and notifications
 
