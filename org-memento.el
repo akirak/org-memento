@@ -831,29 +831,26 @@ At present, it runs `org-memento-timeline'."
   (run-hooks 'org-memento-block-start-hook)
   (org-memento--setup-block-timers))
 
-(defun org-memento-finish-block ()
-  "Mark the current block as done."
-  (interactive)
-  (when org-memento-current-block
-    (run-hooks 'org-memento-block-before-exit-hook)
-    (org-memento-with-current-block
-      (org-todo org-memento-todo-keyword-for-success)
-      (org-memento--save-buffer))
-    (setq org-memento-current-block nil)
-    (org-memento--cancel-block-timers)
-    (run-hooks 'org-memento-block-exit-hook)))
-
-(defun org-memento-stop-block ()
-  "Change the state of the current block to a done keyword."
-  (interactive)
-  (when org-memento-current-block
-    (run-hooks 'org-memento-block-before-exit-hook)
-    (org-memento-with-current-block
-      (org-todo (completing-read "Change the state: " org-done-keywords))
-      (org-memento--save-buffer))
-    (setq org-memento-current-block nil)
-    (org-memento--cancel-block-timers)
-    (run-hooks 'org-memento-block-exit-hook)))
+(defun org-memento-finish-block (&optional arg)
+  "Finish the current block."
+  (interactive "P")
+  (unless org-memento-current-block
+    (user-error "No current block"))
+  (pcase-exhaustive (or arg org-memento-todo-keyword-for-success)
+    ('(4)
+     (org-memento-finish-block (completing-read "Finish the block: "
+                                                (with-current-buffer (org-memento--buffer)
+                                                  org-done-keywords)
+                                                nil t)))
+    ((and (pred stringp)
+          keyword)
+     (run-hooks 'org-memento-block-before-exit-hook)
+     (org-memento-with-current-block
+       (org-todo org-memento-todo-keyword-for-success)
+       (org-memento--save-buffer))
+     (setq org-memento-current-block nil)
+     (org-memento--cancel-block-timers)
+     (run-hooks 'org-memento-block-exit-hook))))
 
 ;;;###autoload
 (defun org-memento-open-journal (&optional arg)
@@ -1132,7 +1129,7 @@ The point must be after a \"CLOCK:\" string."
 
 (defun org-memento-refresh-day ()
   (when org-memento-current-block
-    (org-memento-stop-block))
+    (org-memento-finish-block '(4)))
   (when org-memento-daily-timer
     (cancel-timer org-memento-daily-timer))
   (setq org-memento-daily-timer nil)
