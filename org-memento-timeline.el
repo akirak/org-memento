@@ -748,8 +748,8 @@ If ARG is non-nil, create an away event."
 
 (defun org-memento-timeline--group-marker (section)
   (when (eq 'group-budgets (oref section type))
-    (pcase (oref section value)
-      (`(,_ ,path)
+    (pcase-exhaustive (oref section value)
+      (`(,_ ,path . ,_)
        (org-memento-policy-find-definition path)))))
 
 (defun org-memento-timeline-range ()
