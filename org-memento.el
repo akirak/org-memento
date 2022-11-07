@@ -692,6 +692,10 @@ This mode is primarily intended for remapping commands that
 should not be run inside the journal file."
   :lighter " MmtFile")
 
+(defun org-memento--ensure-file-mode ()
+  (unless org-memento-file-mode
+    (org-memento-file-mode t)))
+
 (defun org-memento-start-at-point ()
   "Start the block at point."
   (interactive)
@@ -859,6 +863,7 @@ At present, it runs `org-memento-timeline'."
   (cl-flet
       ((show-block (title &optional narrow)
          (with-current-buffer (org-memento--buffer)
+           (org-memento--ensure-file-mode)
            (widen)
            (org-memento--find-today)
            (org-narrow-to-subtree)
@@ -900,6 +905,7 @@ point to the heading.
 "
   (interactive)
   (with-current-buffer (org-memento--buffer)
+    (org-memento--ensure-file-mode)
     (widen)
     (push-mark)
     (let ((pos (point))
@@ -1294,6 +1300,7 @@ The function returns non-nil if the check-in is done."
     (org-memento--update-cache-1 t)
     (when (boundp 'org-memento-timeline-dismissed-items)
       (setq org-memento-timeline-dismissed-items nil))
+    (org-memento--ensure-file-mode)
     (save-excursion
       (run-hooks 'org-memento-checkin-hook))
     (org-memento-status)
