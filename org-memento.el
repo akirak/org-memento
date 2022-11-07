@@ -2043,27 +2043,58 @@ marker to the time stamp, and the margin in seconds."
                            "\n"))))))
 
 (defun org-memento-schedule-planning-items (items)
-  (let ((file (thread-last
-                (car items)
-                (org-memento-planning-item-hd-marker)
-                (marker-buffer)
-                (buffer-file-name)))
-        (blocks (thread-last
-                  (org-memento--blocks)
-                  (seq-filter #'org-memento-block-not-closed-p))))
+  (let* ((file (thread-last
+                 (car items)
+                 (org-memento-planning-item-hd-marker)
+                 (marker-buffer)
+                 (buffer-file-name)))
+         (table (make-hash-table :test #'equal))
+         candidates)
     (cl-labels
         ((capable-p (block)
            (save-current-buffer
              (org-with-point-at (org-memento-block-hd-marker block)
-               (member file (funcall org-memento-agenda-files))))))
-      (let* ((alist (mapcar (lambda (block)
-                              (cons (org-memento-title block)
-                                    block))
-                            (or (seq-filter #'capable-p blocks)
-                                blocks)))
-             (title (completing-read "Block: " alist)))
-        (org-memento-add-planning-items (cdr (assoc title alist))
-                                        items)
+               (and (member file
+                            (mapcar #'expand-file-name
+                                    (funcall org-memento-agenda-files)))
+                    t))))
+         (annotator (_candidate)
+           "")
+         (completion-group (candidate transform)
+           (if transform
+               candidate
+             (pcase-exhaustive (gethash candidate table)
+               ((and (cl-type org-memento-block)
+                     block)
+                (if (capable-p block)
+                    "Blocks related to the file"
+                  "Blocks unrelated from the file")))))
+         (completions (string pred action)
+           (if (eq action 'metadata)
+               (cons 'metadata
+                     (list (cons 'category 'org-memento)
+                           (cons 'group-function #'completion-group)
+                           (cons 'annotation-function #'annotator)))
+             (complete-with-action action candidates string pred)))
+         (t-first (x _)
+           x))
+      (dolist (block (thread-last
+                       (org-memento--blocks)
+                       (seq-filter #'org-memento-block-not-closed-p)
+                       (seq-group-by #'capable-p)
+                       (seq-sort-by #'car #'t-first)
+                       (mapcar #'cdr)
+                       (apply #'append)))
+        (let ((title (org-memento-title block)))
+          (puthash title block table)
+          (push title candidates)))
+      (setq candidates (reverse candidates))
+      (let* ((completions-sort nil)
+             (title (completing-read "Select a block: " #'completions)))
+        (pcase-exhaustive (gethash title table)
+          ((and (cl-type org-memento-block)
+                block)
+           (org-memento-add-planning-items block items)))
         t))))
 
 (defun org-memento--planning-items ()
