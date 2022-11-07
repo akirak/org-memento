@@ -375,13 +375,11 @@
 
 ;;;; Other functions
 
-(describe "org-memento-goto-today"
+(describe "org-memento-with-today-entry"
   (it "goes to the start of the current date"
     (expect (org-memento-with-test-context "memento1.org" "2020-01-01 12:00:00"
-              (save-window-excursion
-                (save-current-buffer
-                  (org-memento-goto-today)
-                  (buffer-substring (point) (pos-eol)))))
+              (org-memento-with-today-entry
+               (buffer-substring (point) (pos-eol))))
             :to-equal "* 2020-01-01")))
 
 (describe "org-memento-map-away-events"

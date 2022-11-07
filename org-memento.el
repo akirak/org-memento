@@ -1060,14 +1060,6 @@ The point must be after a \"CLOCK:\" string."
         (version-control nil))
     (save-buffer)))
 
-(defun org-memento-goto-today ()
-  "Switch the buffer to the file and go to the today's entry.
-
-This function is primarily intended for use in
-`org-capture-templates'."
-  (find-file org-memento-file)
-  (org-memento--find-today))
-
 (defun org-memento--find-today ()
   "Move the point to the today's entry or insert the entry.
 
