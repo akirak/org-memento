@@ -1002,21 +1002,11 @@ The point must be after a \"CLOCK:\" string."
                    (not (eq 'active-range (org-element-property :type new-ts))))
           (thing-at-point-looking-at org-ts-regexp)
           (replace-match "")
-          (org-insert-time-stamp
-           start
-           t nil nil nil
-           (concat "-"
-                   (org-memento--format-army-time
-                    (time-add start
-                              (- (float-time (org-timestamp-to-time orig-ts t))
-                                 (float-time (org-timestamp-to-time orig-ts))))
-                    (float-time
-                     (encode-time
-                      (make-decoded-time
-                       :year (org-element-property :year-start new-ts)
-                       :month (org-element-property :month-start new-ts)
-                       :day (org-element-property :day-start new-ts)
-                       :hour 0 :minute 0 :second 0))))))))
+          (insert (org-memento--format-timestamp
+                   start
+                   (time-add start
+                             (- (float-time (org-timestamp-to-time orig-ts t))
+                                (float-time (org-timestamp-to-time orig-ts))))))))
       (unless had-ts (insert "\n")))))
 
 ;;;; Timers and notifications
