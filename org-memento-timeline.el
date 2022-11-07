@@ -398,13 +398,11 @@ timeline as an argument."
                              (when (title taxy)
                                end))
                (setq last-block-end end))))
-         (sum-past-durations (records)
+         (sum-durations (pred records)
            (cl-reduce #'+
                       (thread-last
                         records
-                        (seq-filter (lambda (record)
-                                      (and (cadr record)
-                                           (< (cadr record) now))))
+                        (seq-filter pred)
                         (mapcar (lambda (record)
                                   (/ (- (cadr record)
                                         (car record))
@@ -416,11 +414,8 @@ timeline as an argument."
            (magit-insert-section (date (taxy-name taxy))
              (let ((title (title taxy))
                    (indent (make-string 2 ?\s))
-                   (sum (thread-last
-                          (taxy-taxys taxy)
-                          (mapcar #'taxy-name)
-                          (seq-filter #'block-record-p)
-                          (sum-past-durations))))
+                   (day-unfinished (and (cadr (taxy-name taxy))
+                                        (< now (cadr (taxy-name taxy))))))
                (magit-insert-heading
                  (if title
                      (propertize (thread-last
@@ -435,9 +430,41 @@ timeline as an argument."
                                               (start-time taxy))
                                            60)))
                                'face 'font-lock-comment-face))
-                 (propertize (format " (%s)"
-                                     (org-memento--format-duration sum))
-                             'face 'default))
+                 (thread-first
+                   (format-spec (if day-unfinished
+                                    " (%d spent, %s scheduled, %a available)"
+                                  " (%d spent)")
+                                `((?d . ,(thread-last
+                                           (taxy-taxys taxy)
+                                           (mapcar #'taxy-name)
+                                           (sum-durations
+                                            (lambda (record)
+                                              (and (block-record-p record)
+                                                   (cadr record)
+                                                   (< (cadr record) now))))
+                                           (org-memento--format-duration)))
+                                  (?s . ,(when day-unfinished
+                                           (thread-last
+                                             (taxy-taxys taxy)
+                                             (mapcar #'taxy-name)
+                                             (sum-durations
+                                              (lambda (record)
+                                                (and (block-record-p record)
+                                                     (car record)
+                                                     (> (car record) now))))
+                                             (org-memento--format-duration))))
+                                  (?a . ,(when day-unfinished
+                                           (thread-last
+                                             (taxy-taxys taxy)
+                                             (mapcar #'taxy-name)
+                                             (sum-durations
+                                              (lambda (record)
+                                                (and (null (nth 4 record))
+                                                     (cadr record)
+                                                     (> (cadr record) now))))
+                                             (org-memento--format-duration))))))
+                   (propertize
+                    'face 'default)))
                (insert indent
                        (if-let (time (start-time taxy))
                            (format-time-string "%R" time)
