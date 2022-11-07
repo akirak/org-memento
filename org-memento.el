@@ -934,6 +934,8 @@ With a universal argument, you can specify the time of check out."
                   (format "%s must end now." org-memento-current-block)))))
 
 (defun org-memento-extend-current-block ()
+  "Extend the end time of the current block."
+  (interactive)
   (unless org-memento-current-block
     (user-error "No current block"))
   (let* ((upnext-event (org-memento--next-agenda-event
