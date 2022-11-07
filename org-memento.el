@@ -356,6 +356,9 @@ Return a copy of the list."
 (cl-defgeneric org-memento-headline-element (x)
   "Return the headline element of X.")
 
+(cl-defgeneric org-memento-marker (x)
+  "Return the headline marker of X.")
+
 (cl-defgeneric org-memento-active-ts (x)
   "Return an active timestamp of X, if any.")
 
@@ -402,6 +405,9 @@ Return a copy of the list."
 (cl-defmethod org-memento-headline-element ((x org-memento-block))
   (org-memento-block-headline x))
 
+(cl-defmethod org-memento-marker ((x org-memento-block))
+  (org-memento-block-hd-marker x))
+
 (cl-defmethod org-memento-active-ts ((x org-memento-block))
   (org-memento-block-active-ts x))
 
@@ -447,6 +453,9 @@ Return a copy of the list."
             (when (looking-at org-complex-heading-regexp)
               (setf (org-memento-org-event-title x)
                     (match-string-no-properties 4))))))))
+
+(cl-defmethod org-memento-marker ((x org-memento-org-event))
+  (org-memento-org-event-marker x))
 
 (cl-defmethod org-memento-active-ts ((x org-memento-org-event))
   (org-memento-org-event-active-ts x))
@@ -714,16 +723,25 @@ should not be run inside the journal file."
       ;; It is hard to decide on the next action. `org-memento-timeline' is
       ;; supposed to properly address the issue. I am not sure if it is possible
       ;; to make the decision deterministically.
-      (let* ((upnext-event (org-memento--next-agenda-event nil nil
-                                                           :include-memento-file t))
+      (let* ((now (float-time (org-memento--current-time)))
+             (next-block (thread-last
+                           (org-memento--blocks)
+                           (seq-filter #'org-memento-block-not-closed-p)
+                           (seq-filter #'org-memento-starting-time)
+                           (seq-sort-by #'org-memento-starting-time #'<)
+                           (car)))
+             (upnext-event (or (org-memento--next-agenda-event
+                                nil (when next-blcok
+                                      (org-memento-starting-time next-block)))
+                               next-block))
              (time (when upnext-event (org-memento-starting-time upnext-event))))
         (cond
          ;; If there is an upcoming event that should be started within 10
          ;; minutes, display it.
          ((and time
-               (< (- time (float-time (org-memento--current-time)))
-                  (* 10 60)))
-          (org-goto-marker-or-bmk (org-memento-org-event-marker upnext-event)))
+               (> time now)
+               (< (- time now) (* 10 60)))
+          (org-goto-marker-or-bmk (org-memento-marker upnext-event)))
          ;; Start working on one of the remaining blocks.
          ((seq-find #'org-memento-block-not-closed-p (org-memento--blocks))
           (call-interactively #'org-memento-start-block))
