@@ -1025,24 +1025,29 @@ section."
              (add-item (or (org-memento-select-order "Select a task to add: "
                                                      suggestions)
                            (user-error "Not selected")))
-           (fallback group-path duration))))
+           (fallback group-path duration)))
+       (section-type (section)
+         (slot-value section 'type))
+       (section-value (section)
+         (slot-value section 'value)))
     (if-let (values (magit-region-values))
         (dolist (value values)
           (when (org-memento-order-p value)
             (add-item value)))
-      (if-let (section (magit-current-section))
-          (cond
-           ((eq 'group-budgets (oref section type))
-            (select-suggestion (cadr (oref section value))
-                               (caddr (oref section value))))
-           ((org-memento-order-p (oref section value))
-            (add-item (oref section value) t))
-           (t
-            (if-let (group-path (ignore-errors
-                                  (org-memento-group-path (oref section value))))
-                (select-suggestion group-path)
-              (fallback))))
-        (fallback)))))
+      (pcase (magit-current-section)
+        ((and (app section-type `group-budgets)
+              (app section-value `(,_span ,group-path ,remaining . ,_)))
+         (select-suggestion group-path remaining))
+        ((and (app section-value (cl-type org-memento-order))
+              (app section-value order))
+         (add-item order t))
+        ((app section-value `nil)
+         (fallback))
+        (obj
+         (if-let (group-path (ignore-errors
+                               (org-memento-group-path obj)))
+             (select-suggestion group-path)
+           (fallback)))))))
 
 (defun org-memento-timeline-planning-sections (taxy)
   (unless (and org-memento-timeline-hide-planning
