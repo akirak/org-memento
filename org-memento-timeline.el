@@ -116,6 +116,11 @@ timeline as an argument."
          (pcase-dolist (`(,prop . ,value) ',props)
            (overlay-put ov prop (eval value)))))))
 
+(defmacro org-memento-timeline-with-props (props &rest body)
+  `(let ((start (point)))
+     (prog1 (progn ,@body)
+       (add-text-properties start (point) ,props))))
+
 (defmacro org-memento-timeline-with-marker-point (&rest progn)
   `(when-let* ((section (magit-current-section))
                (marker (org-memento-timeline--org-marker section)))
@@ -834,28 +839,30 @@ section."
                                (- (slot-value main-budget 'duration-minutes)
                                   planned-sum))))
              (magit-insert-section (group-budgets (list span group-path remaining) t)
-               (magit-insert-heading
-                 (make-string 4 ?\s)
-                 (format "| %-12s | %5s%1s%5s %-6s |"
-                         (truncate-string-to-width
-                          (org-memento--format-group-last-node group-path)
-                          12)
-                         (propertize (org-memento--format-duration sum)
-                                     'face
-                                     (if (and planned-sum (> planned-sum 0))
-                                         'org-memento-timeline-estimated-face
-                                       'default))
-                         (if group-budgets "/" "")
-                         (if main-budget
-                             (org-memento--format-duration
-                              (slot-value main-budget 'duration-minutes))
-                           "")
-                         (if main-budget
-                             (cl-ecase (slot-value main-budget 'level)
-                               (minimum "(min.)")
-                               (goal "(goal)")
-                               (`limit "(lim.)"))
-                           ""))))))
+               (org-memento-timeline-with-props
+                (list 'help-echo (org-memento--format-group group-path))
+                (magit-insert-heading
+                  (make-string 4 ?\s)
+                  (format "| %-12s | %5s%1s%5s %-6s |"
+                          (truncate-string-to-width
+                           (org-memento--format-group-last-node group-path)
+                           12)
+                          (propertize (org-memento--format-duration sum)
+                                      'face
+                                      (if (and planned-sum (> planned-sum 0))
+                                          'org-memento-timeline-estimated-face
+                                        'default))
+                          (if group-budgets "/" "")
+                          (if main-budget
+                              (org-memento--format-duration
+                               (slot-value main-budget 'duration-minutes))
+                            "")
+                          (if main-budget
+                              (cl-ecase (slot-value main-budget 'level)
+                                (minimum "(min.)")
+                                (goal "(goal)")
+                                (`limit "(lim.)"))
+                            "")))))))
          (in-some-group (group-paths group)
            (seq-find (-partial (-flip #'match-group) group)
                      group-paths)))
