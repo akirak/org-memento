@@ -695,7 +695,8 @@ If ARG is non-nil, create an away event."
                       t)
                      (block
                       ;; Only allow adjusting time of future events.
-                      (when (and (> start now))
+                      (when (or (not start)
+                                (> start now))
                         (adjust-ts marker)
                         t))
                      (away
