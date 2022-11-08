@@ -527,6 +527,12 @@ Return a copy of the list."
 (cl-defmethod org-memento-group-path ((x org-memento-order))
   (org-memento-order-group x))
 
+;;;;; org-memento-group-data
+
+(cl-defstruct org-memento-group-data group-path value tag)
+(cl-defmethod org-memento-group-path ((x org-memento-group-data))
+  (org-memento-group-data-group-path x))
+
 ;;;; Macros
 
 (defmacro org-memento-with-today-entry (&rest progn)
@@ -2878,7 +2884,7 @@ This is useful for `org-memento-timeline'."
      (let ((decoded-time (decode-time (org-memento--current-time))))
        (setq org-memento-weekly-group-sums
              (unless (equal start-date (org-memento--today-string decoded-time))
-               (org-memento-group-sums
+               (org-memento-group-sums-1
                 (org-memento-activity-taxy
                  start-date (format-time-string
                              "%F"
@@ -2889,7 +2895,7 @@ This is useful for `org-memento-timeline'."
                                (encode-time)))
                  :groups t))))))))
 
-(defun org-memento-group-sums (taxy)
+(defun org-memento-group-sums-1 (taxy)
   "Return the sums of time spent on blocks.
 
 TAXY must be a result of `org-memento-activity-taxy' with :blocks
@@ -2899,18 +2905,45 @@ argument set to non-nil."
       (org-memento--map-taxy-blocks taxy
         `(lambda (record)
            (pcase record
-             ((and `(,start ,end ,_ ,_ block . ,plist)
+             ((and `(,start ,end ,_ ,_ block . ,(map :group))
                    (guard start)
                    (guard end)
+                   (guard group)
                    (guard (< end ,now)))
-              (when-let (group (plist-get plist :group))
-                (cons group
-                      (/ (- end start) 60)))))))
+              (cons group
+                    (/ (- end start) 60))))))
       (seq-group-by #'car)
       (mapcar (pcase-lambda (`(,group . ,records))
-                (cons group
-                      (cl-reduce #'+ (mapcar #'cdr records)
-                                 :initial-value 0)))))))
+                (make-org-memento-group-data
+                 :group-path group
+                 :value (cl-reduce #'+ (mapcar #'cdr records)
+                                   :initial-value 0)
+                 :tag 'activity-sum))))))
+
+(defun org-memento-group-planned-sums-1 (taxy)
+  (save-current-buffer
+    (thread-last
+      (org-memento--blocks)
+      (cl-remove-if #'org-memento-started-time)
+      (mapcar (lambda (block)
+                (org-with-point-at (org-memento-block-hd-marker block)
+                  (cons (org-memento--get-group
+                         (org-memento-block-headline block))
+                        (or (org-memento-duration block)
+                            (and (org-memento-starting-time block)
+                                 (org-memento-ending-time block)
+                                 (/ (- (org-memento-ending-time block)
+                                       (org-memento-starting-time block))
+                                    60)))))))
+      (cl-remove-if-not #'cdr)
+      (seq-group-by #'car)
+      (mapcar (lambda (group-and-entries)
+                (make-org-memento-group-data
+                 :group-path (car group-and-entries)
+                 :value (cl-reduce #'+
+                                   (mapcar #'cdr (cdr group-and-entries))
+                                   :initial-value 0)
+                 :tag 'planned-sum))))))
 
 (cl-defun org-memento--map-taxy-blocks (taxy fn)
   "Run a function on each block record.
@@ -3011,6 +3044,20 @@ GROUP is a group path and FILE is an Org file."
     ;; flatten the lists.
     (apply #'append)))
 
+;;;; Taxy utilities
+
+(defun org-memento-taxy-trees-with-item (taxy)
+  "Given a taxy, return its descendants that have an item."
+  (let (result)
+    (cl-labels
+        ((search (x)
+           (if (taxy-items x)
+               (push x result)
+             (dolist (subtaxy (taxy-taxys x))
+               (search subtaxy)))))
+      (search taxy))
+    (nreverse result)))
+
 ;;;; Utility functions for time representations and Org timestamps
 
 (defun org-memento-week-date-range (n)
@@ -3032,6 +3079,32 @@ GROUP is a group path and FILE is an Org file."
                     week-start (make-decoded-time :day 6))))
     (list (format-time-string "%F" (encode-time week-start))
           (format-time-string "%F" (encode-time week-end)))))
+
+(defun org-memento--percentage-on-week ()
+  (pcase-exhaustive (org-memento-week-date-range 0)
+    (`(,start-date ,end-date)
+     (let ((planned-sum 0)
+           (past-sum 0)
+           (today (org-memento--start-of-day
+                   (decode-time (org-memento--current-time))))
+           (date (parse-time-string start-date)))
+       (while (not (org-memento-date--le (parse-time-string end-date) date))
+         (when-let (plist (org-memento--normal-workhour date))
+           (let* ((duration (plist-get plist :normal-duration))
+                  (saving (plist-get plist :normal-saving))
+                  (mean-duration (when duration
+                                   (- (org-duration-to-minutes duration)
+                                      (if saving
+                                          (org-duration-to-minutes saving)
+                                        0)))))
+             (cl-incf planned-sum mean-duration)
+             (when (org-memento-date--le date today)
+               (cl-incf past-sum mean-duration))))
+         (setq date (decoded-time-add date (make-decoded-time :day 1))))
+       (cl-incf past-sum (/ (- (float-time (org-memento--current-time))
+                               (org-memento-started-time (org-memento-today-as-block)))
+                            60))
+       (* (/ past-sum planned-sum) 100)))))
 
 (defun org-memento--fill-decoded-time (decoded-time)
   "Fill time fields of DECODED-TIME."

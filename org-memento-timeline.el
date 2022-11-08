@@ -784,168 +784,180 @@ section."
 ;;;; Extra hooks
 
 (defun org-memento-timeline-progress-section (taxy)
-  (let* ((scope-end (float-time (cadr (taxy-name taxy))))
-         (rules (org-memento-policy-rules
-                 :span org-memento-timeline-span
-                 :start-date (car org-memento-timeline-date-range)
-                 :end-date (cadr org-memento-timeline-date-range)))
-         (budgets (seq-filter #'org-memento-policy-budget-rule-p rules))
-         (sums-for-span (org-memento-group-sums taxy))
-         (sums-by-spans (cons (cons org-memento-timeline-span sums-for-span)
-                              (when (< (cl-position org-memento-timeline-span
-                                                    org-memento-policy-span-types)
-                                       (cl-position 'week
-                                                    org-memento-policy-span-types))
-                                `((week . ,(org-memento--merge-group-sums-1
-                                            (list sums-for-span
-                                                  org-memento-weekly-group-sums)))))))
-         (planned (save-current-buffer
-                    (thread-last
-                      (org-memento--blocks)
-                      (cl-remove-if #'org-memento-started-time)
-                      (mapcar (lambda (block)
-                                (org-with-point-at (org-memento-block-hd-marker block)
-                                  (cons (org-memento--get-group
-                                         (org-memento-block-headline block))
-                                        block)))))))
-         (planned-sums (thread-last
-                         planned
-                         (mapcar (pcase-lambda (`(,group . ,block))
-                                   (org-with-point-at (org-memento-block-hd-marker block)
-                                     (cons group
-                                           (or (org-memento-duration block)
-                                               (and (org-memento-starting-time block)
-                                                    (org-memento-ending-time block)
-                                                    (/ (- (org-memento-ending-time block)
-                                                          (org-memento-starting-time block))
-                                                       60)))))))
-                         (cl-remove-if-not #'cdr)
-                         (seq-group-by #'car)
-                         (mapcar (lambda (group-and-entries)
-                                   (cons (car group-and-entries)
-                                         (cl-reduce #'+
-                                                    (mapcar #'cdr (cdr group-and-entries))
-                                                    :initial-value 0)))))))
+  (let ((rules (org-memento-policy-rules
+                :span org-memento-timeline-span
+                :start-date (car org-memento-timeline-date-range)
+                :end-date (cadr org-memento-timeline-date-range)))
+        (group-sums-for-span (org-memento-group-sums-1 taxy)))
     (cl-labels
-        ((budget-span (rule)
-           (oref rule span))
-         (rule-group-path (rule)
-           (slot-value (slot-value rule 'context) 'group-path))
-         (match-group (group-path group)
-           (equal group-path (seq-take group (length group-path))))
-         (rule-match-group (group-path rule)
-           (match-group group-path (rule-group-path rule)))
-         (budget-type-is (level rule)
-           (eq level (slot-value rule 'level)))
-         (block-to-record (block)
-           (let ((duration (org-memento-duration block)))
-             (list (or (org-memento-starting-time block)
-                       (when duration
-                         (- scope-end (* 60 duration)))
-                       (- scope-end 60))
-                   (or (org-memento-starting-time block)
-                       (- scope-end 1))
-                   (org-memento-title block)
-                   nil
-                   nil)))
-         (sum-durations (durations)
-           (cl-reduce #'+ durations :initial-value 0))
-         (insert-group-status (span group-path group-budgets &optional sum)
-           (let* ((planned-sum (thread-last
-                                 (org-memento-filter-by-group-path group-path
-                                                                   planned-sums
-                                                                   :key #'car)
-                                 (mapcar #'cdr)
-                                 (sum-durations)))
-                  (sum (+ (or sum
-                              (thread-last
-                                (org-memento-filter-by-group-path group-path
-                                                                  (alist-get span sums-by-spans)
-                                                                  :key #'car)
-                                (mapcar #'cdr)
-                                (sum-durations)))
-                          (or planned-sum 0)))
-                  (main-budget (or (seq-find (-partial #'budget-type-is 'goal) group-budgets)
-                                   (seq-find (-partial #'budget-type-is 'minimum) group-budgets)
-                                   (seq-find (-partial #'budget-type-is 'limit) group-budgets)))
-                  (remaining (when (and main-budget
-                                        (not (eq (slot-value main-budget 'level)
-                                                 'limit)))
-                               (- (slot-value main-budget 'duration-minutes)
-                                  planned-sum))))
-             (magit-insert-section (group-budgets (list span group-path remaining) t)
-               (org-memento-timeline-with-props
-                (list 'help-echo (org-memento--format-group group-path))
-                (magit-insert-heading
-                  (make-string 4 ?\s)
-                  (format "| %-12s | %5s%1s%5s %-6s |"
-                          (truncate-string-to-width
-                           (org-memento--format-group-last-node group-path)
-                           12)
-                          (propertize (org-memento--format-duration sum)
-                                      'face
-                                      (if (and planned-sum (> planned-sum 0))
-                                          'org-memento-timeline-estimated-face
-                                        'default))
-                          (if group-budgets "/" "")
-                          (if main-budget
-                              (org-memento--format-duration
-                               (slot-value main-budget 'duration-minutes))
-                            "")
-                          (if main-budget
-                              (cl-ecase (slot-value main-budget 'level)
-                                (minimum "(min.)")
-                                (goal "(goal)")
-                                (`limit "(lim.)"))
-                            "")))))))
-         (in-some-group (group-paths group)
-           (seq-find (-partial (-flip #'match-group) group)
-                     group-paths)))
+        ((spentp (x)
+           (and (org-memento-group-data-p x)
+                (eq 'activity-sum (org-memento-group-data-tag x))))
+         (plannedp (x)
+           (and (org-memento-group-data-p x)
+                (eq 'planned-sum (org-memento-group-data-tag x))))
+         (budget-for-span-p (span x)
+           (and (org-memento-policy-budget-rule-p x)
+                (eq (slot-value x 'span) span)))
+         (test-budget (span level x)
+           (and (org-memento-policy-budget-rule-p x)
+                (eq (slot-value x 'span) span)
+                (eq (slot-value x 'level) level)))
+         (budget (span level rules)
+           (when-let (rule (seq-find (apply-partially #'test-budget span level) rules))
+             (slot-value rule 'duration-minutes)))
+         (format-budget (span level rules)
+           (if-let (budget (budget span level rules))
+               (org-memento--format-duration budget)
+             ""))
+         (group-value (x)
+           (org-memento-group-data-value x))
+         (sum (nums)
+           (cl-reduce #'+ nums :initial-value 0))
+         (insert-group (span depth group-taxy)
+           (let* ((spent (thread-last
+                           (taxy-flatten group-taxy)
+                           (seq-filter #'spentp)
+                           (mapcar #'group-value)
+                           (sum)))
+                  (planned (thread-last
+                             (taxy-flatten group-taxy)
+                             (seq-filter #'plannedp)
+                             (mapcar #'group-value)
+                             (sum)))
+                  (goal (budget span 'goal (taxy-items group-taxy)))
+                  (demand (when goal
+                            (- goal (+ spent planned)))))
+             (magit-insert-section (group-budgets (list span
+                                                        (taxy-name group-taxy)
+                                                        demand))
+               (magit-insert-heading
+                 (make-string 2 ?\s)
+                 (pcase span
+                   (`day
+                    (format "| %-16s | %4s%s%4s | %4s | %4s %-7s | %4s |"
+                            (truncate-string-to-width
+                             (concat (make-string depth ?\s)
+                                     (propertize
+                                      (org-memento--format-group-last-node (taxy-name group-taxy))
+                                      'face 'magit-section-heading))
+                             16)
+                            (if (> spent 0)
+                                (org-memento--format-duration spent)
+                              "")
+                            (if (> planned 0)
+                                "+"
+                              " ")
+                            (if (> planned 0)
+                                (org-memento--format-duration planned)
+                              "")
+                            (format-budget 'day 'minimum (taxy-items group-taxy))
+                            (format-budget 'day 'goal (taxy-items group-taxy))
+                            (if (and demand (> demand 0))
+                                (format "(-%s)" (org-memento--format-duration demand))
+                              "")
+                            (format-budget 'day 'limit (taxy-items group-taxy))))))
+               (dolist (subtaxy (taxy-taxys group-taxy))
+                 (insert-group span (1+ depth) subtaxy))))))
       (magit-insert-section (org-memento-progress)
-        (magit-insert-heading
-          "Progress")
-        (pcase-dolist (`(,span . ,budget-rules-for-span)
-                       (thread-last
-                         budgets
-                         (seq-group-by #'budget-span)
-                         (seq-sort-by #'car #'org-memento-policy--compare-span-types)))
-          (when (<= (cl-position org-memento-timeline-span
-                                 org-memento-policy-span-types)
-                    (cl-position span
-                                 org-memento-policy-span-types))
-            (magit-insert-section (span span)
-              (magit-insert-heading
-                (make-string 2 ?\s)
-                (cl-ecase span
-                  (day "Daily")
-                  (week "Weekly")
-                  (month "Monthly"))
-                "\n"
-                (make-string 4 ?\s)
-                (format "| %-12s | %11s %-6s |\n"
-                        "Group" "" ""))
-              (let ((groups-with-budgets
+        (magit-insert-heading "Progress")
+        (when (eq 'day org-memento-timeline-span)
+          (magit-insert-section (day)
+            (magit-insert-heading
+              (make-string 2 ?\s)
+              "Daily")
+            (insert (propertize
+                     (concat
+                      (make-string 2 ?\s)
+                      (format "| %-16s | %-9s | %-26s |\n"
+                              "Group" "Today" "Daily budget")
+                      (make-string 2 ?\s)
+                      (format "| %-16s | %-9s | %-4s | %-12s | %-4s |\n"
+                              "" "Current" "Min" "Goal" "Lim"))
+                     'face 'magit-section-heading))
+            (dolist (group-taxy
                      (thread-last
-                       budget-rules-for-span
-                       (seq-group-by #'rule-group-path))))
-                (pcase-dolist (`(,group-path . ,group-budget-rules)
-                               groups-with-budgets)
-                  (insert-group-status span group-path group-budget-rules))
-                (pcase-dolist (`(,group . ,sum)
-                               (thread-last
-                                 (cl-remove-if (apply-partially
-                                                #'in-some-group
-                                                (mapcar #'car groups-with-budgets))
-                                               (alist-get span sums-by-spans)
-                                               :key #'car)
-                                 (seq-group-by #'caar)
-                                 (mapcar (pcase-lambda (`(,node . ,groups-and-sums))
-                                           (cons (list node)
-                                                 (cl-reduce #'+
-                                                            (mapcar #'cdr groups-and-sums)
-                                                            :initial-value 0))))))
-                  (insert-group-status span group nil sum)))))))
+                       rules
+                       (seq-filter (apply-partially #'budget-for-span-p 'day))
+                       (org-memento-policy-group-taxy)
+                       (taxy-fill group-sums-for-span)
+                       (taxy-fill (org-memento-group-planned-sums-1 taxy))
+                       (taxy-taxys)))
+              (insert-group 'day 0 group-taxy)))
+          (insert ?\n)
+          (org-memento-timeline--weekly-progress
+           rules
+           (append group-sums-for-span org-memento-weekly-group-sums))))
       (insert ?\n))))
+
+(defun org-memento-timeline--weekly-progress (rules group-sums)
+  (let* ((threshold (/ (org-memento--percentage-on-week) 100))
+         (gauge-width (- (window-width) 45 1))
+         (rule-pos (floor (* gauge-width threshold))))
+    (cl-labels
+        ((test-budget (span level x)
+           (and (org-memento-policy-budget-rule-p x)
+                (eq (slot-value x 'span) span)
+                (eq (slot-value x 'level) level)))
+         (sum (nums)
+           (cl-reduce #'+ nums :initial-value 0))
+         (duration-from-taxy (taxy)
+           (if-let (budget (car (taxy-items taxy)))
+               (slot-value budget 'duration-minutes)
+             (sum (mapcar #'duration-from-taxy (taxy-taxys taxy)))))
+         (sort-taxys (taxys)
+           (seq-sort-by #'duration-from-taxy #'> taxys))
+         (insert-group (depth group-taxy)
+           (magit-insert-section (group-budgets (list 'week (taxy-name group-taxy) nil))
+             (when-let (budget (car (taxy-items group-taxy)))
+               (let* ((context (slot-value budget 'context))
+                      (title (slot-value context 'title))
+                      (group-path (taxy-name group-taxy))
+                      (goal (slot-value budget 'duration-minutes))
+                      (sum (sum (mapcar #'org-memento-group-data-value
+                                        (org-memento-filter-by-group-path
+                                         group-path group-sums))))
+                      (rate (/ sum goal))
+                      (w1 (min (round (* gauge-width rate))
+                               gauge-width)))
+                 (org-memento-timeline-with-props
+                  (list 'help-echo
+                        (concat (if title
+                                    (format "\"%s\" " title)
+                                  "")
+                                (org-memento--format-group group-path)))
+                  (magit-insert-heading
+                    (make-string 2 ?\s)
+                    (format "| %-16s |%6s /%6s | %s %3.f%%"
+                            (propertize (truncate-string-to-width
+                                         (concat (make-string depth ?\s)
+                                                 (or title
+                                                     (org-memento--format-group-last-node group-path)))
+                                         16)
+                                        'face 'magit-section-heading)
+                            (org-memento--format-duration sum)
+                            (org-memento--format-duration goal)
+                            (with-temp-buffer
+                              (insert (make-string w1 ?x)
+                                      (make-string (max 0 (- gauge-width w1)) ?_))
+                              (goto-char rule-pos)
+                              (delete-char 1)
+                              (insert "|")
+                              (buffer-string))
+                            (* 100 rate))))))
+             (dolist (subtaxy (sort-taxys (taxy-taxys group-taxy)))
+               (insert-group (1+ depth) subtaxy)))))
+      (magit-insert-section (week)
+        (magit-insert-heading
+          (make-string 2 ?\s)
+          "Weekly goals")
+        (dolist (group-taxy (thread-last
+                              rules
+                              (seq-filter (apply-partially #'test-budget 'week 'goal))
+                              (org-memento-policy-group-taxy)
+                              (org-memento-taxy-trees-with-item)
+                              (sort-taxys)))
+          (insert-group 0 group-taxy))))))
 
 (defun org-memento-timeline-suggestions-section (taxy)
   (cl-labels
