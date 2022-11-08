@@ -885,7 +885,7 @@ At present, it runs `org-memento-timeline'."
           keyword)
      (run-hooks 'org-memento-block-before-exit-hook)
      (org-memento-with-current-block
-       (org-todo org-memento-todo-keyword-for-success)
+       (org-todo keyword)
        (org-memento--save-buffer))
      (setq org-memento-current-block nil)
      (org-memento--cancel-block-timers)
