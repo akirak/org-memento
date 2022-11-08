@@ -71,16 +71,6 @@
         (org-memento-date-within-span-p start-date period))
     t))
 
-;;;;; Group matching
-
-(cl-defgeneric org-memento-policy-group (x))
-(cl-defmethod org-memento-policy-group ((x org-memento-policy-context))
-  (oref x group-path))
-(cl-defmethod org-memento-policy-group ((x org-memento-policy-rule))
-  (oref (oref x context) group-path))
-
-
-
 ;;;; Functions
 
 ;;;;; Loading data
@@ -233,8 +223,8 @@
 (cl-defun org-memento-policy-group-taxy (items &key prepend append)
   (cl-labels
       ((group-subpath (n x)
-         (when (nth n (org-memento-policy-group x))
-           (seq-take (org-memento-policy-group x) (1+ n))))
+         (when (nth n (org-memento-group-path x))
+           (seq-take (org-memento-group-path x) (1+ n))))
        (make-nth-key (n)
          (apply-partially #'group-subpath n))
        (taker (item taxy)
