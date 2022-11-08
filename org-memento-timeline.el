@@ -894,7 +894,7 @@ section."
                        (seq-filter (apply-partially #'budget-for-span-p 'day))
                        (org-memento-policy-group-taxy)
                        (taxy-fill group-sums-for-span)
-                       (taxy-fill (org-memento-group-planned-sums-1 taxy))
+                       (taxy-fill (org-memento-group-planned-sums-1))
                        (taxy-taxys)))
               (insert-group 'day 0 group-taxy)))
           (insert ?\n)

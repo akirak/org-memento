@@ -2948,7 +2948,7 @@ argument set to non-nil."
                                    :initial-value 0)
                  :tag 'activity-sum))))))
 
-(defun org-memento-group-planned-sums-1 (taxy)
+(defun org-memento-group-planned-sums-1 ()
   (save-current-buffer
     (thread-last
       (org-memento--blocks)
