@@ -747,11 +747,24 @@ If ARG is non-nil, create an away event."
         (`(,_ ,_ ,_ ,marker . ,_)
          marker)))))
 
+(defun org-memento-timeline-group-at-point ()
+  "Return the group of the section at point, if any."
+  (org-memento-timeline--section-group (magit-current-section)))
+
+(defun org-memento-timeline--section-group (section)
+  (cl-flet
+      ((section-type (section)
+         (slot-value section 'type))
+       (section-value (section)
+         (slot-value section 'value)))
+    (pcase section
+      ((and (app section-type 'group-budgets)
+            (app section-value `(,_ ,path . ,_)))
+       path))))
+
 (defun org-memento-timeline--group-marker (section)
-  (when (eq 'group-budgets (oref section type))
-    (pcase-exhaustive (oref section value)
-      (`(,_ ,path . ,_)
-       (org-memento-policy-find-definition path)))))
+  (when-let (path (org-memento-timeline--section-group section))
+    (org-memento-policy-find-definition path)))
 
 (defun org-memento-timeline-range ()
   "Return the range as a list of internal time representations."
