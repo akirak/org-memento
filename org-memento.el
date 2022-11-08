@@ -55,7 +55,9 @@
 (declare-function org-clocking-p "org-clock")
 (declare-function thing-at-point-looking-at "thingatpt")
 (declare-function org-notify "org-clock")
+(declare-function org-memento-timeline "org-memento-timeline")
 (declare-function org-memento-timeline-refresh "org-memento-timeline")
+(declare-function org-memento-date--le "org-memento-date")
 (defvar org-capture-entry)
 (defvar org-agenda-start-on-weekday)
 (defvar org-archive-tag)
@@ -3109,6 +3111,7 @@ GROUP is a group path and FILE is an Org file."
           (format-time-string "%F" (encode-time week-end)))))
 
 (defun org-memento--percentage-on-week ()
+  (require 'org-memento-date)
   (pcase-exhaustive (org-memento-week-date-range 0)
     (`(,start-date ,end-date)
      (let ((planned-sum 0)
