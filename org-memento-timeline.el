@@ -453,7 +453,7 @@ timeline as an argument."
                                               (lambda (record)
                                                 (and (block-record-p record)
                                                      (car record)
-                                                     (> (car record) now))))
+                                                     (> (cadr record) now))))
                                              (org-memento--format-duration))))
                                   (?a . ,(when day-unfinished
                                            (thread-last
