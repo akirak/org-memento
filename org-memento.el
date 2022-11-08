@@ -645,6 +645,34 @@ The function takes two arguments: the date string and an
              (org-end-of-subtree))))
        result))))
 
+(defmacro org-memento-with-group-entry (group &rest body)
+  "Evaluate the body with point at some group entry."
+  (declare (indent 1))
+  `(if-let (marker (with-current-buffer (org-memento--buffer)
+                     (org-with-wide-buffer
+                      (or (seq-some (lambda (block)
+                                      (goto-char (org-memento-block-hd-marker block))
+                                      (when (equal (save-excursion
+                                                     (org-memento--get-group
+                                                      (org-memento-block-headline block)))
+                                                   ,group)
+                                        (point-marker)))
+                                    (org-memento--blocks))
+                          (when-let (olp (gethash ,group org-memento-group-cache))
+                            (org-find-olp olp t))))))
+       (save-current-buffer
+         (org-with-point-at marker
+           ,@body))
+     (with-temp-buffer
+       (let ((org-inhibit-startup t)
+             ;; Don't load modules.
+             (org-modules-loaded t))
+         (delay-mode-hooks (org-mode)))
+       (insert (apply #'org-memento--event-template :title ""
+                      (org-memento--template-group ,group)))
+       (goto-char (point-min))
+       ,@body)))
+
 ;;;; Predicates on blocks
 
 (defsubst org-memento-block-not-closed-p (block)
