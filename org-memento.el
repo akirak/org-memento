@@ -699,7 +699,8 @@ should not be run inside the journal file."
 (defun org-memento-start-at-point ()
   "Start the block at point."
   (interactive)
-  (unless (file-equal-p (buffer-file-name) org-memento-file)
+  (unless (file-equal-p (buffer-file-name (org-base-buffer (current-buffer)))
+                        org-memento-file)
     (user-error "You cannot run this command outside of the journal file"))
   (when org-memento-current-block
     (user-error "Already started"))
