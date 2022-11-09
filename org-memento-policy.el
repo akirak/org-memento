@@ -285,9 +285,11 @@
   (org-memento-policy-find-context
    (apply-partially
     (lambda (group x)
-      (equal (seq-take (org-memento-group-path x)
-                       (length group))
-             group))
+      (let* ((group-path (org-memento-group-path x))
+             (length (min (length group-path)
+                          (length group))))
+        (equal (seq-take group-path length)
+               (seq-take group length))))
     group)))
 
 (defun org-memento-policy-group-archived-p (group)
