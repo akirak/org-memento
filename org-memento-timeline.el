@@ -206,25 +206,32 @@ timeline as an argument."
            (time2 (and (listp head)
                        (numberp (cadr head))
                        (cadr head)))
+           (on-now (and (listp head)
+                        (eq 'now (nth 4 head))))
            (toplevel (org-memento-timeline--toplevel-section))
            (toplevel-type (when toplevel (oref toplevel type)))
            (inhibit-read-only t))
       (delete-all-overlays)
       (erase-buffer)
       (run-hook-with-args 'org-memento-timeline-hook taxy)
-      (or (org-memento-timeline--search-section
+      (or (when on-now
+            (org-memento-timeline--search-section
+             `(lambda (section)
+                (and (listp (oref section value))
+                     (eq 'now (nth 4 (oref section value)))))))
+          (org-memento-timeline--search-section
            `(lambda (section)
-              (or (and (and ',type
-                            (eq ',type (oref section type)))
-                       (equal ',value (oref section value)))
-                  (and ,time
-                       (listp (oref section value))
-                       (ignore-errors
-                         (= ,time (car (oref section value)))))
-                  (and ,time2
-                       (listp (oref section value))
-                       (ignore-errors
-                         (= ,time2 (cadr (oref section value))))))))
+              (and (and ',type
+                        (eq ',type (oref section type)))
+                   (or (equal ',value (oref section value))
+                       (and ,time
+                            (listp (oref section value))
+                            (ignore-errors
+                              (=< ,time (car (oref section value)))))
+                       (and ,time2
+                            (listp (oref section value))
+                            (ignore-errors
+                              (= ,time2 (cadr (oref section value)))))))))
           ;; As a fallback, go to the top-level section.
           (when toplevel-type
             (org-memento-timeline--search-section
