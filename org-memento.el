@@ -814,10 +814,13 @@ should not be run inside the journal file."
                  (< (- next-event-time now) (* 10 60)))
             (if next-agenda-event
                 (org-goto-marker-or-bmk (org-memento-marker upnext-event))
-              (with-current-buffer (org-memento--buffer)
-                (goto-char (org-memento-marker upnext-event))
-                (org-narrow-to-subtree)
-                (run-hooks 'org-memento-open-journal-hook))))
+              (if (yes-or-no-p (format "Start \"%s\" right now? "
+                                       (org-memento-title next-block)))
+                  (org-memento-start-block (org-memento-title next-block))
+                (with-current-buffer (org-memento--buffer)
+                  (goto-char (org-memento-marker upnext-event))
+                  (org-narrow-to-subtree)
+                  (run-hooks 'org-memento-open-journal-hook)))))
            (late-block
             (if (and (or (org-memento-duration late-block)
                          (org-memento-ending-time late-block))
