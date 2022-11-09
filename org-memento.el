@@ -554,8 +554,10 @@ Return a copy of the list."
       (goto-char (point-min))
       (when (re-search-forward (format org-complex-heading-regexp-format
                                        (regexp-quote (cl-etypecase ,date
-                                                       (list (format-time-string "%F" ',date))
-                                                       (number (format-time-string "%F" ,date))
+                                                       (list (format-time-string "%F"
+                                                                                 ',date))
+                                                       (number (format-time-string "%F"
+                                                                                   ,date))
                                                        (string ,date))))
                                nil t)
         (org-back-to-heading)
@@ -610,7 +612,8 @@ Return a copy of the list."
                            (re-search-forward org-complex-heading-regexp bound t))
                  (when (and (equal (match-string 1) "**")
                             (not (or (equal (match-string 4) org-memento-idle-heading)
-                                     (string-prefix-p org-comment-string (match-string 4))))
+                                     (string-prefix-p org-comment-string
+                                                      (match-string 4))))
                             (org-entry-is-done-p))
                    (goto-char (match-beginning 0))
                    (when-let (x (funcall fn date))
@@ -808,8 +811,8 @@ should not be run inside the journal file."
         (if (and checkout-time
                  (> now checkout-time))
             (pcase-exhaustive (read-multiple-choice
-                               (format-time-string "You are supposed to have already checked\
- out at %R."
+                               (format-time-string "You are supposed to have already\
+ checked out at %R."
                                                    checkout-time)
                                '((?x "Extend the time" nil org-memento-set-checkout-time)
                                  (?m "Moderate the events" nil org-memento-timeline)
@@ -921,7 +924,8 @@ At present, it runs `org-memento-timeline'."
            (org-narrow-to-subtree)
            (pop-to-buffer (current-buffer))
            (org-show-entry)
-           (with-demoted-errors "The heading for the current block does not exist. Possibly renamed? %s"
+           (with-demoted-errors "The heading for the current block does not exist. \
+Possibly renamed? %s"
              (re-search-forward (format org-complex-heading-regexp-format title)))
            (org-back-to-heading)
            (when narrow
@@ -1391,7 +1395,8 @@ The point must be at the heading."
                                    (org-memento--blocks)))
               (if-let (right-block (seq-some (lambda (block)
                                                (when (and (org-memento-started-time block)
-                                                          (not (org-memento-ended-time block)))
+                                                          (not (org-memento-ended-time
+                                                                block)))
                                                  (org-memento-title block)))
                                              (org-memento--blocks)))
                   (progn
@@ -1575,7 +1580,10 @@ The point must be at the heading."
                                             &key group category default date
                                             select-existing-heading)
   (declare (indent 1))
-  (let* ((date (or date (org-memento--today-string (decode-time (org-memento--current-time)))))
+  (let* ((date (or date (thread-first
+                          (org-memento--current-time)
+                          (decode-time)
+                          (org-memento--today-string))))
          (prompt (or prompt
                      (cond
                       (default
@@ -2284,7 +2292,8 @@ marker to the time stamp, and the margin in seconds."
                (catch 'archived
                  (while (looking-at org-complex-heading-regexp)
                    (when (and (nth 10 (match-data))
-                              (string-match-p (regexp-quote (concat ":" org-archive-tag ":"))
+                              (string-match-p (regexp-quote
+                                               (concat ":" org-archive-tag ":"))
                                               (match-string 5)))
                      (throw 'archived t))
                    (when (= 1 (length (match-string 1)))
@@ -2569,7 +2578,9 @@ This function must be called at the beginning of the entry."
          :taxys (thread-last
                   (org-memento--block-activities start-day end-day
                                                  :annotate-groups groups)
-                  (fill-voids (float-time start-time) (float-time end-time) #'car #'make-gap-date)
+                  (fill-voids (float-time start-time)
+                              (float-time end-time)
+                              #'car #'make-gap-date)
                   (mapcar #'make-date-taxy)))
         (taxy-emptied)
         (taxy-fill (when (and (not org-memento-current-block)
@@ -2870,10 +2881,11 @@ denoting the type of the activity. ARGS is an optional list."
                     (when (equal (org-get-todo-state)
                                  org-memento-todo-keyword-for-success)
                       (let ((props (thread-last
-                                     (cl-remove-if (lambda (key)
-                                                     (member key org-memento-unique-properties))
-                                                   (org-entry-properties nil 'standard)
-                                                   :key #'car)
+                                     (cl-remove-if
+                                      (lambda (key)
+                                        (member key org-memento-unique-properties))
+                                      (org-entry-properties nil 'standard)
+                                      :key #'car)
                                      (seq-sort-by #'car #'string<)))
                             (tags (org-get-tags)))
                         (when (or props tags)
@@ -3686,7 +3698,8 @@ range."
         (unless append
           (write-record (append (mapcar (lambda (i)
                                           (format "Group %d" i))
-                                        (number-sequence 1 (length org-memento-group-taxonomy)))
+                                        (number-sequence
+                                         1 (length org-memento-group-taxonomy)))
                                 (list "Date")
                                 (list "Title")
                                 (list "Start")
@@ -3735,7 +3748,8 @@ you would have to update the value of
                           (get-text-property 0 'org-hd-marker item)))
               (ts (save-current-buffer
                     (org-with-point-at marker
-                      (when (re-search-forward (concat "<" org-ts-regexp1 "[^>\n]\\{5,16\\}>")
+                      (when (re-search-forward (concat "<" org-ts-regexp1
+                                                       "[^>\n]\\{5,16\\}>")
                                                (org-entry-end-position) t)
                         (org-timestamp-from-string (match-string 0)))))))
     (let ((start (org-timestamp-to-time ts))

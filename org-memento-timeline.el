@@ -347,10 +347,12 @@ timeline as an argument."
                          (format-time-string "%R" last-end)
                          (make-string 2 ?\s)
                          (if (< last-end now)
-                             (concat (propertize "Clocked out" 'face 'font-lock-comment-face)
+                             (concat (propertize "Clocked out"
+                                                 'face 'font-lock-comment-face)
                                      (if end-time-of-block
                                          (format " (until %s)"
-                                                 (format-time-string "%R" end-time-of-block))
+                                                 (format-time-string
+                                                  "%R" end-time-of-block))
                                        ""))
                            (propertize "Ending" 'face 'font-lock-comment-face))
                          "\n"))))))
@@ -456,7 +458,8 @@ timeline as an argument."
                                'face 'font-lock-comment-face))
                  (thread-first
                    (format-spec (if day-unfinished
-                                    " (%d focused, %f unfocused, %s scheduled, %a available)"
+                                    " (%d focused, %f unfocused, \
+%s scheduled, %a available)"
                                   " (%d focused, %f unfocused)")
                                 `((?d . ,(thread-last
                                            (taxy-taxys taxy)
@@ -821,7 +824,8 @@ section."
   (let ((pos (point)))
     (when-let (new-pos (catch 'section
                          (save-excursion
-                           (while (setq pos (next-single-property-change pos 'magit-section))
+                           (while (setq pos (next-single-property-change
+                                             pos 'magit-section))
                              (goto-char pos)
                              (when-let (section (magit-current-section))
                                (when (funcall pred section)
@@ -886,7 +890,8 @@ section."
                             (truncate-string-to-width
                              (concat (make-string depth ?\s)
                                      (propertize
-                                      (org-memento--format-group-last-node (taxy-name group-taxy))
+                                      (org-memento--format-group-last-node
+                                       (taxy-name group-taxy))
                                       'face 'magit-section-heading))
                              16)
                             (if (> spent 0)
@@ -979,7 +984,8 @@ section."
                             (propertize (truncate-string-to-width
                                          (concat (make-string depth ?\s)
                                                  (or title
-                                                     (org-memento--format-group-last-node group-path)))
+                                                     (org-memento--format-group-last-node
+                                                      group-path)))
                                          16)
                                         'face 'magit-section-heading)
                             (org-memento--format-duration sum)

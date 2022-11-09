@@ -99,8 +99,8 @@
               (insert (format "| %-10s | %5s | %5s | %5s | %6s |\n"
                               (format-time-string "%F" (encode-time date))
                               checkin
-                              (org-memento--format-army-time checkout-time
-                                                             (float-time (encode-time date)))
+                              (org-memento--format-army-time
+                               checkout-time (float-time (encode-time date)))
                               saving
                               (org-duration-from-minutes
                                (- (org-duration-to-minutes duration)
@@ -256,7 +256,8 @@
                               columns
                               (mapcar (lambda (column)
                                         (cl-reduce #'+ (mapcar (lambda (taxy)
-                                                                 (or (taxy-budget taxy column)
+                                                                 (or (taxy-budget
+                                                                      taxy column)
                                                                      0))
                                                                taxys)
                                                    :initial-value 0)))
@@ -298,7 +299,8 @@
            (magit-insert-section (group (taxy-name taxy))
              (magit-insert-heading
                (make-string (* 2 (1+ level)) ?\s)
-               (propertize (funcall (plist-get (nth level org-memento-group-taxonomy) :format)
+               (propertize (funcall (plist-get (nth level org-memento-group-taxonomy)
+                                               :format)
                                     (nth level (taxy-name taxy)))
                            'face
                            'magit-section-heading)
