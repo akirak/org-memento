@@ -448,8 +448,8 @@ timeline as an argument."
                                'face 'font-lock-comment-face))
                  (thread-first
                    (format-spec (if day-unfinished
-                                    " (%d spent, %s scheduled, %a available)"
-                                  " (%d spent)")
+                                    " (%d focused, %f unfocused, %s scheduled, %a available)"
+                                  " (%d focused, %f unfocused)")
                                 `((?d . ,(thread-last
                                            (taxy-taxys taxy)
                                            (mapcar #'taxy-name)
@@ -458,6 +458,13 @@ timeline as an argument."
                                               (and (block-record-p record)
                                                    (cadr record)
                                                    (< (cadr record) now))))
+                                           (org-memento--format-duration)))
+                                  (?f . ,(thread-last
+                                           (taxy-taxys taxy)
+                                           (mapcar #'taxy-name)
+                                           (sum-durations
+                                            (lambda (record)
+                                              (eq (nth 4 record) 'anonymous)))
                                            (org-memento--format-duration)))
                                   (?s . ,(when day-unfinished
                                            (thread-last
