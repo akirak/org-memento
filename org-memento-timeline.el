@@ -246,15 +246,17 @@ timeline as an argument."
 ;;;###autoload
 (defun org-memento-timeline-refresh ()
   (when-let (buffer (get-buffer org-memento-timeline-buffer))
-    (with-current-buffer buffer
-      (org-memento-timeline-revert))))
+    (when (get-buffer-window buffer 'all-frames)
+      (with-current-buffer buffer
+        (org-memento-timeline-revert)))))
 
 (defun org-memento-timeline-refresh-1 ()
   (when-let (buffer (get-buffer org-memento-timeline-buffer))
     (unless (or org-memento-block-idle-logging
                 (org-clocking-p))
-      (with-current-buffer buffer
-        (org-memento-timeline-revert)))))
+      (when (get-buffer-window buffer 'all-frames)
+        (with-current-buffer buffer
+          (org-memento-timeline-revert))))))
 
 (defun org-memento-timeline-section (root-taxy)
   "Insert the timeline section."
