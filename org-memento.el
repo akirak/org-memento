@@ -1099,9 +1099,10 @@ The point must be after a \"CLOCK:\" string."
 (defun org-memento--notify-end (&optional minutes)
   (if (and (not minutes)
            org-memento-extend-on-end)
-      (when (yes-or-no-p (format "The time for %s has reached an end. Extend it?"
-                                 org-memento-current-block))
-        (org-memento-extend-current-block))
+      (if (yes-or-no-p (format "The time for %s has reached an end. Extend it?"
+                               org-memento-current-block))
+          (org-memento-extend-current-block)
+        (org-memento-finish-block '(4)))
     (org-notify (if minutes
                     (format "%s is about to end in %d minutes."
                             org-memento-current-block
