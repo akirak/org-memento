@@ -152,11 +152,7 @@ timeline as an argument."
                 revert-buffer-function #'org-memento-timeline-revert)
     (org-memento-timeline-revert)
     (pop-to-buffer (current-buffer))
-    (dolist (hook '(org-clock-in-hook
-                    org-clock-out-hook
-                    org-memento-block-start-hook
-                    org-memento-block-exit-hook))
-      (add-hook hook 'org-memento-timeline-refresh))
+    (add-hook 'org-memento-update-hook 'org-memento-timeline-refresh)
     (pcase org-memento-timeline-initial-position
       (`now
        (org-memento-timeline-goto-now))
@@ -243,7 +239,6 @@ timeline as an argument."
       (setq section parent))
     section))
 
-;;;###autoload
 (defun org-memento-timeline-refresh ()
   (when-let (buffer (get-buffer org-memento-timeline-buffer))
     (when (get-buffer-window buffer 'all-frames)

@@ -150,6 +150,10 @@ Note that this hook is not called on blocks inside a daily entry."
   "Hook run after `org-memento-open-journal' visits an Org entry."
   :type 'hook)
 
+(defcustom org-memento-update-hook nil
+  "Hook run after a timeline event is added/changed/removed."
+  :type 'hook)
+
 (defcustom org-memento-agenda-files nil
   "Function used to determine agenda files for each block.
 
@@ -696,7 +700,13 @@ The function takes two arguments: the date string and an
             (run-with-idle-timer (* 60 org-memento-idle-time)
                                  nil
                                  #'org-memento-idle)))
-    (message "Org-Memento mode started.")))
+    (message "Org-Memento mode started."))
+  (if (bound-and-true-p org-memento-mode)
+      (progn
+        (add-hook 'org-clock-in-hook #'org-memento-log-update)
+        (add-hook 'org-clock-out-hook #'org-memento-log-update))
+    (remove-hook 'org-clock-in-hook #'org-memento-log-update)
+    (remove-hook 'org-clock-out-hook #'org-memento-log-update)))
 
 (defun org-memento-idle ()
   (unless org-memento-block-idle-logging
@@ -873,7 +883,8 @@ At present, it runs `org-memento-timeline'."
   (org-memento-setup-daily-timer)
   (org-memento-status)
   (run-hooks 'org-memento-block-start-hook)
-  (org-memento--setup-block-timers))
+  (org-memento--setup-block-timers)
+  (org-memento-log-update))
 
 (defun org-memento-finish-block (&optional arg)
   "Finish the current block."
@@ -894,7 +905,8 @@ At present, it runs `org-memento-timeline'."
        (org-memento--save-buffer))
      (setq org-memento-current-block nil)
      (org-memento--cancel-block-timers)
-     (run-hooks 'org-memento-block-exit-hook))))
+     (run-hooks 'org-memento-block-exit-hook)
+     (org-memento-log-update))))
 
 ;;;###autoload
 (defun org-memento-open-journal (&optional arg)
@@ -1140,7 +1152,7 @@ The point must be after a \"CLOCK:\" string."
                                             new-end-time (org-memento--midnight start))))
         (unless had-ts (insert "\n"))))
     (org-memento--setup-block-timers)
-    (org-memento-timeline-refresh)))
+    (org-memento-log-update)))
 
 (defun org-memento--cancel-block-timers ()
   (mapc #'cancel-timer org-memento-block-timers)
@@ -1447,6 +1459,14 @@ The point must be at the heading."
   (interactive)
   (org-memento--update-cache-1)
   (setq org-memento-status-data (org-memento--block-data)))
+
+(defun org-memento-log-update ()
+  "Notify updates of the status."
+  (add-hook 'post-command-hook #'org-memento--update))
+
+(defun org-memento--update ()
+  (remove-hook 'post-command-hook #'org-memento--update)
+  (run-hooks 'org-memento-update-hook))
 
 (defun org-memento--block-data (&optional check-in)
   ;; The first item will always be the day itself.
@@ -3478,7 +3498,7 @@ range."
          (org-capture-entry `("" ""
                               entry (file+function ,org-memento-file ,jump-fn)
                               ,template ,@plist
-                              :after-finalize org-memento-timeline-refresh)))
+                              :after-finalize org-memento-log-update)))
     (org-capture)))
 
 (defun org-memento--add-immediate-block (title)
