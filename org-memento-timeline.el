@@ -248,7 +248,9 @@ timeline as an argument."
   (when-let (buffer (get-buffer org-memento-timeline-buffer))
     (when (get-buffer-window buffer 'all-frames)
       (with-current-buffer buffer
-        (org-memento-timeline-revert)))))
+        (when (time-less-p (org-memento--current-time)
+                           (org-memento-timeline--range-end))
+          (org-memento-timeline-revert))))))
 
 (defun org-memento-timeline-refresh-1 ()
   (when-let (buffer (get-buffer org-memento-timeline-buffer))
@@ -256,7 +258,9 @@ timeline as an argument."
                 (org-clocking-p))
       (when (get-buffer-window buffer 'all-frames)
         (with-current-buffer buffer
-          (org-memento-timeline-revert))))))
+          (when (time-less-p (org-memento--current-time)
+                             (org-memento-timeline--range-end))
+            (org-memento-timeline-revert)))))))
 
 (defun org-memento-timeline-section (root-taxy)
   "Insert the timeline section."
