@@ -1150,10 +1150,7 @@ The point must be after a \"CLOCK:\" string."
                         (org-timestamp-to-time)))))
         (when had-ts
           (replace-match ""))
-        (org-insert-time-stamp start
-                               t nil nil nil
-                               (concat "-" (org-memento--format-army-time
-                                            new-end-time (org-memento--midnight start))))
+        (insert (org-memento--format-timestamp start new-end-time))
         (unless had-ts (insert "\n"))))
     (org-memento--setup-block-timers)
     (org-memento-log-update)))
