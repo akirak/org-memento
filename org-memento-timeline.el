@@ -210,6 +210,8 @@ timeline as an argument."
            (time2 (and (listp head)
                        (numberp (cadr head))
                        (cadr head)))
+           (toplevel (org-memento-timeline--toplevel-section))
+           (toplevel-type (when toplevel (oref toplevel type)))
            (inhibit-read-only t))
       (delete-all-overlays)
       (erase-buffer)
@@ -227,7 +229,19 @@ timeline as an argument."
                        (listp (oref section value))
                        (ignore-errors
                          (= ,time2 (cadr (oref section value))))))))
+          ;; As a fallback, go to the top-level section.
+          (when toplevel-type
+            (org-memento-timeline--search-section
+             `(lambda (section)
+                (eq (oref section type) ',toplevel-type))))
           (goto-char (point-min))))))
+
+(defun org-memento-timeline--toplevel-section ()
+  "Return the toplevel section."
+  (when-let (section (magit-current-section))
+    (while-let ((parent (oref section parent)))
+      (setq section parent))
+    section))
 
 ;;;###autoload
 (defun org-memento-timeline-refresh ()
