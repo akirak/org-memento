@@ -791,16 +791,21 @@ If ARG is non-nil, create an away event."
 
 (defun org-memento-timeline-range ()
   "Return the range as a list of internal time representations."
-  (list (encode-time
-         (org-memento--set-time-of-day
-          (parse-time-string (car org-memento-timeline-date-range))
-          (or org-extend-today-until 0) 0 0))
-        (encode-time
-         (decoded-time-add
-          (org-memento--set-time-of-day
-           (parse-time-string (cadr org-memento-timeline-date-range))
-           (or org-extend-today-until 0) 0 0)
-          (make-decoded-time :hour 23 :minute 59)))))
+  (list (org-memento-timeline--range-start)
+        (org-memento-timeline--range-end)))
+
+(defun org-memento-timeline--range-start ()
+  (thread-first
+    (parse-time-string (car org-memento-timeline-date-range))
+    (org-memento--set-time-of-day (or org-extend-today-until 0) 0 0)
+    (encode-time)))
+
+(defun org-memento-timeline--range-end ()
+  (thread-first
+    (parse-time-string (cadr org-memento-timeline-date-range))
+    (org-memento--set-time-of-day (or org-extend-today-until 0) 0 0)
+    (decoded-time-add (make-decoded-time :hour 23 :minute 59))
+    (encode-time)))
 
 (defun org-memento-timeline--search-section (pred)
   "Move the point to a section that matches PRED.
