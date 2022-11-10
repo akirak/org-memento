@@ -254,6 +254,18 @@
         (search taxy)))
     result))
 
+(defun org-memento-policy-find-context-1 (pred &optional start-date end-date)
+  "Find the first taxy matching a predicate."
+  (cl-labels
+      ((search (taxy)
+         (if (and (funcall pred (taxy-name taxy))
+                  (or (not start-date)
+                      (org-memento-policy-effective-p
+                       (taxy-name taxy) start-date end-date)))
+             taxy
+           (seq-find #'search (taxy-taxys taxy)))))
+    (seq-find #'search (taxy-taxys org-memento-policy-data))))
+
 (defun org-memento-policy-contexts ()
   "Return a flat list of contexts."
   (let (contexts)
