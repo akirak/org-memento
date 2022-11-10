@@ -72,7 +72,8 @@
       (org-memento-planner-agenda-section)
       (org-memento-planner-budgets-section)
       (org-memento-planner-policies-section)
-      (org-memento-planner-activities-section))))
+      (org-memento-planner-activities-section))
+    (goto-char (point-min))))
 
 (defun org-memento-planner-overview-section ()
   (magit-insert-section (overview)
