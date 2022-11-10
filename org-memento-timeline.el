@@ -1164,8 +1164,9 @@ section."
            (fallback)))))))
 
 (defun org-memento-timeline-planning-sections (taxy)
-  (unless (and org-memento-timeline-hide-planning
-               org-memento-current-block)
+  (when (and (or (not org-memento-timeline-hide-planning)
+                 (not org-memento-current-block))
+             (eq org-memento-timeline-span 'day))
     (run-hook-with-args 'org-memento-timeline-planning-hook taxy)))
 
 (defvar org-memento-timeline-planning-map
