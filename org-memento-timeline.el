@@ -105,6 +105,22 @@ timeline as an argument."
   '((t (:inherit font-lock-warning-face)))
   "Face for warning items.")
 
+(defface org-memento-timeline-insufficient-face
+  '((t (:inherit org-memento-timeline-warning-face)))
+  "Face for insufficient amounts.")
+
+(defface org-memento-timeline-above-limit-face
+  '((t (:inherit org-memento-timeline-warning-face)))
+  "Face for insufficient amounts.")
+
+(defface org-memento-timeline-complete-face
+  '((((class color) (min-colors 88) (background dark))
+     :foreground "LawnGreen")
+    (((class color) (min-colors 88) (background light))
+     :foreground "green4")
+    (t (:inherit default :foreground "green3")))
+  "Face for complete amounts.")
+
 ;;;; Variables
 
 (defvar org-memento-timeline-refresh-timer nil)
@@ -879,9 +895,15 @@ section."
          (budget (span level rules)
            (when-let (rule (seq-find (apply-partially #'test-budget span level) rules))
              (slot-value rule 'duration-minutes)))
-         (format-budget (span level rules)
+         (format-budget (span level rules spent)
            (if-let (budget (budget span level rules))
-               (org-memento--format-duration budget)
+               (propertize (org-memento--format-duration budget)
+                           'face
+                           (if (>= spent budget)
+                               (if (eq level 'limit)
+                                   'org-memento-timeline-above-limit-face
+                                 'org-memento-timeline-complete-face)
+                             'default))
              ""))
          (group-value (x)
            (org-memento-group-data-value x))
@@ -925,12 +947,18 @@ section."
                             (if (> planned 0)
                                 (org-memento--format-duration planned)
                               "")
-                            (format-budget 'day 'minimum (taxy-items group-taxy))
-                            (format-budget 'day 'goal (taxy-items group-taxy))
-                            (if (and demand (> demand 0))
-                                (format "(-%s)" (org-memento--format-duration demand))
-                              "")
-                            (format-budget 'day 'limit (taxy-items group-taxy))))))
+                            (format-budget 'day 'minimum (taxy-items group-taxy) spent)
+                            (format-budget 'day 'goal (taxy-items group-taxy) spent)
+                            (cond
+                             ((and demand (> demand 0))
+                              (propertize (format "(-%s)" (org-memento--format-duration demand))
+                                          'face 'org-memento-timeline-insufficient-face))
+                             ((and spent goal (>= spent goal))
+                              (propertize (format "(%.f%%)" (* 100 (/ spent goal)))
+                                          'face 'org-memento-timeline-complete-face))
+                             (t
+                              ""))
+                            (format-budget 'day 'limit (taxy-items group-taxy) spent)))))
                (dolist (subtaxy (taxy-taxys group-taxy))
                  (insert-group span (1+ depth) subtaxy))))))
       (org-memento-timeline--section-1 progress
@@ -1010,7 +1038,15 @@ section."
                                                       group-path)))
                                          16)
                                         'face 'magit-section-heading)
-                            (org-memento--format-duration sum)
+                            (propertize (org-memento--format-duration sum)
+                                        'face
+                                        (cond
+                                         ((< rate threshold)
+                                          'org-memento-timeline-insufficient-face)
+                                         ((>= rate 1)
+                                          'org-memento-timeline-complete-face)
+                                         (t
+                                          'default)))
                             (org-memento--format-duration goal)
                             (with-temp-buffer
                               (insert (make-string w1 ?x)
