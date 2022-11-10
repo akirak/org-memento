@@ -470,9 +470,9 @@ timeline as an argument."
                  (when title
                    (thread-first
                      (format-spec (if day-unfinished
-                                      " (%d focused, %f unfocused, \
+                                      " (%d focused, %f unfocused, %u untracked, \
 %s scheduled, %a available)"
-                                    " (%d focused, %f unfocused)")
+                                    " (%d focused, %f unfocused, %u untracked)")
                                   `((?d . ,(thread-last
                                              (taxy-taxys taxy)
                                              (mapcar #'taxy-name)
@@ -488,6 +488,15 @@ timeline as an argument."
                                              (sum-durations
                                               (lambda (record)
                                                 (eq (nth 4 record) 'anonymous)))
+                                             (org-memento--format-duration)))
+                                    (?u . ,(thread-last
+                                             (taxy-taxys taxy)
+                                             (mapcar #'taxy-name)
+                                             (sum-durations
+                                              (lambda (record)
+                                                (and (null (nth 4 record))
+                                                     (cadr record)
+                                                     (< (cadr record) now))))
                                              (org-memento--format-duration)))
                                     (?s . ,(when day-unfinished
                                              (thread-last
