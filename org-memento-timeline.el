@@ -78,6 +78,11 @@ timeline as an argument."
   "Interval in seconds to refresh the timeline."
   :type '(choice (const nil) number))
 
+(defcustom org-memento-timeline-hidden-sections nil
+  "Alist of sections to hide by default."
+  :type '(alist :key-type (symbol :tag "Type of the magit section")
+                :value-type (boolean :tag "Whether to hide the section")))
+
 ;;;; Faces
 
 (defface org-memento-timeline-time-face
@@ -110,6 +115,12 @@ timeline as an argument."
 (defvar org-memento-timeline-dismissed-items nil)
 
 ;;;; Macros
+
+(defmacro org-memento-timeline--section-1 (type &rest body)
+  "Insert a magit section without a value."
+  (declare (indent 1))
+  `(magit-insert-section (,type nil (alist-get ',type org-memento-timeline-hidden-sections))
+     ,@body))
 
 (defmacro org-memento-timeline-with-overlay (props &rest progn)
   `(let ((start (point)))
@@ -523,7 +534,8 @@ timeline as an argument."
                                          60)))
                            "\n")))))
            (insert ?\n)))
-      (magit-insert-section (org-memento-timeline)
+
+      (org-memento-timeline--section-1 timeline
         (dolist (taxy (taxy-taxys root-taxy))
           (insert-date taxy)))
       (goto-char (point-min)))))
@@ -912,10 +924,10 @@ section."
                             (format-budget 'day 'limit (taxy-items group-taxy))))))
                (dolist (subtaxy (taxy-taxys group-taxy))
                  (insert-group span (1+ depth) subtaxy))))))
-      (magit-insert-section (org-memento-progress)
+      (org-memento-timeline--section-1 progress
         (magit-insert-heading "Progress")
         (when (eq 'day org-memento-timeline-span)
-          (magit-insert-section (day)
+          (org-memento-timeline--section-1 daily-progress
             (magit-insert-heading
               (make-string 2 ?\s)
               "Daily")
@@ -1001,7 +1013,7 @@ section."
                             (* 100 rate))))))
              (dolist (subtaxy (sort-taxys (taxy-taxys group-taxy)))
                (insert-group (1+ depth) subtaxy)))))
-      (magit-insert-section (week)
+      (org-memento-timeline--section-1 weekly-progress
         (magit-insert-heading
           (make-string 2 ?\s)
           "Weekly goals")
@@ -1019,7 +1031,7 @@ section."
          (thread-first
            (slot-value rule 'context)
            (slot-value 'group-path))))
-    (magit-insert-section (org-memento-suggestions)
+    (org-memento-timeline--section-1 suggestions
       (magit-insert-heading "Suggestions")
       (pcase-dolist
           (`(,rule . ,plans)
@@ -1195,7 +1207,7 @@ section."
              (assoc (org-memento-planning-item-id item) planned-items)))
         (when-let (planning-items
                    (cl-remove-if #'planned (org-memento--planning-items)))
-          (magit-insert-section (org-memento-agenda)
+          (org-memento-timeline--section-1 planning-items
             (magit-insert-heading "Planning Items")
             (org-memento-timeline-with-overlay
              ((keymap . org-memento-timeline-planning-map))
@@ -1235,7 +1247,7 @@ section."
         (when-let (blocks (thread-last
                             (org-memento--blocks)
                             (seq-filter #'block-due-p)))
-          (magit-insert-section (org-memento-behind)
+          (org-memento-timeline--section-1 behind-schedule
             (magit-insert-heading "Late blocks")
             (insert (make-string 2 ?\s)
                     "There are overdue events.\n")
@@ -1264,7 +1276,7 @@ You should update the status before you call this function."
                        (when next-block
                          (org-memento-starting-time next-block))))
                (the-event (or event next-block)))
-          (magit-insert-section (org-memento-next-event)
+          (org-memento-timeline--section-1 next-event
             (magit-insert-heading "Next Event")
             (if the-event
                 (org-memento-timeline--insert-block 1
@@ -1288,7 +1300,7 @@ You should update the status before you call this function."
       (when-let (blocks (thread-last
                           (org-memento--blocks)
                           (seq-filter #'block-unscheduled-p)))
-        (magit-insert-section (org-memento-unscheduled)
+        (org-memento-timeline--section-1 unscheduled-blocks
           (magit-insert-heading "Blocks without time")
           (dolist (block blocks)
             (org-memento-timeline--insert-block 1 block :omit-time t)))
@@ -1401,7 +1413,7 @@ You should update the status before you call this function."
         (when-let (blocks (thread-last
                             (org-memento--blocks)
                             (seq-filter #'block-not-started-p)))
-          (magit-insert-section (org-memento-feasibility)
+          (org-memento-timeline--section-1 feasibility
             (magit-insert-heading
               "Feasibility")
             (let (overlaps)
