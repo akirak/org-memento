@@ -456,49 +456,50 @@ timeline as an argument."
                                               (start-time taxy))
                                            60)))
                                'face 'font-lock-comment-face))
-                 (thread-first
-                   (format-spec (if day-unfinished
-                                    " (%d focused, %f unfocused, \
+                 (when title
+                   (thread-first
+                     (format-spec (if day-unfinished
+                                      " (%d focused, %f unfocused, \
 %s scheduled, %a available)"
-                                  " (%d focused, %f unfocused)")
-                                `((?d . ,(thread-last
-                                           (taxy-taxys taxy)
-                                           (mapcar #'taxy-name)
-                                           (sum-durations
-                                            (lambda (record)
-                                              (and (block-record-p record)
-                                                   (cadr record)
-                                                   (< (cadr record) now))))
-                                           (org-memento--format-duration)))
-                                  (?f . ,(thread-last
-                                           (taxy-taxys taxy)
-                                           (mapcar #'taxy-name)
-                                           (sum-durations
-                                            (lambda (record)
-                                              (eq (nth 4 record) 'anonymous)))
-                                           (org-memento--format-duration)))
-                                  (?s . ,(when day-unfinished
-                                           (thread-last
+                                    " (%d focused, %f unfocused)")
+                                  `((?d . ,(thread-last
                                              (taxy-taxys taxy)
                                              (mapcar #'taxy-name)
                                              (sum-durations
                                               (lambda (record)
                                                 (and (block-record-p record)
-                                                     (car record)
-                                                     (> (cadr record) now))))
-                                             (org-memento--format-duration))))
-                                  (?a . ,(when day-unfinished
-                                           (thread-last
+                                                     (cadr record)
+                                                     (< (cadr record) now))))
+                                             (org-memento--format-duration)))
+                                    (?f . ,(thread-last
                                              (taxy-taxys taxy)
                                              (mapcar #'taxy-name)
                                              (sum-durations
                                               (lambda (record)
-                                                (and (null (nth 4 record))
-                                                     (cadr record)
-                                                     (> (cadr record) now))))
-                                             (org-memento--format-duration))))))
-                   (propertize
-                    'face 'default)))
+                                                (eq (nth 4 record) 'anonymous)))
+                                             (org-memento--format-duration)))
+                                    (?s . ,(when day-unfinished
+                                             (thread-last
+                                               (taxy-taxys taxy)
+                                               (mapcar #'taxy-name)
+                                               (sum-durations
+                                                (lambda (record)
+                                                  (and (block-record-p record)
+                                                       (car record)
+                                                       (> (cadr record) now))))
+                                               (org-memento--format-duration))))
+                                    (?a . ,(when day-unfinished
+                                             (thread-last
+                                               (taxy-taxys taxy)
+                                               (mapcar #'taxy-name)
+                                               (sum-durations
+                                                (lambda (record)
+                                                  (and (null (nth 4 record))
+                                                       (cadr record)
+                                                       (> (cadr record) now))))
+                                               (org-memento--format-duration))))))
+                     (propertize
+                      'face 'default))))
                (insert indent
                        (if-let (time (start-time taxy))
                            (format-time-string "%R" time)
