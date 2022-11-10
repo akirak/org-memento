@@ -346,6 +346,8 @@
 (defvar org-memento-policy-mode-map
   (let ((map (make-sparse-keymap)))
     (define-key map [remap imenu] #'org-memento-policy-index)
+    (define-key map (kbd "C-c C-l") #'org-memento-policy-add-link)
+    (define-key map (kbd "C-c C-o") #'org-memento-policy-open-link)
     map))
 
 ;;;###autoload
@@ -390,6 +392,61 @@
                         groups))
          (input (completing-read prompt alist nil t)))
     (cdr (assoc input alist))))
+
+(defun org-memento-policy-add-link ()
+  "Attach the last stored link to the group at point."
+  (interactive)
+  (let ((link (or (pop org-stored-links)
+                  (user-error "No link is stored"))))
+    (pcase (org-memento-policy--innermost-group)
+      (`nil)
+      (`(,begin . ,end)
+       (goto-char begin)
+       (if (plist-get (seq-drop (save-excursion (read begin)) 2) :link)
+           (progn
+             (re-search-forward (rx symbol-start ":link" symbol-end) end)
+             (delete-region (match-beginning 0) (match-end 0))
+             (let ((pos (point)))
+               (forward-sexp)
+               (delete-region pos (point))))
+         (down-list)
+         (forward-sexp 2)
+         (insert "\n"))
+       (insert ":link " (prin1-to-string
+                         (org-no-properties
+                          (org-link-make-string (car link)))))
+       (save-excursion
+         (goto-char (syntax-ppss-toplevel-pos (syntax-ppss)))
+         (indent-sexp))))))
+
+(defun org-memento-policy--innermost-group (&optional pred)
+  "Return the bound of an innermost group."
+  (cl-flet
+      ((f (pos)
+         (let ((marker (copy-marker pos)))
+           (pcase (save-excursion (read marker))
+             (`(group . ,args)
+              (when (or (not pred)
+                        (funcall pred args))
+                (cons (copy-marker pos)
+                      (progn
+                        (goto-char pos)
+                        (forward-sexp 1)
+                        (point-marker)))))))))
+    (save-excursion
+      (seq-some #'f (reverse (ppss-open-parens (syntax-ppss)))))))
+
+(defun org-memento-policy-open-link ()
+  "Open a link of the context at point."
+  (interactive)
+  (cl-flet
+      ((link (pos)
+         (pcase (save-excursion (read (copy-marker pos)))
+           (`(group ,_ . ,plist)
+            (plist-get plist :link)))))
+    (when-let (link (seq-some #'link
+                              (reverse (ppss-open-parens (syntax-ppss)))))
+      (org-link-open-from-string link))))
 
 (provide 'org-memento-policy)
 ;;; org-memento-policy.el ends here
