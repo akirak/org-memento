@@ -995,7 +995,11 @@ section."
 (defun org-memento-timeline--weekly-progress (rules group-sums)
   (let* ((threshold (/ (org-memento--percentage-on-week) 100))
          (gauge-width (- (window-width) 45 1))
-         (rule-pos (floor (* gauge-width threshold))))
+         (rule-pos (floor (* gauge-width threshold)))
+         ;; This can be a constant, but it is tedious.
+         (row-format "| %-16s |%6s /%6s | %s %3.f%%")
+         (total-actual 0)
+         (total-goal 0))
     (cl-labels
         ((test-budget (span level x)
            (and (org-memento-policy-budget-rule-p x)
@@ -1030,7 +1034,7 @@ section."
                                 (org-memento--format-group group-path)))
                   (magit-insert-heading
                     (make-string 2 ?\s)
-                    (format "| %-16s |%6s /%6s | %s %3.f%%"
+                    (format row-format
                             (propertize (truncate-string-to-width
                                          (concat (make-string depth ?\s)
                                                  (or title
@@ -1050,12 +1054,15 @@ section."
                             (org-memento--format-duration goal)
                             (with-temp-buffer
                               (insert (make-string w1 ?x)
-                                      (make-string (max 0 (- gauge-width w1)) ?_))
+                                      (make-string (max 0 (- gauge-width w1)) ?\s))
                               (goto-char rule-pos)
                               (delete-char 1)
                               (insert "|")
                               (buffer-string))
-                            (* 100 rate))))))
+                            (* 100 rate)))
+                  (when (= depth 0)
+                    (cl-incf total-actual (min sum goal))
+                    (cl-incf total-goal goal)))))
              (dolist (subtaxy (sort-taxys (taxy-taxys group-taxy)))
                (insert-group (1+ depth) subtaxy)))))
       (org-memento-timeline--section-1 weekly-progress
@@ -1068,7 +1075,28 @@ section."
                               (org-memento-policy-group-taxy)
                               (org-memento-taxy-trees-with-item)
                               (sort-taxys)))
-          (insert-group 0 group-taxy))))))
+          (insert-group 0 group-taxy))
+        (let* ((rate (/ total-actual total-goal))
+               (w1 (round (* rate gauge-width))))
+          (insert (make-string 2 ?\s)
+                  (propertize (format row-format
+                                      (propertize "Total" 'face 'magit-section-heading)
+                                      (propertize (org-memento--format-duration total-actual)
+                                                  'face
+                                                  (if (> rate threshold)
+                                                      'org-memento-timeline-complete-face
+                                                    'org-memento-timeline-insufficient-face))
+                                      (org-memento--format-duration total-goal)
+                                      (with-temp-buffer
+                                        (insert (make-string w1 ?o)
+                                                (make-string (max 0 (- gauge-width w1)) ?\s))
+                                        (goto-char rule-pos)
+                                        (delete-char 1)
+                                        (insert "|")
+                                        (buffer-string))
+                                      (* 100 rate))
+                              'face '(:overline t))
+                  "\n"))))))
 
 (defun org-memento-timeline-suggestions-section (taxy)
   (cl-labels
