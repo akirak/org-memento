@@ -58,9 +58,12 @@
 (declare-function org-memento-timeline "org-memento-timeline")
 (declare-function org-memento-timeline-refresh "org-memento-timeline")
 (declare-function org-memento-date--le "org-memento-date")
+(declare-function org-link-store-props "ol")
 (defvar org-capture-entry)
 (defvar org-agenda-start-on-weekday)
 (defvar org-archive-tag)
+(defvar org-memento-timeline-date-range)
+(defvar org-memento-timeline-span)
 (defvar org-memento-timeline-dismissed-items)
 
 (defgroup org-memento nil
@@ -3711,6 +3714,65 @@ range."
                                       (format-time-string "%FT%R" (nth 0 (cdr record)))
                                       (format-time-string "%FT%R" (nth 1 (cdr record)))))))
         (write-region (point-min) (point-max) file append)))))
+
+;;;; org-link integration
+
+(org-link-set-parameters "org-memento"
+                         :follow #'org-memento-follow-link
+                         :store #'org-memento-store-link)
+
+(defun org-memento-follow-link (path &rest _args)
+  (pcase (org-memento--parse-link path)
+    (`(,func . ,args)
+     (apply func args))))
+
+(defun org-memento--parse-link (path)
+  (save-match-data
+    (when (string-match (rx bol (group (+ word))
+                            "?" (group (+ anything))
+                            eol)
+                        path)
+      (cl-flet
+          ((parse-date-range (string)
+             (save-match-data
+               (when (string-match (rx bol (group (regexp org-memento-date-regexp))
+                                       "," (group (regexp org-memento-date-regexp))
+                                       eol)
+                                   string)
+                 (list (match-string 1 string)
+                       (match-string 2 string))))))
+        (let* ((type (match-string 1 path))
+               (alist (url-parse-query-string (match-string 2 path)))
+               (date-range (parse-date-range (cadr (assoc "date" alist)))))
+          (pcase-exhaustive type
+            ("timeline"
+             `(org-memento-timeline
+               ,@date-range
+               ,@(when-let (span (cadr (assoc "span" alist)))
+                   (cl-assert (member span '("day" "week" "month")))
+                   `(:span ,(intern span)))))))))))
+
+(defun org-memento-store-link ()
+  (when (eq major-mode 'org-memento-timeline-mode)
+    (cl-assert (and (= 2 (length org-memento-timeline-date-range))
+                    (mapcar #'stringp org-memento-timeline-date-range)))
+    (org-link-store-props
+     :type "org-memento"
+     :link (apply #'org-memento-make-timeline-link
+                  (append org-memento-timeline-date-range
+                          (list :span org-memento-timeline-span)))
+     :description (if (eq org-memento-timeline-span 'day)
+                      (format "Timeline for %s"
+                              (car org-memento-timeline-date-range))
+                    (apply #'format "Timeline for %s from %s to %s"
+                           (or org-memento-timeline-span "the period")
+                           org-memento-timeline-date-range)))))
+
+(cl-defun org-memento-make-timeline-link (start-date end-date &key span)
+  (concat (format "org-memento:timeline?date=%s,%s" start-date end-date)
+          (if span
+              (format "&span=%s" span)
+            "")))
 
 ;;;; Integrations with third-party packages
 
