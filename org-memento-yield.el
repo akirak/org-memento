@@ -216,6 +216,7 @@ another type.")
          (plist (oref x static))
          (obj (apply #'make-org-memento-order
                      :group (oref (oref x context) group-path)
+                     :previous-activities (list activity)
                      (thread-first
                        plist
                        (plist-put :duration

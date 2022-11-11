@@ -525,7 +525,7 @@ Return a copy of the list."
 
 (cl-defstruct org-memento-order
   group title sample-marker duration
-  no-earlier-than no-later-than)
+  no-earlier-than no-later-than previous-activities)
 
 (cl-defmethod org-memento-title ((x org-memento-order))
   (org-memento-order-title x))
