@@ -1229,7 +1229,8 @@ section."
              (seq-sort-by (-compose #'org-memento--format-group #'rule-group-path #'car)
                           #'string<)))
         (when plans
-          (let ((group-path (rule-group-path rule)))
+          (let ((group-path (rule-group-path rule))
+                (now (float-time (org-memento--current-time))))
             (let ((tasks (car plans)))
               (dolist (task tasks)
                 (unless (member (org-memento-order-title task)
@@ -1241,7 +1242,12 @@ section."
                                   'face 'magit-section-heading)
                       (when-let (duration (org-memento-order-duration task))
                         (concat " " (org-memento--format-duration duration)))
-                      (format " (%s)" (org-memento--format-group group-path)))))))))))
+                      (format " (%s)" (org-memento--format-group group-path))
+                      (when-let (latest
+                                 (caar (org-memento-order-previous-activities task)))
+                        (concat " "
+                                (propertize (org-memento--format-diff-days (- now latest))
+                                            'face 'font-lock-comment-face))))))))))))
     (insert ?\n)))
 
 (defun org-memento-timeline-suggestions ()
