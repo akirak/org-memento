@@ -131,7 +131,11 @@
                                               (org-memento-date-span-parse label)))))
                 (new-context (apply #'clone parent
                                     :label (list type label)
-                                    (append context-props context-args))))
+                                    (append (map-merge 'plist
+                                                       ;; Don't inherit :link property.
+                                                       '(:link nil)
+                                                       context-props)
+                                            context-args))))
              (make-taxy
               :name new-context
               :taxys (mapcar (apply-partially #'build-context new-context) rest)
