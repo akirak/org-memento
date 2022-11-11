@@ -984,6 +984,8 @@ point to the heading.
 
 With a universal argument, you can specify the time of check out."
   (interactive "P")
+  (when org-memento-current-block
+    (call-interactively #'org-memento-finish-block))
   (org-memento-with-today-entry
    ;; If org-read-date is aborted, the entire checkout command will be aborted.
    (let ((time (when arg (org-read-date t t))))
