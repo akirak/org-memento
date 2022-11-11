@@ -913,8 +913,7 @@ section."
                         :initial-value 0)))
         (let* ((date (midnight-from-string (car org-memento-timeline-date-range)))
                (final-date (midnight-from-string (cadr org-memento-timeline-date-range)))
-               (now (float-time (org-memento--current-time)))
-               (sum 0))
+               (now (float-time (org-memento--current-time))))
           (insert (format "| %-14s | ChkIn | ChkOut| Total |Focusd| Idle |Untrkd|\n"
                           "Date"))
           (while (not (org-memento-date--le final-date date))
