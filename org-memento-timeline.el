@@ -67,7 +67,7 @@ timeline as an argument."
 
 (defcustom org-memento-timeline-initial-position 'now
   "Position after the timeline is loaded."
-  :type '(choice (const :tag "Now, if available" now)
+  :type '(choice (const :tag "Now, if available and on a single day" now)
                  (const :tag "Beginning of the buffer" nil)))
 
 (defcustom org-memento-timeline-hide-planning t
@@ -180,11 +180,10 @@ timeline as an argument."
     (org-memento-timeline-revert)
     (pop-to-buffer (current-buffer))
     (add-hook 'org-memento-update-hook 'org-memento-timeline-refresh)
-    (pcase org-memento-timeline-initial-position
-      (`now
-       (org-memento-timeline-goto-now))
-      (_
-       (goto-char (point-min)))))
+    (if (and (eq 'now org-memento-timeline-initial-position)
+             (eq 'day org-memento-timeline-span))
+        (org-memento-timeline-goto-now)
+      (goto-char (point-min))))
   (when org-memento-timeline-refresh-timer
     (cancel-timer org-memento-timeline-refresh-timer))
   (when org-memento-timeline-refresh-interval
