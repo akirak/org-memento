@@ -44,7 +44,8 @@
 ;;;; Custom variables
 
 (defcustom org-memento-timeline-hook
-  '(org-memento-timeline-planning-sections
+  '(org-memento-timeline-overview-section
+    org-memento-timeline-planning-sections
     org-memento-timeline-section)
   "Hook run every time the buffer is refreshed.
 
@@ -120,6 +121,14 @@ timeline as an argument."
      :foreground "green4")
     (t (:inherit default :foreground "green3")))
   "Face for complete amounts.")
+
+(defface org-memento-timeline-planned-face
+  '((((class color) (min-colors 88) (background dark))
+     :foreground "LightGoldenrod3")
+    (((class color) (min-colors 88) (background light))
+     :foreground "DarkGoldenrod4")
+    (t (:inherit font-lock-comment-face)))
+  "Face for planned time values.")
 
 ;;;; Variables
 
@@ -870,6 +879,112 @@ section."
       (goto-char new-pos))))
 
 ;;;; Extra hooks
+
+(defun org-memento-timeline-overview-section (taxy)
+  (unless (eq org-memento-timeline-span 'day)
+    (magit-insert-section (overview)
+      (magit-insert-heading
+        "Overview")
+      (cl-labels
+          ((midnight-from-string (string)
+             (org-memento--set-time-of-day (parse-time-string string)
+                                           0 0 0))
+           (taxy-match-date (string taxy)
+             (and (eq 'date (nth 4 (taxy-name taxy)))
+                  (equal string (nth 2 (taxy-name taxy)))))
+           (find-date-taxy (string)
+             (seq-find (apply-partially #'taxy-match-date string)
+                       (taxy-taxys taxy)))
+           (format-seconds (time future)
+             (propertize (org-memento--format-duration (/ time 60))
+                         'face
+                         (if future
+                             'org-memento-timeline-planned-face
+                           'default)))
+           (sum-durations (pred records)
+             (cl-reduce #'+
+                        (thread-last
+                          records
+                          (seq-filter pred)
+                          (mapcar (lambda (record)
+                                    (/ (- (cadr record)
+                                          (car record))
+                                       60))))
+                        :initial-value 0)))
+        (let* ((date (midnight-from-string (car org-memento-timeline-date-range)))
+               (final-date (midnight-from-string (cadr org-memento-timeline-date-range)))
+               (now (float-time (org-memento--current-time)))
+               (sum 0))
+          (insert (format "| %-14s | ChkIn | ChkOut| Total |Focusd| Idle |Untrkd|\n"
+                          "Date"))
+          (while (not (org-memento-date--le final-date date))
+            (let* ((date-string (format-time-string "%F" (encode-time date)))
+                   (date-taxy (find-date-taxy date-string))
+                   (date-record (when date-taxy (taxy-name date-taxy)))
+                   (plist (org-memento--normal-workhour date)))
+              (when (or date-taxy plist)
+                (let* ((midnight (float-time (encode-time date)))
+                       (checkin-time (or (car date-record)
+                                         (when-let (string (plist-get plist :normal-checkin))
+                                           (+ midnight (* 60 (org-duration-to-minutes string))))))
+                       (checkout-time (or (cadr date-record)
+                                          (when-let (duration (plist-get plist :normal-duration))
+                                            (+ checkin-time
+                                               (* 60 (org-duration-to-minutes duration))))))
+                       (duration-seconds (when (and checkin-time checkout-time)
+                                           (- checkout-time checkin-time)))
+                       (focused (when date-taxy
+                                  (thread-last
+                                    (taxy-taxys date-taxy)
+                                    (mapcar #'taxy-name)
+                                    (sum-durations
+                                     (lambda (record)
+                                       (and (eq (nth 4 record) 'block)
+                                            (cadr record)
+                                            (< (cadr record) now)))))))
+                       (idle (when date-taxy
+                               (thread-last
+                                 (taxy-taxys date-taxy)
+                                 (mapcar #'taxy-name)
+                                 (sum-durations
+                                  (lambda (record)
+                                    (and (memq (nth 4 record) '(idle away))
+                                         (cadr record)
+                                         (< (cadr record) now)))))))
+                       (untracked (when date-taxy
+                                    (thread-last
+                                      (taxy-taxys date-taxy)
+                                      (mapcar #'taxy-name)
+                                      (sum-durations
+                                       (lambda (record)
+                                         (and (null (nth 4 record))
+                                              (cadr record)
+                                              (< (cadr record) now))))))))
+                  (insert (format "| %-14s | %5s | %5s | %5s | %4s | %4s | %4s |\n"
+                                  (format-time-string "%F %a" (encode-time date))
+                                  (if checkin-time
+                                      (format-seconds (- checkin-time midnight)
+                                                      (> checkin-time now))
+                                    "")
+                                  (if checkout-time
+                                      (format-seconds (- checkout-time midnight)
+                                                      (> checkout-time now))
+                                    "")
+                                  (if duration-seconds
+                                      (format-seconds duration-seconds
+                                                      (> checkout-time now))
+                                    "")
+                                  (if focused
+                                      (org-memento--format-duration focused)
+                                    "")
+                                  (if idle
+                                      (org-memento--format-duration idle)
+                                    "")
+                                  (if untracked
+                                      (org-memento--format-duration untracked)
+                                    ""))))))
+            (setq date (decoded-time-add date (make-decoded-time :day 1))))))
+      (insert ?\n))))
 
 (defun org-memento-timeline-progress-section (taxy)
   (let ((rules (org-memento-policy-rules
