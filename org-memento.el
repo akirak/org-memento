@@ -524,7 +524,7 @@ Return a copy of the list."
 ;;;;; org-memento-order
 
 (cl-defstruct org-memento-order
-  group title sample-marker duration
+  group title template sample-marker duration
   no-earlier-than no-later-than previous-activities)
 
 (cl-defmethod org-memento-title ((x org-memento-order))
@@ -3454,7 +3454,7 @@ range."
 
 ;;;###autoload
 (cl-defun org-memento-add-event (&key title category group start end duration
-                                      copy-from interactive away)
+                                      body copy-from interactive away)
   "Insert an block/event entry into the journal"
   (interactive (let* ((span (org-memento--read-time-span))
                       (title (org-memento-read-title))
@@ -3507,6 +3507,7 @@ range."
                         :interactive interactive)
                      (apply #'org-memento--event-template
                             :start start :end end :title title :category category
+                            :body body
                             :duration duration
                             :interactive interactive
                             arguments)))
@@ -3586,9 +3587,28 @@ range."
                                 :interactive t
                                 :group (org-memento--default-group
                                         (org-memento-order-group event))
+                                :body (org-memento--order-template event)
                                 :copy-from (org-memento-order-sample-marker event)))))))
 
-(cl-defun org-memento--event-template (&key title category start end duration
+(defun org-memento--order-template (order)
+  (pcase-exhaustive (org-memento-order-template order)
+    (`nil)
+    ((and (pred stringp) string)
+     string)
+    (`(id ,id)
+     (save-current-buffer
+       (org-with-point-at (org-id-find id 'marker)
+         (save-excursion
+           (org-end-of-meta-data)
+           (when (looking-at org-logbook-drawer-re)
+             (goto-char (match-end 0)))
+           (buffer-substring-no-properties (point) (org-entry-end-position))))))
+    (`(file ,file)
+     (with-temp-buffer
+       (insert-file-contents file)
+       (buffer-string)))))
+
+(cl-defun org-memento--event-template (&key title category start end duration body
                                             interactive tags properties)
   (let ((started-past (time-less-p start (org-memento--current-time)))
         (ended-past (and end (time-less-p end (org-memento--current-time)))))
@@ -3627,9 +3647,10 @@ range."
             (if (and start (not (and started-past ended-past)))
                 (concat (org-memento--format-active-range start end) "\n")
               "")
-            (if interactive
-                "%?"
-              ""))))
+            (or body
+                (if interactive
+                    "%?"
+                  "")))))
 
 (cl-defun org-memento--away-event-template (&key title start end interactive)
   (let ((past (time-less-p start (org-memento--current-time))))
