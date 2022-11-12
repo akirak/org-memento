@@ -1282,15 +1282,16 @@ daily entry."
   "Cache information on the past activities."
   (when (or force
             (not org-memento-init-done))
-    (org-save-outline-visibility t
-      (org-show-all)
-      ;; `org-element-cache-reset' is available in the latest version of Org,
-      ;; but not in its older versions.
-      (when (fboundp 'org-element-cache-reset)
-        (org-element-cache-reset))
-      (org-memento--cache-groups)
-      (org-memento--update-weekly-group-sums)
-      (setq org-memento-init-done t))))
+    (save-excursion
+      (org-save-outline-visibility t
+        (org-show-all)
+        ;; `org-element-cache-reset' is available in the latest version of Org,
+        ;; but not in its older versions.
+        (when (fboundp 'org-element-cache-reset)
+          (org-element-cache-reset))
+        (org-memento--cache-groups)
+        (org-memento--update-weekly-group-sums)
+        (setq org-memento-init-done t)))))
 
 ;;;;; Updating properties
 
