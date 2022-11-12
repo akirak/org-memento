@@ -1120,7 +1120,7 @@ section."
          (gauge-width (- (window-width) 45 1))
          (rule-pos (floor (* gauge-width threshold)))
          ;; This can be a constant, but it is tedious.
-         (row-format "| %-16s |%6s /%6s | %s %3.f%%")
+         (row-format "| %-16s |%6s /%6s | %s%4.f%%")
          (total-actual 0)
          (total-goal 0))
     (cl-labels
