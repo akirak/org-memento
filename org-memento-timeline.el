@@ -1264,23 +1264,8 @@ section."
 (defun org-memento-timeline-add-from-suggestion ()
   (interactive)
   (cl-flet*
-      ((get-slots (&optional duration)
-         (when org-memento-timeline-slots
-           (if duration
-               (seq-filter `(lambda (slot)
-                              (>= (- (cadr slot)
-                                     (car slot))
-                                  ,(* 60
-                                      (+ duration
-                                         (* 2 org-memento-margin-minutes)))))
-                           org-memento-timeline-slots)
-             org-memento-timeline-slots)))
-       (get-time-range (title &optional duration)
-         (when-let* ((slots (get-slots duration))
-                     (slot (when slots
-                             (org-memento-select-slot
-                              (format "Choose a slot for \"%s\": " title)
-                              slots))))
+      ((get-time-range (title &optional duration)
+         (when-let (slot (org-memento-timeline--find-slot title duration))
            (pcase-exhaustive (org-memento--read-time-span
                               (when slot
                                 (org-memento--format-timestamp
@@ -1366,6 +1351,20 @@ section."
                                (org-memento-group-path obj)))
              (select-suggestion group-path)
            (fallback)))))))
+
+(defun org-memento-timeline--find-slot (title &optional duration)
+  (when-let (slots (if duration
+                       (seq-filter `(lambda (slot)
+                                      (>= (- (cadr slot)
+                                             (car slot))
+                                          ,(* 60
+                                              (+ duration
+                                                 (* 2 org-memento-margin-minutes)))))
+                                   org-memento-timeline-slots)
+                     org-memento-timeline-slots))
+    (org-memento-select-slot
+     (format "Choose a slot for \"%s\": " title)
+     slots)))
 
 (defun org-memento-timeline-planning-sections (taxy)
   (when (and (or (not org-memento-timeline-hide-planning)
