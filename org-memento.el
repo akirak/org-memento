@@ -796,19 +796,7 @@ should not be run inside the journal file."
                                            (< (org-memento-starting-time block)
                                               ,now)))
                                    unclosed-blocks))
-             (next-block (thread-last
-                           unclosed-blocks
-                           (seq-filter `(lambda (block)
-                                          (and (org-memento-starting-time block)
-                                               (> (org-memento-starting-time block)
-                                                  ,now))))
-                           (seq-sort-by #'org-memento-starting-time #'<)
-                           (car)))
-             (next-agenda-event (org-memento--next-agenda-event
-                                 nil (when next-block
-                                       (org-memento-starting-time next-block))))
-             (upnext-event (or next-agenda-event
-                               next-block))
+             (upnext-event (org-memento--next-event now))
              (next-event-time (when upnext-event (org-memento-starting-time upnext-event)))
              (checkout-time (org-memento-ending-time (org-memento-today-as-block))))
         (if (and checkout-time
@@ -828,11 +816,11 @@ should not be run inside the journal file."
            ((and next-event-time
                  (> next-event-time now)
                  (< (- next-event-time now) (* 10 60)))
-            (if next-agenda-event
+            (if (org-memento-org-event-p upnext-event)
                 (org-goto-marker-or-bmk (org-memento-marker upnext-event))
               (if (yes-or-no-p (format "Start \"%s\" right now? "
-                                       (org-memento-title next-block)))
-                  (org-memento-start-block (org-memento-title next-block))
+                                       (org-memento-title upnext-event)))
+                  (org-memento-start-block (org-memento-title upnext-event))
                 (with-current-buffer (org-memento--buffer)
                   (goto-char (org-memento-marker upnext-event))
                   (org-narrow-to-subtree)
@@ -2031,6 +2019,21 @@ The point must be at the heading."
       (funcall fn (nth i group-path)))))
 
 ;;;; Retrieving timing information
+
+(defun org-memento--next-event (&optional now)
+  (let* ((now (or now (float-time (org-memento--current-time))))
+         (next-block (thread-last
+                       unclosed-blocks
+                       (seq-filter `(lambda (block)
+                                      (and (org-memento-starting-time block)
+                                           (> (org-memento-starting-time block)
+                                              ,now))))
+                       (seq-sort-by #'org-memento-starting-time #'<)
+                       (car)))
+         (next-agenda-event (org-memento--next-agenda-event
+                             nil (when next-block
+                                   (org-memento-starting-time next-block)))))
+    (or next-agenda-event next-block)))
 
 (defun org-memento--empty-slots (taxy)
   (let ((now (float-time (org-memento--current-time)))
