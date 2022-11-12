@@ -325,6 +325,8 @@ to extend the time for the current block when the time runs out."
 
 (defvar org-memento-block-timers nil)
 
+(defvar org-memento-next-event-timer nil)
+
 (defvar org-memento-daily-timer nil)
 
 (defvar org-memento-idle-timer nil)
@@ -899,6 +901,7 @@ At present, it runs `org-memento-timeline'."
        (org-memento--save-buffer))
      (setq org-memento-current-block nil)
      (org-memento--cancel-block-timers)
+     (org-memento--add-next-event-timer)
      (run-hooks 'org-memento-block-exit-hook)
      (org-memento-log-update))))
 
@@ -1147,6 +1150,7 @@ The point must be after a \"CLOCK:\" string."
         (insert (org-memento--format-timestamp start new-end-time))
         (unless had-ts (insert "\n"))))
     (org-memento--setup-block-timers)
+    (org-memento--cancel-next-event-timer)
     (org-memento-log-update)))
 
 (defun org-memento--cancel-block-timers ()
@@ -1157,6 +1161,45 @@ The point must be after a \"CLOCK:\" string."
   (if (>= duration 15)
       (list (- duration 5) t)
     (list t)))
+
+(defun org-memento--cancel-next-event-timer ()
+  (when (and org-memento-next-event-timer
+             (timerp org-memento-next-event-timer))
+    (cancel-timer org-memento-next-event-timer)
+    (setq org-memento-next-event-timer nil)))
+
+(defun org-memento--update-next-event-timer (secs func)
+  (declare (indent 1))
+  (when (and org-memento-next-event-timer
+             (timerp org-memento-next-event-timer))
+    (cancel-timer org-memento-next-event-timer))
+  (setq org-memento-next-event-timer
+        (run-with-timer secs nil func)))
+
+(defun org-memento--add-next-event-timer (&optional now)
+  "Add a timer to notify the start of the next event."
+  (when-let* ((now (or now (float-time (org-memento--current-time))))
+              (event (org-memento--next-event now)))
+    (let ((start (org-memento-starting-time upnext-event))
+          (title (org-memento-title upnext-event))
+          (margin org-memento-margin-minutes)
+          (margined-time (- start (* margin 60))))
+      (if (org-memento-org-event-p event)
+          (if (> margined-time now)
+              (org-memento--update-next-event-timer (- margined-time now)
+                `(lambda ()
+                   (org-notify (format "Starting in %d minutes: %s"
+                                       ,margin ,title))
+                   (org-memento--add-next-event-timer ,start)))
+            (org-memento--update-next-event-timer (- start now)
+              `(lambda ()
+                 (org-notify (format "Starting: %s" ,title))
+                 (org-memento--add-next-event-timer ,start))))
+        (org-memento--update-next-event-timer (- start now)
+          `(lambda ()
+             (if (yes-or-no-p (message "Start %s?" ,title))
+                 (org-memento-start-block ,title)
+               (org-memento--add-next-event-timer ,start))))))))
 
 (defun org-memento-setup-daily-timer ()
   (unless org-memento-daily-timer
