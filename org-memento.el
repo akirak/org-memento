@@ -1340,12 +1340,8 @@ The function returns non-nil if the check-in is done."
     (cancel-timer org-memento-idle-timer))
   (setq org-memento-block-idle-logging nil)
   (when (org-memento--maybe-check-in)
-    ;; The point should be moved to the heading to call scaffolding
     (org-back-to-heading)
     (org-memento--insert-checking-out-time)
-    ;; (save-excursion
-    ;;   (atomic-change-group
-    ;;     (org-memento--scaffold-day)))
     (org-memento--save-buffer)
     (org-end-of-meta-data t)
     (when (looking-at org-ts-regexp)
