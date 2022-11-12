@@ -705,6 +705,11 @@ If ARG is non-nil, create an away event."
          (save-current-buffer
            (org-with-point-at marker
              (org-memento-adjust-time :allow-edit-clock away))))
+       (update-ts (marker new-start)
+         (save-current-buffer
+           (org-with-point-at marker
+             (org-memento-adjust-time
+              :new-start (+ new-start (* 60 org-memento-margin-minutes))))))
        (schedule-new-block (start end-bound)
          (pcase-exhaustive (org-memento--read-time-span
                             (org-memento--format-active-range
@@ -766,11 +771,16 @@ If ARG is non-nil, create an away event."
                 (pcase (oref (magit-current-section) value)
                   (`nil
                    (user-error "No section at point"))
-                  (`(,start ,end ,_title ,marker ,type . ,_)
+                  (`(,start ,end ,title ,marker ,type . ,_)
                    (cl-case type
                      (dismissed
-                      (adjust-ts marker)
-                      t)
+                      ;; TODO:
+                      (pcase-exhaustive (org-memento-timeline--find-slot
+                                         title (when end
+                                                 (/ (- end start) 60)))
+                        (`(,slot-start ,_slot-end . ,_)
+                         (update-ts marker slot-start)
+                         t)))
                      (block
                       ;; Only allow adjusting time of future events.
                       (when (or (not start)
