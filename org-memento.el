@@ -1002,7 +1002,7 @@ With a universal argument, you can specify the time of check out."
               (org-timestamp-to-time orig-ts)
               (encode-time (parse-time-string string)))))))
 
-(cl-defun org-memento-adjust-time (&key allow-edit-clock)
+(cl-defun org-memento-adjust-time (&key allow-edit-clock new-start)
   "Adjust the active timestamp of the entry."
   (interactive)
   (save-excursion
@@ -1016,7 +1016,7 @@ With a universal argument, you can specify the time of check out."
           (org-memento--edit-clock)
         (when has-drawer
           (goto-char (match-end 0)))
-        (org-memento--edit-timestamp)))))
+        (org-memento--edit-timestamp :new-start new-start)))))
 
 (defun org-memento--edit-clock ()
   "Edit the clock entry at point.
@@ -1040,26 +1040,40 @@ The point must be after a \"CLOCK:\" string."
                (org-memento--format-timestamp end nil t))
        (org-clock-update-time-maybe)))))
 
-(defun org-memento--edit-timestamp ()
+(cl-defun org-memento--edit-timestamp (&key new-start)
   "Edit the timestamp at point or insert a new one."
   (let* ((had-ts (looking-at org-ts-regexp))
          (orig-ts (when had-ts
-                    (org-timestamp-from-string (match-string 0)))))
-    (when (org-time-stamp t)
-      (thing-at-point-looking-at org-ts-regexp)
-      (let* ((new-ts (org-timestamp-from-string (match-string 0)))
-             (start (org-timestamp-to-time new-ts)))
-        (when (and orig-ts
-                   (eq 'active-range (org-element-property :type orig-ts))
-                   (not (eq 'active-range (org-element-property :type new-ts))))
-          (thing-at-point-looking-at org-ts-regexp)
-          (replace-match "")
-          (insert (org-memento--format-timestamp
-                   start
-                   (time-add start
-                             (- (float-time (org-timestamp-to-time orig-ts t))
-                                (float-time (org-timestamp-to-time orig-ts))))))))
-      (unless had-ts (insert "\n")))))
+                    (org-timestamp-from-string (match-string 0))))
+         (duration-secs (when (and orig-ts
+                                   (eq 'active-range (org-element-property :type orig-ts)))
+                          (- (float-time (org-timestamp-to-time orig-ts t))
+                             (float-time (org-timestamp-to-time orig-ts))))))
+    (pcase-exhaustive (if new-start
+                          (org-memento--read-time-span
+                           (org-memento--format-timestamp
+                            new-start
+                            (when duration-secs
+                              (+ new-start duration-secs)))
+                           (encode-time
+                            (org-memento--start-of-day
+                             (decode-time new-start))))
+                        (org-memento--read-time-span
+                         (org-memento--format-timestamp
+                          (org-timestamp-to-time orig-ts)
+                          (org-timestamp-to-time orig-ts t))
+                         (encode-time
+                          (org-memento--start-of-day
+                           (decode-time
+                            (org-timestamp-to-time orig-ts))))))
+      (`(,start ,end)
+       (when (looking-at org-ts-regexp)
+         (replace-match ""))
+       (insert (org-memento--format-timestamp
+                start
+                (or end
+                    (time-add start duration-secs))))
+       (unless had-ts (insert "\n"))))))
 
 ;;;; Timers and notifications
 
