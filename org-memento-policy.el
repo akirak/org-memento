@@ -458,5 +458,53 @@
                               (reverse (ppss-open-parens (syntax-ppss)))))
       (org-link-open-from-string link))))
 
+;;;###autoload
+(defun org-memento-policy-link-to-org-entry (&optional pom)
+  "Find a policy linking to the entry, or create a new link."
+  (interactive)
+  (let* ((pom (or pom (point-marker)))
+         (existing-id (org-id-get pom))
+         (buffer (or (find-buffer-visiting org-memento-policy-file)
+                     (find-file-noselect org-memento-policy-file)))
+         (heading (org-link-display-format
+                   (org-with-point-at pom
+                     (org-get-heading t t t t)))))
+    (if-let (marker
+             (catch 'link-created
+               (when existing-id
+                 (with-current-buffer buffer
+                   (save-restriction
+                     (widen)
+                     (goto-char (point-min))
+                     (let ((regexp (rx-to-string `(and "\""
+                                                       (or (group (regexp ,org-link-bracket-re))
+                                                           ,(concat "id:" existing-id))
+                                                       "\""))))
+                       (while (re-search-forward regexp nil t)
+                         (when (and (or (not (match-string 1))
+                                        (equal (match-string 2)
+                                               (concat "id:" existing-id)))
+                                    ;; Don't match text inside a comment.
+                                    (not (ppss-comment-or-string-start (syntax-ppss))))
+                           (message "Found a link to %s" heading)
+                           (throw 'link-created (point-marker))))))))
+               (let ((group (org-memento-read-group
+                                "Select a group which should link to the entry: ")))
+                 (when (listp group)
+                   (let ((link (org-with-point-at pom
+                                 (list (org-id-store-link)))))
+                     (org-with-point-at (org-memento-policy-goto-group group)
+                       (org-memento-policy-add-link link)
+                       (throw 'link-created (point-marker))))))
+               ;; FIXME: Depending on the user's configuration, this may not
+               ;; store an ID link.
+               (org-store-link nil t)
+               (message "A link has been stored. Define a new group for yourself.")
+               nil))
+        (with-current-buffer (marker-buffer marker)
+          (pop-to-buffer (current-buffer))
+          (goto-char marker))
+      (pop-to-buffer buffer))))
+
 (provide 'org-memento-policy)
 ;;; org-memento-policy.el ends here
