@@ -386,18 +386,17 @@
         (lisp-indent-specform 1 state indent-point (current-column))))))
 
 ;;;###autoload
-(defun org-memento-policy-index ()
-  (interactive)
-  (if-let (marker (org-memento-policy-find-definition
-                   (org-memento-read-group "Group path: "
-                     :from-group-cache nil
-                     :from-policies t)))
+(defun org-memento-policy-goto-group (group-path)
+  "Find the definition of GROUP-PATH in the policies file."
+  (interactive (list (org-memento-read-group "Group path: "
+                       :from-group-cache nil
+                       :from-policies t)))
+  (if-let (marker (org-memento-policy-find-definition group-path))
       (progn
         (pop-to-buffer-same-window (marker-buffer marker))
         (with-current-buffer (marker-buffer marker)
           (goto-char marker)))
     (user-error "Not found")))
-
 
 (defun org-memento-policy-add-link ()
   "Attach the last stored link to the group at point."
