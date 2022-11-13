@@ -390,6 +390,24 @@
         (lisp-indent-specform 1 state indent-point (current-column))))))
 
 ;;;###autoload
+(defun org-memento-policy-find-in-source ()
+  "Find the definition of a group in the policies file.
+
+This is a convenient command that wraps
+`org-memento-policy-goto-group' and
+`org-memento-policy-link-to-org-entry' in a single command.
+
+If the buffer is in `org-mode' and a single universal argument is
+given, it is the same as `org-memento-policy-link-to-org-entry',
+which jumps to a policy linking to the current entry. Otherwise,
+it is the same as `org-memento-policy-goto-group'."
+  (interactive)
+  (if (and (equal current-prefix-arg '(4))
+           (derived-mode-p 'org-mode))
+      (org-memento-policy-link-to-org-entry)
+    (call-interactively #'org-memento-policy-goto-group)))
+
+;;;###autoload
 (defun org-memento-policy-goto-group (group-path)
   "Find the definition of GROUP-PATH in the policies file."
   (interactive (list (org-memento-read-group "Group path: "
