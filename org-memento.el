@@ -1194,8 +1194,8 @@ The point must be after a \"CLOCK:\" string."
   "Add a timer to notify the start of the next event."
   (when-let* ((now (or now (float-time (org-memento--current-time))))
               (event (org-memento--next-event now)))
-    (let ((start (org-memento-starting-time upnext-event))
-          (title (org-memento-title upnext-event))
+    (let ((start (org-memento-starting-time event))
+          (title (org-memento-title event))
           (margin org-memento-margin-minutes)
           (margined-time (- start (* margin 60))))
       (if (org-memento-org-event-p event)

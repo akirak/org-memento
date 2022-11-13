@@ -366,7 +366,7 @@
 
 (defvar org-memento-policy-mode-map
   (let ((map (make-sparse-keymap)))
-    (define-key map [remap imenu] #'org-memento-policy-index)
+    (define-key map [remap imenu] #'org-memento-policy-goto-group)
     (define-key map (kbd "C-c C-l") #'org-memento-policy-add-link)
     (define-key map (kbd "C-c C-o") #'org-memento-policy-open-link)
     map))
