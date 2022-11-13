@@ -1708,9 +1708,11 @@ The point must be at the heading."
       (cdr (assoc (completing-read prompt #'completions nil t)
                   alist)))))
 
-(cl-defun org-memento-read-group (&optional prompt &key title default group-path)
+(cl-defun org-memento-read-group (&optional prompt &key title default group-path
+                                            (from-group-cache t) (from-policies t))
   (declare (indent 1))
-  (unless org-memento-group-cache
+  (when (and from-group-cache
+             (not org-memento-group-cache))
     (org-memento--cache-groups))
   (let* ((default-formatted (when default
                               (org-memento--format-group default)))
@@ -1740,13 +1742,15 @@ The point must be at the heading."
                       group-path))))
       (progn
         (require 'org-memento-policy)
-        (dolist (group (map-keys org-memento-group-cache))
-          (when (check-group group)
-            (unless (org-memento-policy-group-archived-p group)
-              (let ((title (org-memento--format-group group)))
-                (puthash title group cache)
-                (push title candidates)))))
-        (when (and (bound-and-true-p org-memento-policy-data)
+        (when from-group-cache
+          (dolist (group (map-keys org-memento-group-cache))
+            (when (check-group group)
+              (unless (org-memento-policy-group-archived-p group)
+                (let ((title (org-memento--format-group group)))
+                  (puthash title group cache)
+                  (push title candidates))))))
+        (when (and from-policies
+                   (bound-and-true-p org-memento-policy-data)
                    (taxy-p org-memento-policy-data))
           (dolist (group-path (cl-remove-duplicates
                                (mapcar #'org-memento-group-path
