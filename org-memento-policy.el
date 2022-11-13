@@ -28,6 +28,10 @@
                 :value-type (function :tag "Function that instantiate a subclass of\
  org-memento-policy-rule")))
 
+(defcustom org-memento-policy-jump-hook nil
+  "Hook run after jumping to a policy."
+  :type 'hook)
+
 ;;;; Classes
 
 (defconst org-memento-policy-context-props
@@ -395,7 +399,9 @@
       (progn
         (pop-to-buffer-same-window (marker-buffer marker))
         (with-current-buffer (marker-buffer marker)
-          (goto-char marker))
+          (goto-char marker)
+          (when (called-interactively-p t)
+            (run-hooks 'org-memento-policy-jump-hook)))
         marker)
     (user-error "Not found")))
 
@@ -486,6 +492,7 @@
                                                (concat "id:" existing-id)))
                                     ;; Don't match text inside a comment.
                                     (not (ppss-comment-or-string-start (syntax-ppss))))
+                           (run-hooks 'org-memento-policy-jump-hook)
                            (message "Found a link to %s" heading)
                            (throw 'link-created (point-marker))))))))
                (let ((group (org-memento-read-group
@@ -495,6 +502,7 @@
                                  (list (org-id-store-link)))))
                      (org-with-point-at (org-memento-policy-goto-group group)
                        (org-memento-policy-add-link link)
+                       (run-hooks 'org-memento-policy-jump-hook)
                        (throw 'link-created (point-marker))))))
                ;; FIXME: Depending on the user's configuration, this may not
                ;; store an ID link.
