@@ -404,7 +404,7 @@
   (interactive)
   (let ((link (or (pop org-stored-links)
                   (user-error "No link is stored"))))
-    (pcase (org-memento-policy--innermost-group)
+    (pcase (org-memento-policy--innermost-group nil t)
       (`nil)
       (`(,begin . ,end)
        (goto-char begin)
@@ -425,7 +425,7 @@
          (goto-char (syntax-ppss-toplevel-pos (syntax-ppss)))
          (indent-sexp))))))
 
-(defun org-memento-policy--innermost-group (&optional pred)
+(defun org-memento-policy--innermost-group (&optional pred include-self)
   "Return the bound of an innermost group."
   (cl-flet
       ((f (pos)
@@ -440,7 +440,10 @@
                         (forward-sexp 1)
                         (point-marker)))))))))
     (save-excursion
-      (seq-some #'f (reverse (ppss-open-parens (syntax-ppss)))))))
+      (or (and include-self (eq (char-after (point))
+                                40)
+               (f (point)))
+          (seq-some #'f (reverse (ppss-open-parens (syntax-ppss))))))))
 
 (defun org-memento-policy-open-link ()
   "Open a link of the context at point."
