@@ -395,7 +395,8 @@
       (progn
         (pop-to-buffer-same-window (marker-buffer marker))
         (with-current-buffer (marker-buffer marker)
-          (goto-char marker)))
+          (goto-char marker))
+        marker)
     (user-error "Not found")))
 
 (defun org-memento-policy-add-link ()
