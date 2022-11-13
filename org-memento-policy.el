@@ -389,25 +389,15 @@
 (defun org-memento-policy-index ()
   (interactive)
   (if-let (marker (org-memento-policy-find-definition
-                   (org-memento-policy--read-group
-                    "Group path: "
-                    (thread-last
-                      (org-memento-policy-contexts)
-                      (mapcar #'org-memento-group-path)
-                      (seq-uniq)))))
+                   (org-memento-read-group "Group path: "
+                     :from-group-cache nil
+                     :from-policies t)))
       (progn
         (pop-to-buffer-same-window (marker-buffer marker))
         (with-current-buffer (marker-buffer marker)
           (goto-char marker)))
     (user-error "Not found")))
 
-(defun org-memento-policy--read-group (prompt groups)
-  (let* ((alist (mapcar (lambda (x)
-                          (cons (org-memento--format-group x)
-                                x))
-                        groups))
-         (input (completing-read prompt alist nil t)))
-    (cdr (assoc input alist))))
 
 (defun org-memento-policy-add-link ()
   "Attach the last stored link to the group at point."
