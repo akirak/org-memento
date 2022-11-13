@@ -399,10 +399,11 @@
         marker)
     (user-error "Not found")))
 
-(defun org-memento-policy-add-link ()
+(defun org-memento-policy-add-link (&optional link)
   "Attach the last stored link to the group at point."
   (interactive)
-  (let ((link (or (pop org-stored-links)
+  (let ((link (or link
+                  (pop org-stored-links)
                   (user-error "No link is stored"))))
     (pcase (org-memento-policy--innermost-group nil t)
       (`nil)
