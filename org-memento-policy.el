@@ -96,9 +96,10 @@
     (org-memento-policy-load)))
 
 (defconst org-memento-policy-skip-regexp
-  (rx (or (+ space) "\n"
-          (and bol (* blank)
-               ";" (* nonl)))))
+  (rx (or (and bol (* blank)
+               ";" (* nonl))
+          (+ space)
+          "\n")))
 
 (defun org-memento-policy--read-all ()
   "Read all policies from the buffer."
