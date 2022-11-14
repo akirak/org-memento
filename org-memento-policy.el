@@ -6,6 +6,9 @@
 (require 'taxy)
 (require 'org-memento-date)
 
+
+(declare-function thing-at-point-looking-at "thingatpt")
+
 (defgroup org-memento-policy nil
   "Policy enforcement for Org Memento."
   :group 'org-memento)
@@ -367,7 +370,7 @@
 (defvar org-memento-policy-mode-map
   (let ((map (make-sparse-keymap)))
     (define-key map [remap imenu] #'org-memento-policy-goto-group)
-    (define-key map (kbd "C-c C-l") #'org-memento-policy-add-link)
+    (define-key map (kbd "C-c C-l") #'org-memento-policy-insert-link)
     (define-key map (kbd "C-c C-o") #'org-memento-policy-open-link)
     map))
 
@@ -451,6 +454,16 @@ it is the same as `org-memento-policy-goto-group'."
          (goto-char (syntax-ppss-toplevel-pos (syntax-ppss)))
          (indent-sexp))))))
 
+(defun org-memento-policy-insert-link (&optional link)
+  "Insert the last stored link into the expression."
+  (interactive)
+  (let ((link (or link
+                  (pop org-stored-links)
+                  (user-error "No link is stored"))))
+    (insert (prin1-to-string
+             (org-no-properties
+              (org-link-make-string (car link)))))))
+
 (defun org-memento-policy--innermost-group (&optional pred include-self)
   "Return the bound of an innermost group."
   (cl-flet
@@ -472,16 +485,22 @@ it is the same as `org-memento-policy-goto-group'."
           (seq-some #'f (reverse (ppss-open-parens (syntax-ppss))))))))
 
 (defun org-memento-policy-open-link ()
-  "Open a link of the context at point."
+  "Open a link of the context at point.
+
+If the point is on a bracket link, open it. Otherwise, :link
+property of the closest group (either the group at point or one
+of its ancestors) will be visited."
   (interactive)
-  (cl-flet
-      ((link (pos)
-         (pcase (save-excursion (read (copy-marker pos)))
-           (`(group ,_ . ,plist)
-            (plist-get plist :link)))))
-    (when-let (link (seq-some #'link
-                              (reverse (ppss-open-parens (syntax-ppss)))))
-      (org-link-open-from-string link))))
+  (if (thing-at-point-looking-at org-link-bracket-re)
+      (org-link-open-from-string (match-string 0))
+    (cl-flet
+        ((link (pos)
+           (pcase (save-excursion (read (copy-marker pos)))
+             (`(group ,_ . ,plist)
+              (plist-get plist :link)))))
+      (when-let (link (seq-some #'link
+                                (reverse (ppss-open-parens (syntax-ppss)))))
+        (org-link-open-from-string link)))))
 
 ;;;###autoload
 (defun org-memento-policy-link-to-org-entry (&optional pom)
