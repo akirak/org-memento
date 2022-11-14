@@ -2083,6 +2083,9 @@ The point must be at the heading."
 
 (defun org-memento--next-event (&optional now)
   (let* ((now (or now (float-time (org-memento--current-time))))
+         (unclosed-blocks (thread-last
+                            (org-memento--blocks)
+                            (seq-filter #'org-memento-block-not-closed-p)))
          (next-block (thread-last
                        unclosed-blocks
                        (seq-filter `(lambda (block)
