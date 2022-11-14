@@ -1370,18 +1370,32 @@ section."
            (fallback)))))))
 
 (defun org-memento-timeline--find-slot (title &optional duration)
-  (when-let (slots (if duration
-                       (seq-filter `(lambda (slot)
-                                      (>= (- (cadr slot)
-                                             (car slot))
-                                          ,(* 60
-                                              (+ duration
-                                                 (* 2 org-memento-margin-minutes)))))
-                                   org-memento-timeline-slots)
-                     org-memento-timeline-slots))
+  (when-let (slots (org-memento-timeline--filter-slots duration))
     (org-memento-select-slot
      (format "Choose a slot for \"%s\": " title)
      slots)))
+
+(defun org-memento-timeline--filter-slots (&optional duration)
+  (let ((now (float-time (org-memento--current-time))))
+    (cl-flet
+        ((not-past-slot (slot)
+           (> (cadr slot) now))
+         (update-slot-init (slot)
+           (cons (max now (car slot))
+                 (cdr slot)))
+         (check-length (slot)
+           (>= (- (cadr slot)
+                  (car slot))
+               (* 60
+                  (+ duration
+                     (* 2 org-memento-margin-minutes))))))
+      (thread-last
+        org-memento-timeline-slots
+        (seq-filter #'not-past-slot)
+        (mapcar #'update-slot-init)
+        (seq-filter (if duration
+                        #'check-length
+                      #'always))))))
 
 (defun org-memento-timeline-planning-sections (taxy)
   (when (and (or (not org-memento-timeline-hide-planning)
