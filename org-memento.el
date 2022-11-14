@@ -3659,18 +3659,31 @@ range."
     (`nil)
     ((and (pred stringp) string)
      string)
+    (`(link ,link)
+     (org-memento--org-link-entry-body link))
     (`(id ,id)
-     (save-current-buffer
-       (org-with-point-at (org-id-find id 'marker)
-         (save-excursion
-           (org-end-of-meta-data)
-           (when (looking-at org-logbook-drawer-re)
-             (goto-char (match-end 0)))
-           (buffer-substring-no-properties (point) (org-entry-end-position))))))
+     (org-memento--id-entry-body id))
     (`(file ,file)
      (with-temp-buffer
        (insert-file-contents file)
        (buffer-string)))))
+
+(defun org-memento--org-link-entry-body (link)
+  (if (string-match org-link-bracket-re link)
+      (let ((url (match-string 1 link)))
+        (pcase-exhaustive url
+          ((rx bol "id:" (group (+ anything)))
+           (org-memento--id-entry-body (match-string 1 url)))))
+    (error "Link must match `org-link-bracket-re': %s" link)))
+
+(defun org-memento--id-entry-body (id)
+  (save-current-buffer
+    (org-with-point-at (org-id-find id 'marker)
+      (save-excursion
+        (org-end-of-meta-data)
+        (when (looking-at org-logbook-drawer-re)
+          (goto-char (match-end 0)))
+        (buffer-substring-no-properties (point) (org-entry-end-position))))))
 
 (defun org-memento--valid-template-p (template)
   "Check the type of a template value.
@@ -3682,6 +3695,8 @@ This should be used at loading time."
          (stringp id))
         (`(file ,file)
          (stringp file))
+        (`(link ,link)
+         (string-match-p org-link-bracket-re link))
         (_
          nil))))
 
