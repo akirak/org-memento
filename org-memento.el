@@ -2438,7 +2438,7 @@ This function must be called at the beginning of the entry."
 ;;;; Collect data for analytic purposes
 
 ;;;###autoload
-(cl-defun org-memento-activity-taxy (start-day end-day &key groups)
+(cl-defun org-memento-activity-taxy (start-day end-day &key groups todos)
   (require 'taxy)
   (cl-labels
       ((date-string-to-time (string)
@@ -2647,6 +2647,7 @@ This function must be called at the beginning of the entry."
          :name (list start-time end-time)
          :taxys (thread-last
                   (org-memento--block-activities start-day end-day
+                                                 :annotate-todo t
                                                  :annotate-groups groups)
                   (fill-voids (float-time start-time)
                               (float-time end-time)

@@ -223,7 +223,7 @@ timeline as an argument."
   (interactive)
   (let ((taxy (apply #'org-memento-activity-taxy
                      (append org-memento-timeline-date-range
-                             (list :groups t)))))
+                             (list :groups t :todos t)))))
     (when (org-memento-timeline--within-range-p taxy)
       (org-memento--status)
       (setq org-memento-timeline-slots (org-memento--empty-slots taxy))
