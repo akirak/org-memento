@@ -1133,20 +1133,21 @@ The point must be after a \"CLOCK:\" string."
                         now)
                      60)))
          (default 30)
-         (default (if limit
-                      (min limit default)
-                    default))
-         (input (read-from-minibuffer
-                 (format-prompt
-                  (concat (if upnext-event
-                              (format "The next event \"%s\" starts at %s. "
-                                      (org-memento-title upnext-event)
-                                      (format-time-string
-                                       "%R" (org-memento-starting-time upnext-event)))
-                            "")
-                          "How long do you want to extend from now?")
-                  (org-memento--format-duration default))
-                 nil nil nil nil (org-memento--format-duration default)))
+         (input (completing-read (concat
+                                  (if upnext-event
+                                      (format "The next event \"%s\" starts at %s. "
+                                              (org-memento-title upnext-event)
+                                              (format-time-string
+                                               "%R" (org-memento-starting-time upnext-event)))
+                                    "")
+                                  "How long do you want to extend from now? ")
+                                 (thread-last
+                                   (cons default (when limit (list limit)))
+                                   (seq-filter `(lambda (x)
+                                                  (or (not ,limit)
+                                                      (>= x ,limit))))
+                                   (seq-sort #'<)
+                                   (mapcar #'org-memento--format-duration))))
          (new-end-time (+ now (* 60 (org-duration-to-minutes input)))))
     (org-memento-with-current-block
       (org-back-to-heading)
