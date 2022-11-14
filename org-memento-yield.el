@@ -187,6 +187,8 @@ another type.")
                  ((and (map :interval :static)
                        (guard interval)
                        (guard static))
+                  (when-let (template (plist-get static :template))
+                    (cl-assert  (org-memento--valid-template-p template)))
                   'org-memento-yield-simple-rule))
                :context context
                args)))

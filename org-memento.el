@@ -3672,6 +3672,19 @@ range."
        (insert-file-contents file)
        (buffer-string)))))
 
+(defun org-memento--valid-template-p (template)
+  "Check the type of a template value.
+
+This should be used at loading time."
+  (or (stringp template)
+      (pcase-exhaustive template
+        (`(id ,id)
+         (stringp id))
+        (`(file ,file)
+         (stringp file))
+        (_
+         nil))))
+
 (cl-defun org-memento--event-template (&key title category start end duration body
                                             interactive tags properties)
   (let ((started-past (time-less-p start (org-memento--current-time)))
