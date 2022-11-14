@@ -852,7 +852,10 @@ If ARG is non-nil, create an away event."
     (pcase section
       ((and (app section-type 'group-budgets)
             (app section-value `(,_ ,path . ,_)))
-       path))))
+       path)
+      ((and (app section-value (cl-type org-memento-order))
+            (app section-value order))
+       (org-memento-group-path order)))))
 
 (defun org-memento-timeline--group-marker (section)
   (when-let (path (org-memento-timeline--section-group section))
