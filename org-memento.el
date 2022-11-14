@@ -1719,9 +1719,12 @@ The point must be at the heading."
                               (org-memento--format-group default)))
          (cache (make-hash-table :test #'equal :size 100))
          (prompt (or prompt
-                     (format-prompt "Select a group for \"%s\" (or empty to nil)"
-                                    default-formatted
-                                    title)))
+                     (if title
+                         (format-prompt "Select a group for \"%s\" (or empty to nil)"
+                                        default-formatted
+                                        title)
+                       (format-prompt "Select a group (or empty to nil)"
+                                      default-formatted))))
          candidates)
     (cl-labels
         ((group (candidate transform)
