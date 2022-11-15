@@ -3916,10 +3916,11 @@ This should be used at loading time."
 (defun org-memento-agenda ()
   "Display time blocks on the current date."
   (interactive)
-  (org-ql-search org-memento-file
-    (org-memento--current-date-ql)
-    :title "Blocks (org-memento)"
-    :super-groups org-memento-super-groups))
+  (let ((org-super-agenda-properties-inherit nil))
+    (org-ql-search org-memento-file
+      (org-memento--current-date-ql)
+      :title "Blocks (org-memento)"
+      :super-groups org-memento-super-groups)))
 
 ;;;###autoload
 (defun org-memento-make-agenda-block ()
