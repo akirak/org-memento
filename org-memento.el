@@ -1497,14 +1497,22 @@ The point must be at the heading."
     (if-let (block (org-memento-today-as-block))
         (let* ((now (float-time))
                (started (org-memento-started-time block))
-               (ending (org-memento-ending-time block)))
+               (ending (org-memento-ending-time block))
+               (event (org-memento--next-event now)))
           (message (concat (format-time-string "%R-" started)
                            (if ending
                                (format-spec "%e, remaining %r"
                                             `((?e . ,(format-time-string "%R" ending))
                                               (?r . ,(org-duration-from-minutes
                                                       (/ (- ending now) 60)))))
-                             ""))))
+                             "")
+                           (if event
+                               (format-spec ", next event in %d (%t)"
+                                            `((?d . ,(org-duration-from-minutes
+                                                      (/ (- (org-memento-starting-time event)
+                                                            now)
+                                                         60)))
+                                              (?t . ,(org-memento-title event))))))))
       (message "Not checking in"))))
 
 (defun org-memento--status ()
