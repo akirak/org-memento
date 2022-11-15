@@ -3898,6 +3898,14 @@ This should be used at loading time."
 
 ;;;;; org-ql
 
+(defcustom org-memento-super-groups
+  '((:name "Closed" :todo "DONE")
+    (:name "Working on" :property "MEMENTO_CHECKIN_TIME")
+    (:auto-map org-memento--super-agenda-ts-map)
+    (:name "Unscheduled" :anything t))
+  "Groups of org-super-agenda used for org-memento."
+  :type '(repeat sexp))
+
 ;;;###autoload
 (defun org-memento-make-agenda-block ()
   "Return an `org-agenda' block for time blocks on today.
@@ -3919,11 +3927,7 @@ you would have to update the value of
                  ((org-ql-block-header "Time blocks")
                   (org-agenda-files '(,org-memento-file))
                   (org-super-agenda-properties-inherit nil)
-                  (org-super-agenda-groups
-                   '((:name "Closed" :todo "DONE")
-                     (:name "Working on" :property "MEMENTO_CHECKIN_TIME")
-                     (:auto-map org-memento--super-agenda-ts-map)
-                     (:name "Unscheduled" :anything t))))))
+                  (org-super-agenda-groups ',org-memento-super-groups))))
 
 (defun org-memento--super-agenda-ts-map (item)
   (when-let* ((marker (or (get-text-property 0 'org-marker item)
