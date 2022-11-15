@@ -60,6 +60,7 @@
 (declare-function org-memento-date--le "org-memento-date")
 (declare-function org-link-store-props "ol")
 (declare-function org-ql-search "ext:org-ql-search")
+(declare-function org-memento-policy-maybe-load "org-memento-policy")
 (defvar org-super-agenda-properties-inherit)
 (defvar org-capture-entry)
 (defvar org-agenda-start-on-weekday)
@@ -1725,6 +1726,8 @@ The point must be at the heading."
   (when (and from-group-cache
              (not org-memento-group-cache))
     (org-memento--cache-groups))
+  (require 'org-memento-policy)
+  (org-memento-policy-maybe-load)
   (let* ((default-formatted (when default
                               (org-memento--format-group default)))
          (cache (make-hash-table :test #'equal :size 100))
@@ -1755,7 +1758,6 @@ The point must be at the heading."
                (equal (seq-take group (length group-path))
                       group-path))))
       (progn
-        (require 'org-memento-policy)
         (when from-group-cache
           (dolist (group (map-keys org-memento-group-cache))
             (when (check-group group)
