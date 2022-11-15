@@ -3605,6 +3605,12 @@ range."
     (org-memento--add-immediate-block title)
     (org-memento-start-block title)))
 
+;;;###autoload
+(defun org-memento-add-quick-event (text)
+  (let ((title (string-trim text)))
+    ;; TODO: Parse time
+    (org-memento-add-event :title title)))
+
 (cl-defun org-memento-schedule-block (start end-bound
                                             &key confirmed-time
                                             suggestions)
