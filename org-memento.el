@@ -59,6 +59,8 @@
 (declare-function org-memento-timeline-refresh "org-memento-timeline")
 (declare-function org-memento-date--le "org-memento-date")
 (declare-function org-link-store-props "ol")
+(declare-function org-ql-search "ext:org-ql-search")
+(defvar org-super-agenda-properties-inherit)
 (defvar org-capture-entry)
 (defvar org-agenda-start-on-weekday)
 (defvar org-archive-tag)
@@ -3924,6 +3926,7 @@ This should be used at loading time."
 (defun org-memento-agenda ()
   "Display time blocks on the current date."
   (interactive)
+  (require 'org-ql-search)
   (let ((org-super-agenda-properties-inherit nil))
     (org-ql-search org-memento-file
       (org-memento--current-date-ql)
