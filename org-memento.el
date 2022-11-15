@@ -2658,7 +2658,7 @@ This function must be called at the beginning of the entry."
          :name (list start-time end-time)
          :taxys (thread-last
                   (org-memento--block-activities start-day end-day
-                                                 :annotate-todo t
+                                                 :annotate-todos todos
                                                  :annotate-groups groups)
                   (fill-voids (float-time start-time)
                               (float-time end-time)
@@ -2776,7 +2776,7 @@ denoting the type of the activity. ARGS is an optional list."
 
 (cl-defun org-memento--block-activities (start-date-string &optional end-date-string
                                                            &key annotate-groups
-                                                           annotate-todo)
+                                                           annotate-todos)
   (cl-flet*
       ((parse-date (string)
          (encode-time (org-memento--set-time-of-day
@@ -2940,7 +2940,7 @@ denoting the type of the activity. ARGS is an optional list."
                                        (element (caar rest)))
                                   (when is-block
                                     (nconc record
-                                           (when-let (keyword (and annotate-todo
+                                           (when-let (keyword (and annotate-todos
                                                                    (org-element-property
                                                                     :todo-keyword
                                                                     element)))
