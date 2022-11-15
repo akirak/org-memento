@@ -3907,6 +3907,15 @@ This should be used at loading time."
   :type '(repeat sexp))
 
 ;;;###autoload
+(defun org-memento-agenda ()
+  "Display time blocks on the current date."
+  (interactive)
+  (org-ql-search org-memento-file
+    (org-memento--current-date-ql)
+    :title "Blocks (org-memento)"
+    :super-groups org-memento-super-groups))
+
+;;;###autoload
 (defun org-memento-make-agenda-block ()
   "Return an `org-agenda' block for time blocks on today.
 
@@ -3918,16 +3927,19 @@ interactive command that wraps `org-agenda' function. Otherwise,
 you would have to update the value of
 `org-agenda-custom-commands' every day before you get to work."
   (require 'org-ql-search)
-  `(org-ql-block '(and (level 2)
-                       (parent (heading ,(org-memento--today-string
-                                          (decode-time))))
-                       (not (heading-regexp
-                             ,(rx-to-string `(or (and bol "COMMENT")
-                                                 ,org-memento-idle-heading)))))
+  `(org-ql-block ',(org-memento--current-date-ql)
                  ((org-ql-block-header "Time blocks")
                   (org-agenda-files '(,org-memento-file))
                   (org-super-agenda-properties-inherit nil)
                   (org-super-agenda-groups ',org-memento-super-groups))))
+
+(defun org-memento--current-date-ql ()
+  `(and (level 2)
+        (parent (heading ,(org-memento--today-string
+                           (decode-time))))
+        (not (heading-regexp
+              ,(rx-to-string `(or (and bol "COMMENT")
+                                  ,org-memento-idle-heading))))))
 
 (defun org-memento--super-agenda-ts-map (item)
   (when-let* ((marker (or (get-text-property 0 'org-marker item)
