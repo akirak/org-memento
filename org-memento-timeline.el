@@ -1314,6 +1314,7 @@ section."
                                                 (+ start (* 60 duration))))
                                      :duration duration
                                      :interactive t
+                                     :body (org-memento--order-template value)
                                      :group (org-memento--default-group
                                              (org-memento-order-group value))
                                      :copy-from (org-memento-order-sample-marker value))))))
