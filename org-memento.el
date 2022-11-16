@@ -788,7 +788,9 @@ should not be run inside the journal file."
         (when (yes-or-no-p "Finish the current block?")
           (org-memento-finish-block)))
     (if (org-clocking-p)
-        (call-interactively #'org-memento-start-block)
+        (org-memento-start-block
+         (org-memento--read-block-to-start
+          "There is a running clock. Choose a block: "))
       ;; It is hard to decide on the next action. `org-memento-timeline' is
       ;; supposed to properly address the issue. I am not sure if it is possible
       ;; to make the decision deterministically.
@@ -852,6 +854,7 @@ should not be run inside the journal file."
                         unclosed-blocks)
             (call-interactively #'org-memento-start-block))
            (t
+            (message "Nothing to do. Running the fallback action")
             (call-interactively org-memento-next-action-fallback))))))))
 
 ;;;###autoload
@@ -1816,7 +1819,7 @@ The point must be at the heading."
                                 (when (looking-at org-complex-heading-regexp)
                                   (match-string-no-properties 4)))))))
 
-(defun org-memento--read-block-to-start ()
+(defun org-memento--read-block-to-start (&optional prompt)
   (org-memento-status 'check-in)
   (let ((cache (make-hash-table :test #'equal :size 20))
         candidates)
@@ -1848,7 +1851,8 @@ The point must be at the heading."
         (let ((title (org-memento-title block)))
           (puthash title block cache)
           (push title candidates)))
-      (completing-read "Start a block: " #'completions))))
+      (completing-read (or prompt "Start a block: ")
+                       #'completions))))
 
 (cl-defun org-memento-read-future-event (start &optional end-bound
                                                &key (reschedule t)
