@@ -1430,9 +1430,9 @@ The point must be at the heading."
 ;;;;; Scanning
 
 ;;;###autoload
-(defun org-memento-status (&optional check-in)
+(defun org-memento-status (&optional check-in interactive)
   "Update the status."
-  (interactive)
+  (interactive (list nil t))
   (org-memento--update-cache-1)
   (setq org-memento-status-data (org-memento--block-data
                                  (or check-in
@@ -1464,7 +1464,7 @@ The point must be at the heading."
            (category (when block (org-memento-block-category block))))
       (setq org-memento-current-category category))
     (run-hooks 'org-memento-status-hook)
-    (when (called-interactively-p 'any)
+    (when interactive
       (org-memento--print-status))))
 
 (defun org-memento--print-status ()
