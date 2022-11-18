@@ -66,6 +66,11 @@ timeline as an argument."
   "Hook run inside `org-memento-timeline-planning-sections'."
   :type 'hook)
 
+(defcustom org-memento-timeline-display-function
+  #'org-memento-timeline-pop-to-buffer-1
+  "Function used to display the timeline buffer."
+  :type 'function)
+
 (defcustom org-memento-timeline-initial-position 'now
   "Position after the timeline is loaded."
   :type '(choice (const :tag "Now, if available and on a single day" now)
@@ -187,7 +192,8 @@ timeline as an argument."
                 org-memento-timeline-span span
                 revert-buffer-function #'org-memento-timeline-revert)
     (org-memento-timeline-revert)
-    (pop-to-buffer (current-buffer))
+    (funcall org-memento-timeline-display-function
+             (current-buffer))
     (add-hook 'org-memento-update-hook 'org-memento-timeline-refresh)
     (if (and (eq 'now org-memento-timeline-initial-position)
              (eq 'day org-memento-timeline-span))
@@ -199,6 +205,12 @@ timeline as an argument."
     (setq org-memento-timeline-refresh-timer
           (run-with-timer org-memento-timeline-refresh-interval t
                           #'org-memento-timeline-refresh-1))))
+
+(defun org-memento-timeline-pop-to-buffer-1 (buffer &rest _args)
+  "Default function to display the timeline buffer."
+  (if org-memento-current-block
+      (pop-to-buffer buffer)
+    (pop-to-buffer-same-window buffer)))
 
 ;;;###autoload
 (defun org-memento-timeline-goto-now ()
