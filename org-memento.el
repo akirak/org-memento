@@ -1824,11 +1824,16 @@ The point must be at the heading."
                                 (when (looking-at org-complex-heading-regexp)
                                   (match-string-no-properties 4)))))))
 
-(cl-defun org-memento-read-block (prompt &optional blocks
+(cl-defun org-memento-read-block (prompt &optional blocks-and-events
                                          &key return-struct)
   "Interactively select a title.
 
-By default, it returns a string.
+By default, it lets the user select an unfinished block and
+returns its title in a string.
+
+Optionally, you can pass BLOCKS-AND-EVENTS as an argument. It can
+be a list where each item is either `org-memento-block' or
+`org-memento-org-event'.
 
 If RETURN-STRUCT is non-nil, it returns `org-memento-block' or
 `org-memento-agenda-event'. This option implies the user cannot
@@ -1838,18 +1843,24 @@ enter a title that is not included in the candidates."
         candidates)
     (cl-labels
         ((annotator (title)
-           (if-let (block (gethash title cache))
-               (concat (when-let (time (org-memento-starting-time block))
-                         (propertize (format " %s, in %d minutes"
-                                             (format-time-string "%R" time)
-                                             (org-memento-minutes-from-now time))
-                                     'face 'font-lock-warning-face))
-                       (when-let (duration (org-memento-duration block))
-                         (propertize (format " (%s)" (org-duration-from-minutes duration))
-                                     'face 'font-lock-doc-face))
-                       (when-let (time (org-memento-started-time block))
-                         (propertize (format-time-string " already checked in at %R" time)
-                                     'face 'font-lock-comment-face)))
+           (if-let (block-or-event (gethash title cache))
+               (cl-etypecase block-or-event
+                 (org-memento-block
+                  (concat (when-let (time (org-memento-starting-time block-or-event))
+                            (propertize (format " %s, in %d minutes"
+                                                (format-time-string "%R" time)
+                                                (org-memento-minutes-from-now time))
+                                        'face 'font-lock-warning-face))
+                          (when-let (duration (org-memento-duration block-or-event))
+                            (propertize (format " (%s)" (org-duration-from-minutes duration))
+                                        'face 'font-lock-doc-face))
+                          (when-let (time (org-memento-started-time block-or-event))
+                            (propertize (format-time-string " already checked in at %R" time)
+                                        'face 'font-lock-comment-face))))
+                 (org-memento-org-event
+                  (if-let (duration (org-memento-duration block-or-event))
+                      (format " Duration %s" (org-memento--format-duration duration))
+                    "")))
              ""))
          (completions (string pred action)
            (if (eq action 'metadata)
@@ -1858,12 +1869,12 @@ enter a title that is not included in the candidates."
                            (cons 'annotation-function #'annotator)))
              (complete-with-action action candidates string pred))))
 
-      (dolist (block (or blocks
-                         (thread-last
-                           (org-memento--blocks)
-                           (seq-filter #'org-memento-block-not-closed-p))))
-        (let ((title (org-memento-title block)))
-          (puthash title block cache)
+      (dolist (block-or-event (or blocks-and-events
+                                  (thread-last
+                                    (org-memento--blocks)
+                                    (seq-filter #'org-memento-block-not-closed-p))))
+        (let ((title (org-memento-title block-or-event)))
+          (puthash title block-or-event cache)
           (push title candidates)))
       (let ((title (completing-read prompt #'completions nil return-struct)))
         (if return-struct
