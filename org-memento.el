@@ -61,6 +61,7 @@
 (declare-function org-link-store-props "ol")
 (declare-function org-ql-search "ext:org-ql-search")
 (declare-function org-memento-policy-maybe-load "org-memento-policy")
+(declare-function org-clock-clock-in "org-clock")
 (defvar org-super-agenda-properties-inherit)
 (defvar org-capture-entry)
 (defvar org-agenda-start-on-weekday)
