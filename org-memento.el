@@ -1825,7 +1825,7 @@ The point must be at the heading."
                                   (match-string-no-properties 4)))))))
 
 (cl-defun org-memento-read-block (prompt &optional blocks-and-events
-                                         &key return-struct)
+                                         &key return-struct extra-actions)
   "Interactively select a title.
 
 By default, it lets the user select an unfinished block and
@@ -1837,7 +1837,11 @@ be a list where each item is either `org-memento-block' or
 
 If RETURN-STRUCT is non-nil, it returns `org-memento-block' or
 `org-memento-agenda-event'. This option implies the user cannot
-enter a title that is not included in the candidates."
+enter a title that is not included in the candidates.
+
+Optionally, you can give EXTRA-ACTIONS as either a list of
+strings or an alist of strings and any objects, which will be fed
+into the candidates as well."
   (org-memento-status 'check-in)
   (let ((cache (make-hash-table :test #'equal :size 20))
         candidates)
@@ -1867,7 +1871,8 @@ enter a title that is not included in the candidates."
                candidate
              (cl-typecase (gethash candidate cache)
                (org-memento-block "Block")
-               (org-memento-org-event "Event from org-agenda-files"))))
+               (org-memento-org-event "Event from org-agenda-files")
+               (otherwise "Other actions"))))
          (completions (string pred action)
            (if (eq action 'metadata)
                (cons 'metadata
@@ -1883,6 +1888,14 @@ enter a title that is not included in the candidates."
         (let ((title (org-memento-title block-or-event)))
           (puthash title block-or-event cache)
           (push title candidates)))
+      (dolist (extra-action extra-actions)
+        (pcase extra-action
+          ((pred stringp)
+           (puthash extra-action extra-action cache)
+           (push extra-action candidates))
+          (`(,title . ,obj)
+           (puthash title obj cache)
+           (push title candidates))))
       (let ((title (completing-read prompt #'completions nil return-struct)))
         (if return-struct
             (gethash title cache)
