@@ -1132,7 +1132,7 @@ The point must be after a \"CLOCK:\" string."
   (unless org-memento-current-block
     (user-error "No current block"))
   (let* ((upnext-event (org-memento--next-agenda-event
-                        nil nil :include-memento-file))
+                        nil nil :include-memento-file t))
          (now (float-time (org-memento--current-time)))
          (limit (when upnext-event
                   (/ (- (org-memento-starting-time upnext-event)
