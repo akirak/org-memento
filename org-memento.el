@@ -789,8 +789,7 @@ should not be run inside the journal file."
           (org-memento-finish-block)))
     (if (org-clocking-p)
         (org-memento-start-block
-         (org-memento-title
-          (org-memento-read-block "There is a running clock. Choose a block: ")))
+         (org-memento-read-block-title "There is a running clock. Choose a block: "))
       ;; It is hard to decide on the next action. `org-memento-timeline' is
       ;; supposed to properly address the issue. I am not sure if it is possible
       ;; to make the decision deterministically.
@@ -871,8 +870,7 @@ At present, it runs `org-memento-timeline'."
 ;;;###autoload
 (defun org-memento-start-block (title)
   "Start working on a time block you have planned."
-  (interactive (list (org-memento-title
-                      (org-memento-read-block "Start a block: "))))
+  (interactive (list (org-memento-read-block-title "Start a block: ")))
   (org-memento-with-today-entry
    (org-narrow-to-subtree)
    (unless (re-search-forward (format org-complex-heading-regexp-format title)
@@ -1821,7 +1819,7 @@ The point must be at the heading."
                                 (when (looking-at org-complex-heading-regexp)
                                   (match-string-no-properties 4)))))))
 
-(defun org-memento-read-block (&optional prompt blocks)
+(defun org-memento-read-block-title (prompt &optional blocks)
   (org-memento-status 'check-in)
   (let ((cache (make-hash-table :test #'equal :size 20))
         candidates)
@@ -1854,8 +1852,7 @@ The point must be at the heading."
         (let ((title (org-memento-title block)))
           (puthash title block cache)
           (push title candidates)))
-      (completing-read (or prompt "Start a block: ")
-                       #'completions))))
+      (completing-read prompt #'completions))))
 
 (cl-defun org-memento-read-future-event (start &optional end-bound
                                                &key (reschedule t)

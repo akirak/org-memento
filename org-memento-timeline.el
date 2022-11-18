@@ -1280,95 +1280,160 @@ section."
 
 (defun org-memento-timeline-add ()
   (interactive)
-  (cl-flet*
-      ((get-time-range (title &optional duration)
-         (when-let (slot (org-memento-timeline--find-slot title duration))
-           (pcase-exhaustive (org-memento--read-time-span
-                              (when slot
-                                (org-memento--format-timestamp
-                                 (+ (car slot) (* 60 org-memento-margin-minutes))
-                                 (if duration
-                                     (+ (car slot)
-                                        (* 60 duration)
-                                        (* 60 org-memento-margin-minutes))
-                                   (cadr slot))))
-                              (float-time (org-memento--current-time)))
-             (`(,start ,end)
-              (list (float-time start)
-                    (when end
-                      (float-time end)))))))
-       (add-item (value &optional interactive)
-         (cl-etypecase value
-           (org-memento-order
-            (pcase-let*
-                ((title (or (org-memento-order-title value)
-                            (org-memento-read-title nil
-                              :default (org-memento-order-title value))))
-                 (duration (org-memento-order-duration value))
-                 (`(,start ,end) (when interactive
-                                   (get-time-range title duration))))
-              (org-memento-add-event :title title
-                                     :start start
-                                     :end (or end
-                                              (when (and start duration)
-                                                (+ start (* 60 duration))))
-                                     :duration duration
-                                     :interactive t
-                                     :body (org-memento--order-template value)
-                                     :group (org-memento--default-group
-                                             (org-memento-order-group value))
-                                     :copy-from (org-memento-order-sample-marker value))))))
-       (match-group (group-path x)
-         (equal group-path
-                (seq-take (org-memento-group-path x)
-                          (length group-path))))
-       (fallback (&optional group-path duration)
-         (pcase-let*
-             ((group (org-memento-read-group
-                         "Select a group: " :group-path group-path))
-              (context-taxy (org-memento-policy-find-context-by-group group))
-              (title (when context-taxy
-                       (slot-value (taxy-name context-taxy) 'title)))
-              (`(,start ,end) (get-time-range (or title
-                                                  (org-memento--format-group group-path))
-                                              duration)))
-           (org-memento-add-event :group group
-                                  :title title
-                                  :interactive t
-                                  :duration duration
-                                  :start start
-                                  :end end)))
-       (select-suggestion (&optional group-path duration)
-         (if-let (suggestions (if group-path
-                                  (seq-filter (apply-partially #'match-group group-path)
-                                              (org-memento-timeline-suggestions))
-                                (org-memento-timeline-suggestions)))
-             (add-item (or (org-memento-select-order "Select a task to add: "
-                                                     suggestions)
-                           (user-error "Not selected")))
-           (fallback group-path duration)))
-       (section-type (section)
-         (slot-value section 'type))
-       (section-value (section)
-         (slot-value section 'value)))
-    (if-let (values (magit-region-values))
-        (dolist (value values)
-          (when (org-memento-order-p value)
-            (add-item value)))
-      (pcase (magit-current-section)
-        ((and (app section-type `group-budgets)
-              (app section-value `(,_span ,group-path ,remaining . ,_)))
-         (select-suggestion group-path remaining))
-        ((and (app section-value (cl-type org-memento-order))
-              (app section-value order))
-         (add-item order t))
-        ((app section-value `nil)
-         (fallback))
-        (obj
-         (if-let (group-path (ignore-errors
-                               (org-memento-group-path obj)))
-             (select-suggestion group-path)
-           (fallback)))))))
+  (let ((now (float-time (org-memento--current-time))))
+    (cl-flet*
+        ((get-time-range (title &optional duration slot)
+           (when-let (slot (or slot
+                               (org-memento-timeline--find-slot title duration)))
+             (pcase-exhaustive (org-memento--read-time-span
+                                (when slot
+                                  (org-memento--format-timestamp
+                                   (+ (car slot) (* 60 org-memento-margin-minutes))
+                                   (if duration
+                                       (+ (car slot)
+                                          (* 60 duration)
+                                          (* 60 org-memento-margin-minutes))
+                                     (cadr slot))))
+                                (float-time (org-memento--current-time)))
+               (`(,start ,end)
+                (list (float-time start)
+                      (when end
+                        (float-time end)))))))
+         (add-item (value &optional interactive slot)
+           (cl-etypecase value
+             (org-memento-order
+              (pcase-let*
+                  ((title (or (org-memento-order-title value)
+                              (org-memento-read-title nil
+                                :default (org-memento-order-title value))))
+                   (duration (org-memento-order-duration value))
+                   (`(,start ,end) (if (and slot duration)
+                                       (list (+ (car slot)
+                                                (* org-memento-margin-minutes 60))
+                                             nil)
+                                     (when interactive
+                                       (get-time-range title duration slot)))))
+                (org-memento-add-event :title title
+                                       :start start
+                                       :end (or end
+                                                (when (and start duration)
+                                                  (+ start (* 60 duration))))
+                                       :duration duration
+                                       :interactive t
+                                       :body (org-memento--order-template value)
+                                       :group (org-memento--default-group
+                                               (org-memento-order-group value))
+                                       :copy-from (org-memento-order-sample-marker value))))))
+         (match-group (group-path x)
+           (equal group-path
+                  (seq-take (org-memento-group-path x)
+                            (length group-path))))
+         (fallback (&optional group-path duration)
+           (pcase-let*
+               ((group (org-memento-read-group
+                           "Select a group: " :group-path group-path))
+                (context-taxy (org-memento-policy-find-context-by-group group))
+                (title (when context-taxy
+                         (slot-value (taxy-name context-taxy) 'title)))
+                (`(,start ,end) (get-time-range (or title
+                                                    (org-memento--format-group group-path))
+                                                duration)))
+             (org-memento-add-event :group group
+                                    :title title
+                                    :interactive t
+                                    :duration duration
+                                    :start start
+                                    :end end)))
+         (check-duration (duration-minutes block)
+           (if-let (this-duration (or (org-memento-duration block)
+                                      (and (org-memento-starting-time block)
+                                           (org-memento-ending-time block)
+                                           (/ (- (org-memento-ending-time block)
+                                                 (org-memento-starting-time block))
+                                              60))))
+               (<= this-duration (+ duration-minutes
+                                    (* 2 org-memento-margin-minutes)))
+             t))
+         (select-suggestion (&optional group-path duration slot-start slot-end)
+           (if-let (suggestions (thread-last
+                                  (org-memento-timeline-suggestions)
+                                  (seq-filter (if (or duration
+                                                      (and slot-start slot-end))
+                                                  (apply-partially #'check-duration
+                                                                   (or duration
+                                                                       (/ (- slot-end
+                                                                             slot-start)
+                                                                          60)))
+                                                #'always))
+                                  (seq-filter (if group-path
+                                                  (apply-partially #'match-group group-path)
+                                                #'always))))
+               (add-item (or (org-memento-select-order "Select a task to add: "
+                                                       suggestions)
+                             (user-error "Not selected"))
+                         nil
+                         (list slot-start slot-end))
+             (fallback group-path duration)))
+         (has-title (title block)
+           (equal title (org-memento-title block)))
+         (select-block (blocks slot-start slot-end)
+           (let ((title (org-memento-read-block-title "Select a block to add: " blocks)))
+             (if-let (block (seq-find (apply-partially #'has-title title)
+                                      blocks))
+                 (org-memento-timeline--update-event-time block
+                   (+ slot-start (* 60 org-memento-margin-minutes)))
+               (error "Creating a new block is not support right now"))))
+         (late-or-unscheduled (block)
+           (and (not (org-memento-started-time block))
+                (or (not (org-memento-starting-time block))
+                    (< (org-memento-starting-time block)
+                       now))))
+         (add-to-slot (start end)
+           ;; If there is a late or unscheduled block, reschedule it first
+           (if-let (blocks (thread-last
+                             (org-memento--blocks)
+                             (seq-filter #'late-or-unscheduled)
+                             (seq-filter (apply-partially #'check-duration
+                                                          (/ (- end start) 60)))))
+               (select-block blocks start end)
+             (select-suggestion nil nil start end)))
+         (section-type (section)
+           (slot-value section 'type))
+         (section-value (section)
+           (slot-value section 'value)))
+      (if-let (values (magit-region-values))
+          (dolist (value values)
+            (when (org-memento-order-p value)
+              (add-item value)))
+        (pcase (magit-current-section)
+          ((and (app section-type `group-budgets)
+                (app section-value `(,_span ,group-path ,remaining . ,_)))
+           (select-suggestion group-path remaining))
+          ((and (app section-value (cl-type org-memento-order))
+                (app section-value order))
+           (add-item order t))
+          ((app section-value `nil)
+           (fallback))
+          ((and (app section-value `(,start ,end ,_))
+                (guard (> start now)))
+           (add-to-slot start end))
+          (obj
+           (if-let (group-path (ignore-errors
+                                 (org-memento-group-path obj)))
+               (select-suggestion group-path)
+             (fallback))))))))
+
+(defun org-memento-timeline--update-event-time (event start)
+  "Update the starting time of an event."
+  (declare (indent 1))
+  (save-current-buffer
+    (org-with-point-at (cl-etypecase event
+                         (org-memento-block
+                          (org-memento-marker event))
+                         (org-memento-org-event
+                          (org-memento-marker event)))
+      (org-memento-adjust-time
+       :new-start start))))
 
 (defun org-memento-timeline--find-slot (title &optional duration)
   (when-let (slots (org-memento-timeline--filter-slots duration))
