@@ -1571,8 +1571,7 @@ You should update the status before you call this function."
                              (seq-filter #'block-scheduled-future-p)
                              (seq-sort-by #'org-memento-starting-time #'<)
                              (car)))
-               (event (org-memento--next-agenda-event
-                       nil
+               (event (org-memento--next-event
                        (when next-block
                          (org-memento-starting-time next-block))))
                (the-event (or event next-block)))
