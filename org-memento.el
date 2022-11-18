@@ -2223,10 +2223,16 @@ marker to the time stamp, and the margin in seconds."
                                  (point-marker))))
                    (unless (and hd-marker
                                 (equal marker hd-marker))
-                     (setq min-time time)
-                     (setq result (make-org-memento-org-event
+                     (let ((event (make-org-memento-org-event
                                    :marker marker
-                                   :active-ts ts)))))))))))
+                                   :active-ts ts)))
+                       (unless (and (equal (buffer-file-name)
+                                           memento-file)
+                                    org-memento-current-block
+                                    (equal (org-memento-title event)
+                                           org-memento-current-block))
+                         (setq min-time time)
+                         (setq result event))))))))))))
     result))
 
 (defun org-memento--agenda-events (from-date to-date)
