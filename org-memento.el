@@ -789,7 +789,7 @@ should not be run inside the journal file."
           (org-memento-finish-block)))
     (if (org-clocking-p)
         (org-memento-start-block
-         (org-memento-read-block-title "There is a running clock. Choose a block: "))
+         (org-memento-read-block "There is a running clock. Choose a block: "))
       ;; It is hard to decide on the next action. `org-memento-timeline' is
       ;; supposed to properly address the issue. I am not sure if it is possible
       ;; to make the decision deterministically.
@@ -875,7 +875,7 @@ At present, it runs `org-memento-timeline'."
 ;;;###autoload
 (defun org-memento-start-block (title)
   "Start working on a time block you have planned."
-  (interactive (list (org-memento-read-block-title "Start a block: ")))
+  (interactive (list (org-memento-read-block "Start a block: ")))
   (org-memento-with-today-entry
    (org-narrow-to-subtree)
    (unless (re-search-forward (format org-complex-heading-regexp-format title)
@@ -1824,7 +1824,15 @@ The point must be at the heading."
                                 (when (looking-at org-complex-heading-regexp)
                                   (match-string-no-properties 4)))))))
 
-(defun org-memento-read-block-title (prompt &optional blocks)
+(cl-defun org-memento-read-block (prompt &optional blocks
+                                         &key return-struct)
+  "Interactively select a title.
+
+By default, it returns a string.
+
+If RETURN-STRUCT is non-nil, it returns `org-memento-block' or
+`org-memento-agenda-event'. This option implies the user cannot
+enter a title that is not included in the candidates."
   (org-memento-status 'check-in)
   (let ((cache (make-hash-table :test #'equal :size 20))
         candidates)
@@ -1857,7 +1865,10 @@ The point must be at the heading."
         (let ((title (org-memento-title block)))
           (puthash title block cache)
           (push title candidates)))
-      (completing-read prompt #'completions))))
+      (let ((title (completing-read prompt #'completions nil return-struct)))
+        (if return-struct
+            (gethash title cache)
+          title)))))
 
 (cl-defun org-memento-read-future-event (start &optional end-bound
                                                &key (reschedule t)
