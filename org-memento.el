@@ -846,7 +846,8 @@ should not be run inside the journal file."
                                          (org-memento-title late-block)))
                     (org-memento-start-block (org-memento-title late-block))
                   (org-memento-moderate))
-              (org-memento-moderate "There is a block you should have started.")))
+              (org-memento-moderate "There is a block you should have started, \
+and starting it will affect execution of other events. Please manually moderate it.")))
            ;; If there is a block that have no starting time, start working on
            ;; it.
            ((seq-filter (lambda (block)
