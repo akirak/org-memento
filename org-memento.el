@@ -853,6 +853,11 @@ and starting it will affect execution of other events. Please manually moderate 
                           (not (org-memento-starting-time block)))
                         unclosed-blocks)
             (call-interactively #'org-memento-start-block))
+           ((and upnext-event
+                 (not (org-memento-org-event-p upnext-event))
+                 (yes-or-no-p (format "Forward to the next event \"%s\"? "
+                                      (org-memento-title upnext-event))))
+            (org-memento-start-block (org-memento-title upnext-event)))
            (t
             (message "Nothing to do. Running the fallback action")
             (call-interactively org-memento-next-action-fallback))))))))
