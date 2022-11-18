@@ -859,8 +859,47 @@ and starting it will affect execution of other events. Please manually moderate 
                                       (org-memento-title upnext-event))))
             (org-memento-start-block (org-memento-title upnext-event)))
            (t
-            (message "Nothing to do. Running the fallback action")
-            (call-interactively org-memento-next-action-fallback))))))))
+            (let ((blank-time (/ (- (or (when next-event-time
+                                          (- next-event-time (* 60 org-memento-margin-minutes)))
+                                        checkout-time)
+                                    now)
+                                 60)))
+              (unless (org-memento-pick-next-action blank-time)
+                (message "Nothing to do. Running the fallback action")
+                (call-interactively org-memento-next-action-fallback))))))))))
+
+(defun org-memento-pick-next-action (max-duration)
+  "Pick an action the user can do within a certain duration."
+  (interactive "sDuration: ")
+  (let ((max-duration (cl-etypecase max-duration
+                        (string (org-duration-to-minutes max-duration))
+                        (number max-duration))))
+    (cl-flet
+        ((duration-ok-p (block)
+           (<= (or (org-memento-duration block)
+                   (/ (- (org-memento-ending-time block)
+                         (org-memento-starting-time block))
+                      60))
+               max-duration)))
+      (when-let* ((blocks (thread-last
+                            (org-memento--blocks)
+                            (seq-filter #'org-memento-block-not-closed-p)
+                            (seq-filter #'duration-ok-p)))
+                  (block-or-event (org-memento-read-block
+                                   (format "Pick an action you can finish within %s: "
+                                           (org-memento--format-duration max-duration))
+                                   blocks
+                                   :return-struct t
+                                   :extra-actions '(("Do nothing or something else" . nil)))))
+        (pcase block-or-event
+          (`nil
+           nil)
+          ((cl-type org-memento-block)
+           (org-memento-start-block (org-memento-title block-or-event))
+           t)
+          ((cl-type org-memento-org-event)
+           (org-clock-clock-in (list (org-memento-marker block-or-event)))
+           t))))))
 
 ;;;###autoload
 (defun org-memento-moderate (&optional message-text)
