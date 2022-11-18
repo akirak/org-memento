@@ -1135,10 +1135,10 @@ The point must be after a \"CLOCK:\" string."
                         nil nil :include-memento-file t))
          (now (float-time (org-memento--current-time)))
          (limit (when upnext-event
-                  (/ (- (org-memento-starting-time upnext-event)
-                        (* 60 org-memento-margin-minutes)
-                        now)
-                     60)))
+                  (- (/ (- (org-memento-starting-time upnext-event)
+                           now)
+                        60)
+                     org-memento-margin-minutes)))
          (default 30)
          (input (completing-read (concat
                                   (if upnext-event
