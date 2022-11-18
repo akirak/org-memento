@@ -577,7 +577,7 @@ timeline as an argument."
 
 (defvar org-memento-timeline-mode-map
   (let ((map (make-sparse-keymap)))
-    (define-key map "a" #'org-memento-timeline-add-from-suggestion)
+    (define-key map "a" #'org-memento-timeline-add)
     (define-key map "e" #'org-memento-timeline-edit-dwim)
     (define-key map "o" #'org-memento-timeline-open-entry)
     (define-key map "D" #'org-memento-timeline-delete-entry)
@@ -1278,7 +1278,7 @@ section."
               result))
       (nreverse result))))
 
-(defun org-memento-timeline-add-from-suggestion ()
+(defun org-memento-timeline-add ()
   (interactive)
   (cl-flet*
       ((get-time-range (title &optional duration)
