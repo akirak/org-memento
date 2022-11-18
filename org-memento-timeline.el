@@ -1388,7 +1388,7 @@ section."
              (fallback group-path duration)))
          (has-title (title block)
            (equal title (org-memento-title block)))
-         (select-block (blocks slot-start slot-end)
+         (select-block (blocks slot-start _slot-end)
            (let ((title (org-memento-read-block "Select a block to add: " blocks)))
              (if-let (block (seq-find (apply-partially #'has-title title)
                                       blocks))
