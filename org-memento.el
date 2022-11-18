@@ -1862,10 +1862,17 @@ enter a title that is not included in the candidates."
                       (format " Duration %s" (org-memento--format-duration duration))
                     "")))
              ""))
+         (group (candidate transform)
+           (if transform
+               candidate
+             (cl-typecase (gethash candidate cache)
+               (org-memento-block "Block")
+               (org-memento-org-event "Event from org-agenda-files"))))
          (completions (string pred action)
            (if (eq action 'metadata)
                (cons 'metadata
                      (list (cons 'category 'org-memento-block)
+                           (cons 'group-function #'group)
                            (cons 'annotation-function #'annotator)))
              (complete-with-action action candidates string pred))))
 
