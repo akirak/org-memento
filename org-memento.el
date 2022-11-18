@@ -777,16 +777,16 @@ should not be run inside the journal file."
 ;;;; Commands
 
 ;;;###autoload
-(defun org-memento-next-action ()
+(defun org-memento-next-action (&optional arg)
   "Pick an action depending on the current status."
-  (interactive)
+  (interactive "P")
   (org-memento-status)
   (if-let (block (org-memento--current-block))
       (progn
         (when (org-clocking-p)
           (user-error "Before you finish the block, please finish your clock."))
         (when (yes-or-no-p "Finish the current block?")
-          (org-memento-finish-block)))
+          (org-memento-finish-block arg)))
     (if (org-clocking-p)
         (org-memento-start-block
          (org-memento-read-block "There is a running clock. Choose a block: "))
