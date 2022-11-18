@@ -2197,18 +2197,18 @@ marker to the time stamp, and the margin in seconds."
                            (encode-time)))))
          (min-time (when bound-time
                      (float-time bound-time)))
+         (memento-file (expand-file-name org-memento-file))
          result)
     (dolist (file (if include-memento-file
-                      (org-agenda-files)
-                    (cl-delete (expand-file-name org-memento-file)
-                               (org-agenda-files)
+                      (seq-uniq (cons memento-file (org-agenda-files)))
+                    (cl-delete memento-file (org-agenda-files)
                                :test #'equal)))
       (with-current-buffer (or (find-buffer-visiting file)
                                (find-file-noselect file))
         (org-with-wide-buffer
          (goto-char (point-min))
          (while (re-search-forward ts-regexp nil t)
-           (unless (and (equal file (expand-file-name org-memento-file))
+           (unless (and (equal file memento-file)
                         (= 1 (save-match-data
                                (org-outline-level))))
              (when-let* ((ts (org-timestamp-from-string (match-string 0)))
