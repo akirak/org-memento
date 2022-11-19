@@ -3457,6 +3457,13 @@ nil. If one of them is nil, the other one is returned."
       (setq date (decoded-time-add date day)))
     (nreverse result)))
 
+(defun org-memento--date-range-regexp (from-date to-date)
+  (rx-to-string `(or ,@(mapcar (lambda (decoded-time)
+                                 (format-time-string "%F" (encode-time decoded-time)))
+                               (org-memento--date-list
+                                (parse-time-string from-date)
+                                (parse-time-string to-date))))))
+
 (defun org-memento--read-date-range ()
   "Return a date range in a list of decoded times."
   (let ((org-extend-today-until 0))
@@ -4025,7 +4032,7 @@ This should be used at loading time."
   (require 'org-ql-search)
   (let ((org-super-agenda-properties-inherit nil))
     (org-ql-search org-memento-file
-      (org-memento--current-date-ql)
+      (org-memento--ql-for-blocks (org-memento--today-string (decode-time)))
       :title "Blocks (org-memento)"
       :super-groups org-memento-super-groups)))
 
@@ -4041,19 +4048,22 @@ interactive command that wraps `org-agenda' function. Otherwise,
 you would have to update the value of
 `org-agenda-custom-commands' every day before you get to work."
   (require 'org-ql-search)
-  `(org-ql-block ',(org-memento--current-date-ql)
+  `(org-ql-block ',(org-memento--ql-for-blocks (org-memento--today-string
+                                                (decode-time)))
                  ((org-ql-block-header "Time blocks")
                   (org-agenda-files '(,org-memento-file))
                   (org-super-agenda-properties-inherit nil)
                   (org-super-agenda-groups ',org-memento-super-groups))))
 
-(defun org-memento--current-date-ql ()
-  `(and (level 2)
-        (parent (heading ,(org-memento--today-string
-                           (decode-time))))
-        (not (heading-regexp
-              ,(rx-to-string `(or (and bol "COMMENT")
-                                  ,org-memento-idle-heading))))))
+(defun org-memento--ql-for-blocks (date &optional end-date)
+  (let ((parent-ql (if end-date
+                       `(heading-regexp ,(org-memento--date-range-regexp date end-date))
+                     `(heading ,date))))
+    `(and (level 2)
+          (parent ,parent-ql)
+          (not (heading-regexp
+                ,(rx-to-string `(or (and bol "COMMENT")
+                                    ,org-memento-idle-heading)))))))
 
 (defun org-memento--super-agenda-ts-map (item)
   (when-let* ((marker (or (get-text-property 0 'org-marker item)
