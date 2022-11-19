@@ -253,6 +253,9 @@ timeline as an argument."
            (time2 (and (listp head)
                        (numberp (cadr head))
                        (cadr head)))
+           (title (and (listp head)
+                       (eq 'block type)
+                       (nth 2 head)))
            (on-now (and (listp head)
                         (eq 'now (nth 4 head))))
            (toplevel (org-memento-timeline--toplevel-section))
@@ -278,7 +281,10 @@ timeline as an argument."
                        (and ,time2
                             (listp (oref section value))
                             (ignore-errors
-                              (= ,time2 (cadr (oref section value)))))))))
+                              (= ,time2 (cadr (oref section value)))))
+                       (and ,title
+                            (listp (oref section value))
+                            (equal ,title (nth 2 (oref section value))))))))
           ;; As a fallback, go to the top-level section.
           (when toplevel-type
             (org-memento-timeline--search-section
