@@ -1566,23 +1566,15 @@ You should update the status before you call this function."
              (and (org-memento-block-not-closed-p block)
                   (org-memento-starting-time block)
                   (> (org-memento-starting-time block) now))))
-        (let* ((next-block (thread-last
-                             (org-memento--blocks)
-                             (seq-filter #'block-scheduled-future-p)
-                             (seq-sort-by #'org-memento-starting-time #'<)
-                             (car)))
-               (event (org-memento--next-event
-                       (when next-block
-                         (org-memento-starting-time next-block))))
-               (the-event (or event next-block)))
+        (let ((event (org-memento--next-event now)))
           (org-memento-timeline--section-1 next-event
             (magit-insert-heading "Next Event")
-            (if the-event
+            (if event
                 (org-memento-timeline--insert-block 1
-                  (or event next-block)
+                  event
                   :suffix (format " (in %s)"
                                   (org-memento--format-duration
-                                   (/ (- (org-memento-starting-time the-event)
+                                   (/ (- (org-memento-starting-time event)
                                          now)
                                       60))))
               (insert (make-string 2 ?\s)
