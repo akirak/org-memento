@@ -4026,15 +4026,23 @@ This should be used at loading time."
   :type '(repeat sexp))
 
 ;;;###autoload
-(defun org-memento-agenda ()
+(cl-defun org-memento-agenda (date &optional to-date &key super-groups)
   "Display time blocks on the current date."
-  (interactive)
+  (interactive (if (equal current-prefix-arg '(4))
+                   (list (org-read-date)
+                         (org-read-date))
+                 (list (org-memento--today-string (decode-time)))))
   (require 'org-ql-search)
   (let ((org-super-agenda-properties-inherit nil))
     (org-ql-search org-memento-file
-      (org-memento--ql-for-blocks (org-memento--today-string (decode-time)))
-      :title "Blocks (org-memento)"
-      :super-groups org-memento-super-groups)))
+      (org-memento--ql-for-blocks date to-date)
+      :title (format "Blocks %s%s"
+                     date
+                     (if to-date
+                         (concat "-" to-date)
+                       ""))
+      :super-groups (or super-groups
+                        org-memento-super-groups))))
 
 ;;;###autoload
 (defun org-memento-make-agenda-block ()
