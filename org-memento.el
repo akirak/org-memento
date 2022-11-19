@@ -4028,6 +4028,7 @@ This should be used at loading time."
 ;;;###autoload
 (cl-defun org-memento-agenda (date &optional to-date &key super-groups)
   "Display time blocks on the current date."
+  (declare (indent 2))
   (interactive (if (equal current-prefix-arg '(4))
                    (list (org-read-date)
                          (org-read-date))
