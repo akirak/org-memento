@@ -1198,7 +1198,7 @@ section."
 (defun org-memento-timeline--weekly-progress (rules group-sums)
   (let* ((threshold (/ (org-memento--percentage-on-week) 100))
          (gauge-width (- (window-width) 45 1))
-         (rule-pos (floor (* gauge-width threshold)))
+         (rule-pos (max 0 (1- (floor (* gauge-width threshold)))))
          ;; This can be a constant, but it is tedious.
          (row-format "| %-16s |%6s /%6s | %s%4.f%%")
          (total-actual 0)
