@@ -309,12 +309,16 @@ timeline as an argument."
 
 This function should be added to
 `org-memento-requesting-timeline'."
-  (when-let (buffer (get-buffer org-memento-timeline-buffer))
-    (when (get-buffer-window buffer 'all-frames)
-      (with-current-buffer buffer
-        (when (time-less-p (org-memento--current-time)
-                           (org-memento-timeline--range-end))
-          (org-memento-timeline-revert))))))
+  ;; If the main library is requesting display of the timeline, there should be
+  ;; another function that dispatches the timeline, so refreshing should be
+  ;; suppressed.
+  (unless org-memento-requesting-timeline
+    (when-let (buffer (get-buffer org-memento-timeline-buffer))
+      (when (get-buffer-window buffer 'all-frames)
+        (with-current-buffer buffer
+          (when (time-less-p (org-memento--current-time)
+                             (org-memento-timeline--range-end))
+            (org-memento-timeline-revert)))))))
 
 (defun org-memento-timeline-refresh-1 ()
   "Refresh the timeline if it is visible in one of the frames.

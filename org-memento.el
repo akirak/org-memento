@@ -313,6 +313,10 @@ to extend the time for the current block when the time runs out."
   :type '(choice (const :tag "Ask" ask)
                  (const :tag "Default (send a notification)" nil)))
 
+(defcustom org-memento-display-timeline '(after-exit)
+  "When to display the timeline."
+  :type '(set (const :tag "After exiting a block" after-exit)))
+
 ;;;; Variables
 
 (defvar org-memento-init-done nil)
@@ -343,6 +347,9 @@ to extend the time for the current block when the time runs out."
 (defvar org-memento-group-cache nil)
 
 (defvar org-memento-weekly-group-sums nil)
+
+(defvar org-memento-requesting-timeline nil
+  "Non-nil if the timeline is requested on update.")
 
 ;;;; Substs and small utility functions
 
@@ -955,6 +962,9 @@ At present, it runs `org-memento-timeline'."
      (org-memento--cancel-block-timers)
      (org-memento--add-next-event-timer)
      (run-hooks 'org-memento-block-exit-hook)
+     (when (memq 'after-exit org-memento-display-timeline)
+       (setq org-memento-requesting-timeline t)
+       (add-hook 'org-memento-update-hook #'org-memento--oneshot-timeline))
      (org-memento-log-update))))
 
 ;;;###autoload
@@ -1580,7 +1590,14 @@ The point must be at the heading."
 
 (defun org-memento--update ()
   (remove-hook 'post-command-hook #'org-memento--update)
-  (run-hooks 'org-memento-update-hook))
+  (run-hooks 'org-memento-update-hook)
+  (setq org-memento-requesting-timeline nil))
+
+(defun org-memento--oneshot-timeline ()
+  (remove-hook 'org-memento--update #'org-memento--oneshot-timeline)
+  (let ((today (org-memento--today-string (decode-time))))
+    (org-memento-timeline today today :span 'day
+                          :no-update-status t)))
 
 (defun org-memento--block-data (&optional check-in)
   ;; The first item will always be the day itself.
