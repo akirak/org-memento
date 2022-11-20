@@ -614,6 +614,7 @@ triggered by an interval timer."
   (let ((map (make-sparse-keymap)))
     (define-key map "a" #'org-memento-timeline-add)
     (define-key map "e" #'org-memento-timeline-edit-dwim)
+    (define-key map "r" #'org-memento-timeline-rename)
     (define-key map "o" #'org-memento-timeline-open-entry)
     (define-key map "D" #'org-memento-timeline-delete-entry)
     (define-key map (kbd "SPC") #'org-memento-timeline-show-entry)
@@ -849,6 +850,20 @@ If ARG is non-nil, create an away event."
                   (_
                    (user-error "Don't know what to do for the section")))))
         (org-memento-timeline-revert)))))
+
+(defun org-memento-timeline-rename ()
+  "Change the headline of the item at point."
+  (interactive)
+  (when-let (marker (org-memento-timeline--org-marker (magit-current-section)))
+    (org-with-point-at marker
+      (unless (looking-at org-complex-heading-regexp)
+        (error "Not on a headline"))
+      (let* ((orig-headline (match-string-no-properties 4))
+             (new-headline (save-match-data
+                             (read-from-minibuffer "Headline: " orig-headline
+                                                   nil nil nil nil 'inherit))))
+        (replace-match new-headline nil nil nil 4)))
+    (org-memento-timeline-revert)))
 
 ;;;; Utility functions
 
