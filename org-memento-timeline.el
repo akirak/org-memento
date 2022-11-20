@@ -178,7 +178,7 @@ timeline as an argument."
 (defvar org-memento-timeline-date-range nil)
 
 ;;;###autoload
-(cl-defun org-memento-timeline (start-day end-day &key span)
+(cl-defun org-memento-timeline (start-day end-day &key span no-update-status)
   (interactive (if (equal current-prefix-arg '(4))
                    (list (org-read-date)
                          (org-read-date))
@@ -191,7 +191,7 @@ timeline as an argument."
     (setq-local org-memento-timeline-date-range (list start-day end-day)
                 org-memento-timeline-span span
                 revert-buffer-function #'org-memento-timeline-revert)
-    (org-memento-timeline-revert)
+    (org-memento-timeline--revert :no-update-status no-update-status)
     (funcall org-memento-timeline-display-function
              (current-buffer))
     (add-hook 'org-memento-update-hook 'org-memento-timeline-refresh)
@@ -233,11 +233,16 @@ timeline as an argument."
 
 (defun org-memento-timeline-revert (&rest _args)
   (interactive)
+  (org-memento-timeline--revert))
+
+(cl-defun org-memento-timeline--revert (&key no-update-status)
+  (interactive)
   (let ((taxy (apply #'org-memento-activity-taxy
                      (append org-memento-timeline-date-range
                              (list :groups t :todos t)))))
     (when (org-memento-timeline--within-range-p taxy)
-      (org-memento--status)
+      (unless no-update-status
+        (org-memento--status))
       (setq org-memento-timeline-slots (org-memento--empty-slots taxy))
       (org-memento-policy-maybe-load))
     (let* ((section (magit-current-section))
