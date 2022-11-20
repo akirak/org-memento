@@ -2275,7 +2275,7 @@ marker to the time stamp, and the margin in seconds."
                      now
                      (or bound-time
                          (thread-first
-                           (decode-time (org-memento--current-time))
+                           (decode-time now)
                            (org-memento--start-of-day)
                            (decoded-time-add (make-decoded-time :day 1 :minute -1))
                            (encode-time)))))
