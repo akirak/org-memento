@@ -2260,15 +2260,17 @@ into the candidates as well."
       (org-memento--calculated-end-time block)))
 
 (defun org-memento--next-agenda-event (&optional hd-marker bound-time
-                                                 &key include-memento-file)
+                                                 &key include-memento-file now)
   "Return an Org entry that has the earliest time stamp.
 
 If BOUND-TIME is an internal time, time stamps later than the
 time are skipped.
 
+NOW should be a float time which specifies the end of time.
+
 This returns an internal time of the time stamp minus a margin, a
 marker to the time stamp, and the margin in seconds."
-  (let* ((now (org-memento--current-time))
+  (let* ((now (or now (org-memento--current-time)))
          (ts-regexp (org-memento--make-ts-regexp
                      now
                      (or bound-time
