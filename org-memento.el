@@ -1612,6 +1612,36 @@ The point must be at the heading."
                                        t)
                 (org-timestamp-from-string (match-string 0)))))
 
+(defun org-memento--next-away-event (bound-time &optional now)
+  "Return idle events on the current day."
+  (org-memento-with-today-entry
+   (when (re-search-forward (format org-complex-heading-regexp-format
+                                    org-memento-idle-heading)
+                            (save-excursion
+                              (org-end-of-subtree))
+                            t)
+     (let ((now (or now
+                    (float-time (org-memento--current-time))))
+           (bound (save-excursion
+                    (org-end-of-subtree)))
+           event)
+       (while (re-search-forward org-ts-regexp bound t)
+         (let* ((ts (org-timestamp-from-string (match-string 0)))
+                (time (when (org-timestamp-has-time-p ts)
+                        (float-time (org-timestamp-to-time ts)))))
+           (when (and time
+                      (< now time)
+                      (< time bound-time))
+             (setq bound-time time)
+             (setq event (save-excursion
+                           (org-back-to-heading)
+                           (make-org-memento-org-event
+                            :marker (point-marker)
+                            :active-ts ts
+                            :title (when (looking-at org-complex-heading-regexp)
+                                     (match-string-no-properties 4))))))))
+       event))))
+
 ;;;;; Selecting blocks or finding a block from the status
 
 ;; To use these functions, first you have to call `org-memento-status' to update
@@ -2186,22 +2216,32 @@ into the candidates as well."
 ;;;; Retrieving timing information
 
 (defun org-memento--next-event (&optional now)
-  (let* ((now (or now (float-time (org-memento--current-time))))
-         (unclosed-blocks (thread-last
-                            (org-memento--blocks)
-                            (seq-filter #'org-memento-block-not-closed-p)))
-         (next-block (thread-last
-                       unclosed-blocks
-                       (seq-filter `(lambda (block)
-                                      (and (org-memento-starting-time block)
-                                           (> (org-memento-starting-time block)
-                                              ,now))))
-                       (seq-sort-by #'org-memento-starting-time #'<)
-                       (car)))
-         (next-agenda-event (org-memento--next-agenda-event
-                             nil (when next-block
-                                   (org-memento-starting-time next-block)))))
-    (or next-agenda-event next-block)))
+  (let ((now (or now (float-time (org-memento--current-time)))))
+    (cl-flet
+        ((earlier-away-event (event)
+           (org-memento--next-away-event
+            (when event
+              (org-memento-starting-time event))
+            now))
+         (earlier-agenda-event (event)
+           (org-memento--next-agenda-event
+            nil (when event
+                  (org-memento-starting-time event))
+            :now now))
+         (reducer (event fn)
+           (or (funcall fn event)
+               event)))
+      (cl-reduce #'reducer (list #'earlier-away-event #'earlier-agenda-event)
+                 :initial-value
+                 (thread-last
+                   (org-memento--blocks)
+                   (seq-filter #'org-memento-block-not-closed-p)
+                   (seq-filter `(lambda (block)
+                                  (and (org-memento-starting-time block)
+                                       (> (org-memento-starting-time block)
+                                          ,now))))
+                   (seq-sort-by #'org-memento-starting-time #'<)
+                   (car))))))
 
 (defun org-memento--empty-slots (taxy)
   (let ((now (float-time (org-memento--current-time)))
