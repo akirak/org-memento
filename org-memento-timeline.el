@@ -980,7 +980,8 @@ section."
                         :initial-value 0)))
         (let* ((date (midnight-from-string (car org-memento-timeline-date-range)))
                (final-date (midnight-from-string (cadr org-memento-timeline-date-range)))
-               (now (float-time (org-memento--current-time))))
+               (now (float-time (org-memento--current-time)))
+               totals)
           (insert (format "| %-14s | ChkIn | ChkOut| Total |Focusd| Idle |Untrkd|\n"
                           "Date"))
           (while (not (org-memento-date--le final-date date))
@@ -1026,6 +1027,9 @@ section."
                                          (and (null (nth 4 record))
                                               (cadr record)
                                               (< (cadr record) now))))))))
+                  (push (cons 'idle idle) totals)
+                  (push (cons 'focused focused) totals)
+                  (push (cons 'untracked untracked) totals)
                   (insert (format "| %-14s | %5s | %5s | %5s | %4s | %4s | %4s |\n"
                                   (format-time-string "%F %a" (encode-time date))
                                   (if checkin-time
@@ -1049,7 +1053,26 @@ section."
                                   (if untracked
                                       (org-memento--format-duration untracked)
                                     ""))))))
-            (setq date (decoded-time-add date (make-decoded-time :day 1))))))
+            (setq date (decoded-time-add date (make-decoded-time :day 1))))
+          (cl-flet
+              ((group-sum (key)
+                 (cl-reduce #'+
+                            (thread-last
+                              totals
+                              (seq-group-by #'car)
+                              (assq key)
+                              (cdr)
+                              (mapcar #'cdr))
+                            :initial-value 0)))
+            (insert (propertize (format "| %-14s | %5s | %5s | %5s |%5s |%5s |%5s |\n"
+                                        "Total"
+                                        ""
+                                        ""
+                                        ""
+                                        (org-memento--format-duration (group-sum 'focused))
+                                        (org-memento--format-duration (group-sum 'idle))
+                                        (org-memento--format-duration (group-sum 'untracked)))
+                                'face '(:overline t))))))
       (insert ?\n))))
 
 (defun org-memento-timeline-progress-section (taxy)
