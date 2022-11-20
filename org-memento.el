@@ -951,6 +951,7 @@ At present, it runs `org-memento-timeline'."
        (org-todo keyword)
        (org-memento--save-buffer))
      (setq org-memento-current-block nil)
+     (org-memento--status)
      (org-memento--cancel-block-timers)
      (org-memento--add-next-event-timer)
      (run-hooks 'org-memento-block-exit-hook)
