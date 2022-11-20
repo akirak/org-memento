@@ -305,6 +305,10 @@ timeline as an argument."
     section))
 
 (defun org-memento-timeline-refresh ()
+  "Refresh the timeline if it is visible in one of the frames.
+
+This function should be added to
+`org-memento-requesting-timeline'."
   (when-let (buffer (get-buffer org-memento-timeline-buffer))
     (when (get-buffer-window buffer 'all-frames)
       (with-current-buffer buffer
@@ -313,6 +317,10 @@ timeline as an argument."
           (org-memento-timeline-revert))))))
 
 (defun org-memento-timeline-refresh-1 ()
+  "Refresh the timeline if it is visible in one of the frames.
+
+Unlike `org-memento-timeline-refresh', this function should be
+triggered by an interval timer."
   (when-let (buffer (get-buffer org-memento-timeline-buffer))
     (unless (or org-memento-block-idle-logging
                 (org-clocking-p))
