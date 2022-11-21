@@ -1121,20 +1121,24 @@ The point must be after a \"CLOCK:\" string."
                             (org-memento--start-of-day
                              (decode-time new-start))))
                         (org-memento--read-time-span
-                         (org-memento--format-timestamp
-                          (org-timestamp-to-time orig-ts)
-                          (org-timestamp-to-time orig-ts t))
-                         (encode-time
-                          (org-memento--start-of-day
-                           (decode-time
-                            (org-timestamp-to-time orig-ts))))))
+                         (when orig-ts
+                           (org-memento--format-timestamp
+                            (org-timestamp-to-time orig-ts)
+                            (org-timestamp-to-time orig-ts t)))
+                         (if orig-ts
+                             (encode-time
+                              (org-memento--start-of-day
+                               (decode-time
+                                (org-timestamp-to-time orig-ts))))
+                           (org-memento--current-time))))
       (`(,start ,end)
        (when (looking-at org-ts-regexp)
          (replace-match ""))
        (insert (org-memento--format-timestamp
                 start
                 (or end
-                    (time-add start duration-secs))))
+                    (when duration-secs
+                      (time-add start duration-secs)))))
        (unless had-ts (insert "\n"))))))
 
 ;;;; Timers and notifications
