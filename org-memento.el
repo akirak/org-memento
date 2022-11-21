@@ -1594,11 +1594,11 @@ The point must be at the heading."
 
 (defun org-memento--update ()
   (remove-hook 'post-command-hook #'org-memento--update)
-  (run-hooks 'org-memento-update-hook)
-  (setq org-memento-requesting-timeline nil))
+  (run-hooks 'org-memento-update-hook))
 
 (defun org-memento--oneshot-timeline ()
   (remove-hook 'org-memento-update-hook #'org-memento--oneshot-timeline)
+  (setq org-memento-requesting-timeline nil)
   (let ((today (org-memento--today-string (decode-time))))
     (org-memento-timeline today today :span 'day
                           :no-update-status t)))
