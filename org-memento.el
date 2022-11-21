@@ -2321,8 +2321,8 @@ into the candidates as well."
   (or (org-memento--designated-end-time block)
       (org-memento--calculated-end-time block)))
 
-(defun org-memento--next-agenda-event (&optional hd-marker bound-time
-                                                 &key include-memento-file now)
+(cl-defun org-memento--next-agenda-event (&optional hd-marker bound-time
+                                                    &key include-memento-file now)
   "Return an Org entry that has the earliest time stamp.
 
 If BOUND-TIME is an internal time, time stamps later than the
