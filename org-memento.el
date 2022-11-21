@@ -4099,7 +4099,7 @@ This should be used at loading time."
                  (list (org-memento--today-string (decode-time)))))
   (require 'org-ql-search)
   (let ((org-super-agenda-properties-inherit nil))
-    (org-ql-search org-memento-file
+    (org-ql-search (list org-memento-file)
       (org-memento--ql-for-blocks date to-date)
       :title (format "Blocks %s%s"
                      date
