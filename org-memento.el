@@ -1053,7 +1053,7 @@ With a universal argument, you can specify the time of check out."
   "Extend the checkout time of the day."
   (interactive)
   (org-memento-with-today-entry
-   (org-end-of-meta-data)
+   (org-end-of-meta-data t)
    (let* ((org-read-date-prefer-future nil)
           (orig-ts (org-element-timestamp-parser))
           (string (org-read-date t nil nil "Checkout time"
@@ -1217,9 +1217,7 @@ The point must be after a \"CLOCK:\" string."
          (new-end-time (+ now (* 60 (org-duration-to-minutes input)))))
     (org-memento-with-current-block
       (org-back-to-heading)
-      (org-end-of-meta-data)
-      (when (looking-at org-logbook-drawer-re)
-        (goto-char (match-end 0)))
+      (org-end-of-meta-data t)
       (let* ((had-ts (looking-at org-ts-regexp))
              (start (save-match-data
                       (thread-last
@@ -1439,9 +1437,7 @@ The function returns non-nil if the check-in is done."
 (defun org-memento--move-active-ts (start-time)
   "Adjust the end time of an active ts according to START-TIME."
   (org-back-to-heading)
-  (org-end-of-meta-data)
-  (when (looking-at org-logbook-drawer-re)
-    (goto-char (match-end 0)))
+  (org-end-of-meta-data t)
   (when-let (duration (when (looking-at org-ts-regexp)
                         (save-match-data
                           (org-memento--duration-secs-ts-at-point))))
@@ -2459,7 +2455,7 @@ marker to the time stamp, and the margin in seconds."
                                             org-memento-planning-drawer)
               (insert "\n")
               (throw 'planning t)))
-          (org-end-of-meta-data)
+          (org-end-of-meta-data t)
           (when (looking-at org-ts-regexp)
             (forward-line))
           (org-insert-drawer nil "planning"))
@@ -2546,7 +2542,7 @@ marker to the time stamp, and the margin in seconds."
          (has-future-time ()
            (save-match-data
              (save-excursion
-               (org-end-of-meta-data)
+               (org-end-of-meta-data t)
                (when (re-search-forward org-stamp-time-of-day-regexp
                                         (org-entry-end-position)
                                         t)
@@ -3799,9 +3795,7 @@ range."
       (org-memento-block
        (save-current-buffer
          (org-memento-with-block-title (org-memento-title event)
-           (org-end-of-meta-data)
-           (when (looking-at org-logbook-drawer-re)
-             (goto-char (match-end 0)))
+           (org-end-of-meta-data t)
            (atomic-change-group
              (if (looking-at org-ts-regexp)
                  (replace-match "")
@@ -3869,9 +3863,7 @@ range."
   (save-current-buffer
     (org-with-point-at (org-id-find id 'marker)
       (save-excursion
-        (org-end-of-meta-data)
-        (when (looking-at org-logbook-drawer-re)
-          (goto-char (match-end 0)))
+        (org-end-of-meta-data t)
         (buffer-substring-no-properties (point) (org-entry-end-position))))))
 
 (defun org-memento--valid-template-p (template)
