@@ -1537,7 +1537,8 @@ The point must be at the heading."
              (started (org-memento-started-time block))
              (ending (org-memento-ending-time block))
              (duration (or (org-memento-duration block)
-                           (/ (- ending started) 60)))
+                           (and ending
+                                (/ (- ending started) 60))))
              (group (save-current-buffer
                       (org-with-point-at (org-memento-block-hd-marker block)
                         (org-memento--get-group (org-memento-block-headline block))))))
