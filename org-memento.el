@@ -1631,7 +1631,7 @@ The point must be at the heading."
                                        t)
                 (org-timestamp-from-string (match-string 0)))))
 
-(defun org-memento--next-away-event (bound-time &optional now)
+(defun org-memento--next-away-event (&optional bound-time now)
   "Return idle events on the current day."
   (org-memento-with-today-entry
    (when (re-search-forward (format org-complex-heading-regexp-format
@@ -1650,7 +1650,8 @@ The point must be at the heading."
                         (float-time (org-timestamp-to-time ts)))))
            (when (and time
                       (< now time)
-                      (< time bound-time))
+                      (or (not bound-time)
+                          (< time bound-time)))
              (setq bound-time time)
              (setq event (save-excursion
                            (org-back-to-heading)
