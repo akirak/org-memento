@@ -89,6 +89,15 @@ timeline as an argument."
   :type '(alist :key-type (symbol :tag "Type of the magit section")
                 :value-type (boolean :tag "Whether to hide the section")))
 
+(defcustom org-memento-timeline-window-width nil
+  "Maximum width of some UI elements, e.g. graphs.
+
+This variable allows the user to explicitly specify the maximum
+width of the window. This is useful if you use a package like
+`olivetti-mode'."
+  :type '(choice (number :tag "Width in characters")
+                 (const :tag "Not set" nil)))
+
 ;;;; Faces
 
 (defface org-memento-timeline-time-face
@@ -338,6 +347,9 @@ triggered by an interval timer."
   "Insert the timeline section."
   ;; TODO: Maybe set magit-section-set-visibility-hook
   (let ((now (float-time (org-memento--current-time)))
+        (window-width (if org-memento-timeline-window-width
+                          (min org-memento-timeline-window-width (window-width))
+                        (window-width)))
         last-block-end)
     (cl-labels
         ((get-record (item)
@@ -438,7 +450,7 @@ triggered by an interval timer."
                      indent1
                      (make-string 6 ?-)
                      (propertize " Now " 'face 'font-lock-comment-face)
-                     (make-string (- (window-width)
+                     (make-string (- window-width
                                      (+ 4 6 5
                                         ;; margin
                                         5))
@@ -1197,7 +1209,10 @@ section."
 
 (defun org-memento-timeline--weekly-progress (rules group-sums)
   (let* ((threshold (/ (org-memento--percentage-on-week) 100))
-         (gauge-width (- (window-width) 45 1))
+         (gauge-width (- (if org-memento-timeline-window-width
+                             (min org-memento-timeline-window-width (window-width))
+                           (window-width))
+                         45 1))
          (rule-pos (max 0 (1- (floor (* gauge-width threshold)))))
          ;; This can be a constant, but it is tedious.
          (row-format "| %-16s |%6s /%6s | %s%4.f%%")
