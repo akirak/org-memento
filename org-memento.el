@@ -923,6 +923,8 @@ At present, it runs `org-memento-timeline'."
 (defun org-memento-start-block (title)
   "Start working on a time block you have planned."
   (interactive (list (org-memento-read-block "Start a block: ")))
+  (when org-memento-current-block
+    (error "There is a running block: %s" org-memento-current-block))
   (org-memento-with-today-entry
    (org-narrow-to-subtree)
    (unless (re-search-forward (format org-complex-heading-regexp-format title)
