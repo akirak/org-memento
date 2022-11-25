@@ -2322,6 +2322,13 @@ into the candidates as well."
         (push (cons start end) result)))
     result))
 
+(defun org-memento--clock-start-ts ()
+  "Return the timestamp of the starting time of the clock."
+  (org-with-point-at org-clock-marker
+    (if (thing-at-point-looking-at org-ts-regexp-inactive)
+        (org-timestamp-from-string (match-string 0))
+      (error "Didn't match a timestamp"))))
+
 (defun org-memento--calculated-end-time (block)
   "Return an end time calculated from the duration."
   (when-let ((checkin (org-memento-started-time block))
@@ -3784,21 +3791,36 @@ range."
                               :after-finalize org-memento-log-update)))
     (org-capture)))
 
-(defun org-memento--add-immediate-block (title)
+(cl-defun org-memento--add-immediate-block (title &key start)
   "Add a block that has just started."
+  (declare (indent 1))
   (when org-memento-current-block
     (user-error "Already in a block"))
-  (let ((start (float-time (org-memento--current-time)))
-        (group (org-memento-read-group nil :title title)))
+  (let* ((now (float-time (org-memento--current-time)))
+         (start (or start
+                    now))
+         (group (org-memento-read-group nil :title title))
+         (duration (org-memento--read-duration
+                    "Duration in minutes: "
+                    :check-next-event t
+                    :default "0:25"
+                    :now now)))
     (org-memento-add-event :title title
                            :group group
                            :interactive nil
-                           :start start)))
+                           :start start
+                           :duration (unless (string-empty-p duration)
+                                       (org-duration-to-minutes duration)))))
 
 ;;;###autoload
 (defun org-memento-start-quick-event (text)
   (let ((title (string-trim text)))
-    (org-memento--add-immediate-block title)
+    (org-memento--add-immediate-block title
+      :start (when (org-clocking-p)
+               (thread-last
+                 (org-memento--clock-start-ts)
+                 (org-timestamp-to-time)
+                 (float-time))))
     (org-memento-start-block title)))
 
 ;;;###autoload
