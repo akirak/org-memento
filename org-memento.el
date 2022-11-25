@@ -3825,9 +3825,15 @@ range."
 
 ;;;###autoload
 (defun org-memento-add-quick-event (text)
-  (let ((title (string-trim text)))
+  (let ((title (string-trim text))
+        (duration (org-memento--read-duration
+                   "Duration in minutes: "
+                   :check-next-event t
+                   :default "0:25")))
     ;; TODO: Parse time
-    (org-memento-add-event :title title)))
+    (org-memento-add-event :title title
+                           :duration (unless (string-empty-p duration)
+                                       (org-duration-to-minutes duration)))))
 
 (cl-defun org-memento-schedule-block (start end-bound
                                             &key confirmed-time
