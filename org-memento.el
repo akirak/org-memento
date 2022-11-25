@@ -1192,30 +1192,12 @@ The point must be after a \"CLOCK:\" string."
   (interactive)
   (unless org-memento-current-block
     (user-error "No current block"))
-  (let* ((upnext-event (org-memento--next-agenda-event
-                        nil nil :include-memento-file t))
-         (now (float-time (org-memento--current-time)))
-         (limit (when upnext-event
-                  (- (/ (- (org-memento-starting-time upnext-event)
-                           now)
-                        60)
-                     org-memento-margin-minutes)))
-         (default 30)
-         (input (completing-read (concat
-                                  (if upnext-event
-                                      (format "The next event \"%s\" starts at %s. "
-                                              (org-memento-title upnext-event)
-                                              (format-time-string
-                                               "%R" (org-memento-starting-time upnext-event)))
-                                    "")
-                                  "How long do you want to extend from now? ")
-                                 (thread-last
-                                   (cons default (when limit (list limit)))
-                                   (seq-filter `(lambda (x)
-                                                  (or (not ,limit)
-                                                      (>= x ,limit))))
-                                   (seq-sort #'<)
-                                   (mapcar #'org-memento--format-duration))))
+  (let* ((now (float-time (org-memento--current-time)))
+         (input (org-memento--read-duration
+                 "How long do you want to extend from now? "
+                 :check-next-event t
+                 :default 30
+                 :now now))
          (new-end-time (+ now (* 60 (org-duration-to-minutes input)))))
     (org-memento-with-current-block
       (org-back-to-heading)
@@ -1913,6 +1895,38 @@ The point must be at the heading."
              (remove-text-properties 0 (length heading) '(face) heading)
              (push heading result))))))
     (cl-remove-duplicates result :test #'equal)))
+
+(cl-defun org-memento--read-duration (prompt &key default
+                                             now check-next-event)
+  (let* ((now (or now (float-time (org-memento--current-time))))
+         (upnext-event (when check-next-event
+                         (org-memento--next-agenda-event
+                          nil nil
+                          :now now
+                          :include-memento-file t)))
+         (limit (when upnext-event
+                  (- (/ (- (org-memento-starting-time upnext-event)
+                           now)
+                        60)
+                     org-memento-margin-minutes)))
+         (default-minutes (cl-typecase default
+                            (string (org-duration-to-minutes default))
+                            (number default))))
+    (completing-read (concat
+                      (if upnext-event
+                          (format "The next event \"%s\" starts at %s. "
+                                  (org-memento-title upnext-event)
+                                  (format-time-string
+                                   "%R" (org-memento-starting-time upnext-event)))
+                        "")
+                      prompt)
+                     (thread-last
+                       (cons default-minutes (when limit (list limit)))
+                       (seq-filter `(lambda (x)
+                                      (or (not ,limit)
+                                          (>= x ,limit))))
+                       (seq-sort #'<)
+                       (mapcar #'org-memento--format-duration)))))
 
 (defun org-memento-read-away-title (&optional prompt)
   (completing-read (or prompt "Title: ")
