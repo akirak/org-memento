@@ -252,8 +252,7 @@ width of the window. This is useful if you use a package like
     (when (org-memento-timeline--within-range-p taxy)
       (unless no-update-status
         (org-memento--status))
-      (setq org-memento-timeline-slots (org-memento--empty-slots taxy))
-      (org-memento-policy-maybe-load))
+      (setq org-memento-timeline-slots (org-memento--empty-slots taxy)))
     (let* ((section (magit-current-section))
            (type (when section (oref section type)))
            (value (when section (oref section value)))
@@ -1088,6 +1087,8 @@ section."
       (insert ?\n))))
 
 (defun org-memento-timeline-progress-section (taxy)
+  (require 'org-memento-policy)
+  (org-memento-policy-maybe-load)
   (let ((rules (org-memento-policy-rules
                 :span org-memento-timeline-span
                 :start-date (car org-memento-timeline-date-range)
