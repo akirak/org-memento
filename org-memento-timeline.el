@@ -1179,33 +1179,33 @@ section."
                  (insert-group span (1+ depth) subtaxy))))))
       (org-memento-timeline--section-1 progress
         (magit-insert-heading "Progress")
-        (when (eq 'day org-memento-timeline-span)
-          (org-memento-timeline--section-1 daily-progress
-            (magit-insert-heading
-              (make-string 2 ?\s)
-              "Daily")
-            (insert (propertize
-                     (concat
-                      (make-string 2 ?\s)
-                      (format "| %-16s | %-9s | %-26s |\n"
-                              "Group" "Today" "Daily budget")
-                      (make-string 2 ?\s)
-                      (format "| %-16s | %-9s | %-4s | %-12s | %-4s |\n"
-                              "" "Current" "Min" "Goal" "Lim"))
-                     'face 'magit-section-heading))
-            (dolist (group-taxy
-                     (thread-last
-                       rules
-                       (seq-filter (apply-partially #'budget-for-span-p 'day))
-                       (org-memento-policy-group-taxy)
-                       (taxy-fill group-sums-for-span)
-                       (taxy-fill (org-memento-group-planned-sums-1))
-                       (taxy-taxys)))
-              (insert-group 'day 0 group-taxy)))
-          (insert ?\n)
-          (org-memento-timeline--weekly-progress
-           rules
-           (append group-sums-for-span org-memento-weekly-group-sums))))
+        ;; (when (eq 'day org-memento-timeline-span)
+        ;;   (org-memento-timeline--section-1 daily-progress
+        ;;     (magit-insert-heading
+        ;;       (make-string 2 ?\s)
+        ;;       "Daily")
+        ;;     (insert (propertize
+        ;;              (concat
+        ;;               (make-string 2 ?\s)
+        ;;               (format "| %-16s | %-9s | %-26s |\n"
+        ;;                       "Group" "Today" "Daily budget")
+        ;;               (make-string 2 ?\s)
+        ;;               (format "| %-16s | %-9s | %-4s | %-12s | %-4s |\n"
+        ;;                       "" "Current" "Min" "Goal" "Lim"))
+        ;;              'face 'magit-section-heading))
+        ;;     (dolist (group-taxy
+        ;;              (thread-last
+        ;;                rules
+        ;;                (seq-filter (apply-partially #'budget-for-span-p 'day))
+        ;;                (org-memento-policy-group-taxy)
+        ;;                (taxy-fill group-sums-for-span)
+        ;;                (taxy-fill (org-memento-group-planned-sums-1))
+        ;;                (taxy-taxys)))
+        ;;       (insert-group 'day 0 group-taxy)))
+        ;;   (insert ?\n))
+        (org-memento-timeline--weekly-progress
+         rules
+         (append group-sums-for-span org-memento-weekly-group-sums)))
       (insert ?\n))))
 
 (defun org-memento-timeline--weekly-progress (rules group-sums)
