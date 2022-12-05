@@ -37,6 +37,10 @@
 (require 'org-element)
 (require 'eieio)
 
+(eval-when-compile
+  ;; For pcase
+  (require 'map))
+
 (declare-function org-memento-policy-group-leaves "org-memento-policy")
 (declare-function org-memento-policy-contexts "org-memento-policy")
 (declare-function org-memento-policy-group-archived-p "org-memento-policy")
