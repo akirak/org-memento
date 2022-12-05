@@ -671,7 +671,7 @@ triggered by an interval timer."
                         'clone)
     (goto-char marker)
     (org-narrow-to-subtree)
-    (org-show-context 'agenda)
+    (org-fold-show-context 'agenda)
     (funcall fn (current-buffer))))
 
 (defun org-memento-timeline-schedule (&optional arg)

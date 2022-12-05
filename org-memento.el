@@ -153,7 +153,7 @@ Note that this hook is not called on blocks inside a daily entry."
   :type 'hook)
 
 (defcustom org-memento-open-journal-hook
-  '(org-show-subtree)
+  '(org-fold-show-subtree)
   "Hook run after `org-memento-open-journal' visits an Org entry."
   :type 'hook)
 
@@ -981,7 +981,7 @@ At present, it runs `org-memento-timeline'."
            (org-memento--find-today)
            (org-narrow-to-subtree)
            (pop-to-buffer (current-buffer))
-           (org-show-entry)
+           (org-fold-show-entry)
            (with-demoted-errors "The heading for the current block does not exist. \
 Possibly renamed? %s"
              (re-search-forward (format org-complex-heading-regexp-format title)))
@@ -1384,7 +1384,7 @@ daily entry."
             (not org-memento-init-done))
     (save-excursion
       (org-save-outline-visibility t
-        (org-show-all)
+        (org-fold-show-all)
         ;; `org-element-cache-reset' is available in the latest version of Org,
         ;; but not in its older versions.
         (when (fboundp 'org-element-cache-reset)
@@ -1596,7 +1596,7 @@ The point must be at the heading."
      (org-memento--maybe-checkin-to-day))
    (org-narrow-to-subtree)
    (org-save-outline-visibility t
-     (org-show-subtree)
+     (org-fold-show-subtree)
      (org-map-entries #'org-memento-block-entry
                       nil nil
                       (lambda ()
@@ -2588,7 +2588,7 @@ marker to the time stamp, and the margin in seconds."
                                    (find-file-noselect file))
             (org-save-outline-visibility t
               (org-with-wide-buffer
-               (org-show-all)
+               (org-fold-show-all)
                (goto-char (point-min))
                (while (re-search-forward org-planning-line-re nil t)
                  (when (catch 'today
