@@ -96,6 +96,18 @@
   "Org todo keyword that indicates a successful performance."
   :type 'string)
 
+(defcustom org-memento-state-trigger-alist nil
+  "Alist of actions triggered by state change.
+
+This can be used, for example, to create a block for retry of
+a failed attempt."
+  :type '(alist :key-type (string :tag "Todo keyword")
+                :value-type
+                (plist :tag "Create a new entry"
+                       :options
+                       (((const :todo-keyword)
+                         (string :tag "Todo keyword"))))))
+
 (defcustom org-memento-idle-time 30
   "Duration in minutes until idle tasks are performed.
 
@@ -962,6 +974,7 @@ At present, it runs `org-memento-timeline'."
      (run-hooks 'org-memento-block-before-exit-hook)
      (org-memento-with-current-block
        (org-todo keyword)
+       (org-memento-after-state-change keyword)
        (org-memento--save-buffer))
      (setq org-memento-current-block nil)
      (org-memento--status)
@@ -1705,6 +1718,93 @@ The point must be at the heading."
            :key (lambda (block)
                   (when-let (ts (org-memento-block-active-ts block))
                     (org-timestamp-to-time ts)))))
+
+;;;; Workflow
+
+(defun org-memento-after-state-change (keyword)
+  "Run post-process action on state change in the journal.
+
+This function creates a follow-up task according to the value of
+`org-memento-state-trigger-alist'."
+  (pcase-exhaustive (assoc keyword org-memento-state-trigger-alist)
+    (`nil)
+    ((and `(,_ . ,plist)
+          (guard (plistp plist)))
+     (let* ((heading (and (looking-at org-complex-heading-regexp)
+                          (match-string-no-properties 4)))
+            (heading (read-from-minibuffer "Title of the duplicate block: "
+                                           heading nil nil nil nil t))
+            (tags (org-get-local-tags))
+            (todo (plist-get plist :todo-keyword))
+            (body (org-memento--duplicate-body))
+            (date (org-read-date nil nil nil
+                                 (format "Date on which you work on \"%s\""
+                                         heading)))
+            (block (org-memento--current-block))
+            (now (float-time (org-memento--current-time)))
+            (ending-time (org-memento-ending-time block))
+            (remaining-duration (when ending-time
+                                  (max (/ (- ending-time now) 60)
+                                       0)))
+            (duration (org-memento--read-duration "Duration: "
+                                                  :default remaining-duration))
+            (properties (cons (cons "Effort" duration)
+                              (cl-remove-if
+                               (lambda (key)
+                                 (member key (cons "EFFORT"
+                                                   org-memento-unique-properties)))
+                               (org-entry-properties nil 'standard)
+                               :key #'car))))
+       (with-current-buffer (org-memento--buffer)
+         (org-with-wide-buffer
+          (org-memento--goto-date date)
+          (org-end-of-subtree)
+          (unless (bolp)
+            (newline))
+          (insert "** " (if todo (concat todo " ") "") heading
+                  (if tags
+                      (concat " " (org-make-tag-string tags))
+                    "")
+                  "\n"
+                  (if properties
+                      (concat ":PROPERTIES:\n"
+                              (mapconcat (lambda (cell)
+                                           (format ":%s: %s" (car cell) (cdr cell)))
+                                         properties
+                                         "\n")
+                              "\n:END:\n")
+                    "")
+                  body)
+          (unless (bolp)
+            (newline))))))))
+
+(defun org-memento--duplicate-body ()
+  "Return the body of a copy of the current entry."
+  (save-excursion
+    (let (texts)
+      (when (looking-at-p org-heading-regexp)
+        (forward-line))
+      (while (or (looking-at-p org-planning-line-re)
+                 (looking-at org-drawer-regexp))
+        (if (and (looking-at-p (rx (* blank) ":"))
+                 (not (member (match-string 1)
+                              ;; Properties should be scanned separately
+                              '("LOGBOOK" "PROPERTIES"))))
+            (let ((pos (point)))
+              (org-end-of-meta-data)
+              (push (buffer-substring-no-properties pos (point))
+                    texts))
+          (org-end-of-meta-data)))
+      (when (looking-at org-ts-regexp)
+        (goto-char (match-end 0))
+        (when (and (eolp) (not (bolp)))
+          (beginning-of-line 2)))
+      (string-join (nreverse (cons (if (looking-at-p org-heading-regexp)
+                                       ""
+                                     (string-chop-newline
+                                      (buffer-substring-no-properties
+                                       (point) (org-entry-end-position))))
+                                   texts))))))
 
 ;;;; Agenda files
 
