@@ -1227,6 +1227,7 @@ The point must be after a \"CLOCK:\" string."
                         (org-timestamp-to-time)))))
         (when had-ts
           (replace-match ""))
+        (unless (bolp) (insert "\n"))
         (insert (org-memento--format-timestamp start new-end-time))
         (unless had-ts (insert "\n"))))
     (org-memento--cancel-next-event-timer)
