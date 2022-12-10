@@ -3,11 +3,11 @@
     "buttercup": {
       "flake": false,
       "locked": {
-        "lastModified": 1665959941,
-        "narHash": "sha256-CzhXFYme8KTVQkk3HXSDlQ8xIbZ826741gUfQzW+xog=",
+        "lastModified": 1670197165,
+        "narHash": "sha256-KtA6lcI/Hfydl0C3kN65DsPeQpW36tcdlOkrE/lodXE=",
         "owner": "jorgenschaefer",
         "repo": "emacs-buttercup",
-        "rev": "001adc064170b1e5beff3bc5a50c40f6c1949bbb",
+        "rev": "6372fd46b20cc807157071cb08ad263132ce7339",
         "type": "github"
       },
       "original": {
@@ -19,11 +19,11 @@
     "compat": {
       "flake": false,
       "locked": {
-        "lastModified": 1662132224,
-        "narHash": "sha256-zWYjpJixxFCeYKr9Hzhb4gIhK+8ZZd+L1u3afeFaYR4=",
+        "lastModified": 1669157406,
+        "narHash": "sha256-gF67NJPKM+UtB1glp5mee8R0pSYbJpDr+U2ycC6DLe0=",
         "ref": "refs/heads/master",
-        "rev": "e827a9f3e2ba585de8b07cd246534a15ec414a8b",
-        "revCount": 415,
+        "rev": "1573aa2e6d478c30cc7f394b72cbaa4db77ef811",
+        "revCount": 418,
         "type": "git",
         "url": "https://git.sr.ht/~pkal/compat"
       },
@@ -35,11 +35,11 @@
     "dash": {
       "flake": false,
       "locked": {
-        "lastModified": 1665499973,
-        "narHash": "sha256-omhbg8d+l6JhWu969D4vOzik4qF5kJGzpZgahfAmpCc=",
+        "lastModified": 1665650208,
+        "narHash": "sha256-b0dAQPHOv0oZkmkV/0kHqSWwz45W1mWrx1Iv83/M6B0=",
         "owner": "magnars",
         "repo": "dash.el",
-        "rev": "e926385625bd8cf395770479a4fc6a8290526289",
+        "rev": "3df46d7d9fe74f52a661565888e4d31fd760f0df",
         "type": "github"
       },
       "original": {
@@ -51,11 +51,11 @@
     "magit-section": {
       "flake": false,
       "locked": {
-        "lastModified": 1665257245,
-        "narHash": "sha256-xkzA7e9gSo/9fE2t9pxNksya5SsCUBgfj0wCdnd6isU=",
+        "lastModified": 1670525337,
+        "narHash": "sha256-8cjfAWM1NM7NC0nMQ6SKALp+bUWx6T7+yyDisj7hgDc=",
         "owner": "magit",
         "repo": "magit",
-        "rev": "3e833f369911069eb55e96bc617cb2cfdaa1713f",
+        "rev": "99d9b3008adf72a0c2cdb7df70b5ae03ea9271c8",
         "type": "github"
       },
       "original": {
@@ -64,20 +64,37 @@
         "type": "github"
       }
     },
+    "org": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1670667732,
+        "narHash": "sha256-kkjGF92F5iMReumbCnSxHRz3trS3kKTCs8zljptyumk=",
+        "ref": "bugfix",
+        "rev": "169333e1cbb50f74c613deefb8c60c9859765c62",
+        "revCount": 25850,
+        "type": "git",
+        "url": "git://git.sv.gnu.org/emacs/org-mode.git"
+      },
+      "original": {
+        "ref": "bugfix",
+        "type": "git",
+        "url": "git://git.sv.gnu.org/emacs/org-mode.git"
+      }
+    },
     "org-memento": {
       "flake": false,
       "locked": {
-        "lastModified": 1665121795,
-        "narHash": "sha256-kps0Gbl9a0VicPufnq36xcf7MkDDrsymWMTkNuBqckE=",
-        "owner": "~akirak",
+        "lastModified": 1670667352,
+        "narHash": "sha256-VCbqPmcfhEyRaAbrek5rtGnOV+9LZZzK7uBCDInlkp8=",
+        "owner": "akirak",
         "repo": "org-memento",
-        "rev": "c3d5b9730673d7dcc4791e6e9b2c7f9a6866f4dc",
-        "type": "sourcehut"
+        "rev": "f08ee22dd074766cc7df03f97af3dc979dcea44f",
+        "type": "github"
       },
       "original": {
-        "owner": "~akirak",
+        "owner": "akirak",
         "repo": "org-memento",
-        "type": "sourcehut"
+        "type": "github"
       }
     },
     "root": {
@@ -86,6 +103,7 @@
         "compat": "compat",
         "dash": "dash",
         "magit-section": "magit-section",
+        "org": "org",
         "org-memento": "org-memento",
         "taxy": "taxy"
       }

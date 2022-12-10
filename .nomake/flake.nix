@@ -25,11 +25,17 @@
       repo = "magit";
       type = "github";
     };
+    org = {
+      flake = false;
+      ref = "bugfix";
+      type = "git";
+      url = "git://git.sv.gnu.org/emacs/org-mode.git";
+    };
     org-memento = {
       flake = false;
-      owner = "~akirak";
+      owner = "akirak";
       repo = "org-memento";
-      type = "sourcehut";
+      type = "github";
     };
     taxy = {
       flake = false;
