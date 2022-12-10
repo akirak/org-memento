@@ -33,6 +33,7 @@
 (require 'magit-section)
 
 (declare-function org-clocking-p "org-clock")
+(declare-function org-fold-show-context "org-fold")
 
 (defgroup org-memento-timeline nil
   "Activity timeline."

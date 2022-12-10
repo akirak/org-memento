@@ -4,7 +4,7 @@
 
 ;; Author: Akira Komamura <akira.komamura@gmail.com>
 ;; Version: 0.1
-;; Package-Requires: ((emacs "28.1") (taxy "0.10") (magit-section "3.3") (dash "2.19"))
+;; Package-Requires: ((emacs "28.1") (org "9.6") (taxy "0.10") (magit-section "3.3") (dash "2.19"))
 ;; Keywords: calendar
 ;; URL: https://github.com/akirak/org-memento
 
@@ -66,6 +66,8 @@
 (declare-function org-ql-search "ext:org-ql-search")
 (declare-function org-memento-policy-maybe-load "org-memento-policy")
 (declare-function org-clock-clock-in "org-clock")
+(declare-function org-fold-show-subtree "org-fold")
+(declare-function org-fold-show-all "org-fold")
 (defvar org-super-agenda-properties-inherit)
 (defvar org-capture-entry)
 (defvar org-agenda-start-on-weekday)
@@ -1735,7 +1737,7 @@ This function creates a follow-up task according to the value of
                           (match-string-no-properties 4)))
             (heading (read-from-minibuffer "Title of the duplicate block: "
                                            heading nil nil nil nil t))
-            (tags (org-get-local-tags))
+            (tags (org-get-tags nil 'local))
             (todo (plist-get plist :todo-keyword))
             (body (org-memento--duplicate-body))
             (date (org-read-date nil nil nil
@@ -3718,10 +3720,10 @@ range."
 
 (defun org-memento--format-timestamp (start-time &optional end-time inactive)
   (let* ((midnight (org-memento--midnight start-time)))
-    (format (org-format-time-string (if inactive
-                                        "[%Y-%m-%d %a %%s]"
-                                      "<%Y-%m-%d %a %%s>")
-                                    midnight)
+    (format (format-time-string (if inactive
+                                    "[%Y-%m-%d %a %%s]"
+                                  "<%Y-%m-%d %a %%s>")
+                                midnight)
             (if end-time
                 (org-memento--format-army-time-range start-time end-time midnight)
               (org-memento--format-army-time start-time midnight)))))
