@@ -42,6 +42,10 @@
         "org-memento"
       ];
 
+      extraPackages = [
+        "org"
+      ];
+
       scripts = {
         test = {
           description = "Run buttercup tests";
