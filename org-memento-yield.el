@@ -104,7 +104,8 @@ another type.")
       (setf (decoded-time-second decoded-time) 0))
     (decoded-time-add decoded-time (make-decoded-time :day n))))
 
-(cl-defun org-memento-yield-for-span (taxy span &key start-date end-date)
+(cl-defun org-memento-yield-for-span (taxy span &key start-date end-date
+                                           require-budget)
   (declare (indent 2))
   (pcase-let*
       ((`(,start-date ,end-date) (cond
@@ -135,7 +136,15 @@ another type.")
                                 (org-with-point-at (org-memento-block-hd-marker block)
                                   (cons (org-memento--get-group
                                          (org-memento-block-headline block))
-                                        block)))))))))
+                                        block))))))))
+       (rules (org-memento-policy-rules
+               :span span :start-date start-date :end-date end-date))
+       ;; Skip computation if the budget needs consideration.
+       (groups-with-budgets (when require-budget
+                              (thread-last
+                                rules
+                                (seq-filter #'org-memento-policy-budget-rule-p)
+                                (mapcar #'org-memento-group-path)))))
     (cl-labels
         ((match-group (group-path group)
            (equal group-path (seq-take group (length group-path))))
@@ -159,6 +168,12 @@ another type.")
                              (float-time)))
                    (number (car record)))
                  (cdr record)))
+         (flip (f x y)
+           (funcall f y x))
+         (has-budget-p (yield-rule)
+           (seq-find (apply-partially #'flip #'match-group
+                                      (org-memento-group-path yield-rule))
+                     groups-with-budgets))
          (generate-tasks (yield-rule)
            (let ((group-path (thread-first
                                (slot-value yield-rule 'context)
@@ -176,9 +191,11 @@ another type.")
                 (seq-sort-by #'car #'>))
               :end scope-end))))
       (thread-last
-        (org-memento-policy-rules
-         :span span :start-date start-date :end-date end-date)
+        rules
         (seq-filter #'org-memento-yield-instance-p)
+        (seq-filter (if require-budget
+                        #'has-budget-p
+                      #'identity))
         (mapcar (lambda (rule)
                   (cons rule (generate-tasks rule))))))))
 

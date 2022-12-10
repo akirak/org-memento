@@ -1330,7 +1330,8 @@ section."
            (thread-last
              (org-memento-yield-for-span taxy org-memento-timeline-span
                :start-date (car org-memento-timeline-date-range)
-               :end-date (cadr org-memento-timeline-date-range))
+               :end-date (cadr org-memento-timeline-date-range)
+               :require-budget t)
              (seq-sort-by (-compose #'org-memento--format-group #'rule-group-path #'car)
                           #'string<)))
         (when plans
