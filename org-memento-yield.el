@@ -105,7 +105,7 @@ another type.")
     (decoded-time-add decoded-time (make-decoded-time :day n))))
 
 (cl-defun org-memento-yield-for-span (taxy span &key start-date end-date
-                                           require-budget)
+                                           require-budget from-group-path)
   (declare (indent 2))
   (pcase-let*
       ((`(,start-date ,end-date) (cond
@@ -139,6 +139,9 @@ another type.")
                                         block))))))))
        (rules (org-memento-policy-rules
                :span span :start-date start-date :end-date end-date))
+       (rules (if from-group-path
+                  (org-memento-filter-by-group-path from-group-path rules)
+                rules))
        ;; Skip computation if the budget needs consideration.
        (groups-with-budgets (when require-budget
                               (thread-last
