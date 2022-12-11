@@ -3545,23 +3545,27 @@ GROUP is a group path and FILE is an Org file."
 
 (cl-defmacro org-memento-def-zone (title &key description duration complete
                                          block-p planning-item-p order-p group-p
+                                         duration-p
                                          children)
   (declare (indent 1))
   `(make-taxy :name ',(list title :duration duration :complete complete)
               :description ,description
               :taxys ',children
               :predicate (lambda (x)
-                           (if-let (fn (cl-typecase x
-                                         (org-memento-planning-item
-                                          ,planning-item-p)
-                                         (org-memento-block
-                                          ,block-p)
-                                         (org-memento-order
-                                          ,order-p)))
-                               (funcall fn x)
-                             (and ,group-p
-                                  (when-let (group (org-memento-group-path x))
-                                    (funcall ,group-p group)))))))
+                           (or (and ,duration-p
+                                    (when-let (duration (org-memento-duration x))
+                                      (funcall ,duration-p duration)))
+                               (if-let (fn (cl-typecase x
+                                             (org-memento-planning-item
+                                              ,planning-item-p)
+                                             (org-memento-block
+                                              ,block-p)
+                                             (org-memento-order
+                                              ,order-p)))
+                                   (funcall fn x)
+                                 (and ,group-p
+                                      (when-let (group (org-memento-group-path x))
+                                        (funcall ,group-p group))))))))
 
 (defun org-memento-set-zones (&rest zones)
   "Set the value of `org-memento-zone-taxy'.
