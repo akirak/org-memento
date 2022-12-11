@@ -1478,12 +1478,12 @@ section."
               (t
                "  ")))
            (format-meta (zone-taxy &optional others)
-             (let* ((done (thread-last
-                            (if others
-                                (taxy-items zone-taxy)
-                              (taxy-flatten zone-taxy))
-                            (mapcar #'done-duration)
-                            (sum-duration)))
+             (let* ((spent (thread-last
+                             (if others
+                                 (taxy-items zone-taxy)
+                               (taxy-flatten zone-taxy))
+                             (mapcar #'done-duration)
+                             (sum-duration)))
                     (planned (unless others
                                (thread-last
                                  (taxy-flatten zone-taxy)
@@ -1491,13 +1491,13 @@ section."
                                  (sum-duration))))
                     (goal (unless others
                             (plist-get (cdr (taxy-name zone-taxy)) :duration))))
-               (format-spec (propertize " (%d done%p%g)"
+               (format-spec (propertize " (%d spent%p%g)"
                                         'face 'default)
-                            `((?d . ,(org-memento--format-duration done))
+                            `((?d . ,(org-memento--format-duration spent))
                               (?p . ,(if (and planned (> planned 0))
                                          (format " / %s planned"
                                                  (org-memento--format-duration
-                                                  (+ planned done)))
+                                                  (+ planned spent)))
                                        ""))
                               (?g . ,(if goal
                                          (format " / %s goal" goal)
