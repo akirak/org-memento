@@ -1515,6 +1515,10 @@ section."
                                    "Zones")
                                'face 'magit-section-heading)
                    (format-meta zone-taxy))
+                 (when-let (description (taxy-description zone-taxy))
+                   (insert (make-indent level)
+                           (propertize description 'face 'font-lock-comment-face)
+                           "\n"))
                  (if (taxy-taxys zone-taxy)
                      (progn
                        (dolist (subtaxy (taxy-taxys zone-taxy))
