@@ -3564,7 +3564,9 @@ GROUP is a group path and FILE is an Org file."
                                               ,order-p)))
                                    (funcall fn x)
                                  (and ,group-p
-                                      (when-let (group (org-memento-group-path x))
+                                      (when-let (group (and (or (org-memento-block-p x)
+                                                                (org-memento-order-p x))
+                                                            (org-memento-group-path x)))
                                         (funcall ,group-p group))))))))
 
 (defun org-memento-set-zones (&rest zones)
