@@ -58,8 +58,7 @@ timeline as an argument."
 
 (defcustom org-memento-timeline-planning-hook
   '(org-memento-timeline-progress-section
-    org-memento-timeline-suggestions-section
-    org-memento-timeline-agenda-section
+    org-memento-timeline-zone-list-section
     org-memento-timeline-late-blocks-section
     org-memento-timeline-next-event-section
     org-memento-timeline-feasibility-section
@@ -99,7 +98,22 @@ width of the window. This is useful if you use a package like
   :type '(choice (number :tag "Width in characters")
                  (const :tag "Not set" nil)))
 
+(defcustom org-memento-timeline-done-format
+  (propertize "✔" 'face '(:foreground "green3"))
+  "String to indicate an item is done."
+  :type 'string)
+
+(defcustom org-memento-timeline-error-format
+  (propertize "🙺" 'face '(:foreground "green3"))
+  "String to indicate an item is done."
+  :type 'string)
+
 ;;;; Faces
+
+(defface org-memento-timeline-subheading-face
+  ;; TODO
+  '((t (:inherit font-lock-comment-face :bold t)))
+  "Face for headings that doesn't provide folding")
 
 (defface org-memento-timeline-time-face
   '((t (:inherit default :slant italic)))
@@ -1318,44 +1332,218 @@ section."
                               'face '(:overline t))
                   "\n"))))))
 
-(defun org-memento-timeline-suggestions-section (taxy)
-  (cl-labels
-      ((rule-group-path (rule)
-         (thread-first
-           (slot-value rule 'context)
-           (slot-value 'group-path))))
-    (org-memento-timeline--section-1 suggestions
-      (magit-insert-heading "Suggestions")
-      (pcase-dolist
-          (`(,rule . ,plans)
-           (thread-last
-             (org-memento-yield-for-span taxy org-memento-timeline-span
-               :start-date (car org-memento-timeline-date-range)
-               :end-date (cadr org-memento-timeline-date-range)
-               :require-budget t)
-             (seq-sort-by (-compose #'org-memento--format-group #'rule-group-path #'car)
-                          #'string<)))
-        (when plans
-          (let ((group-path (rule-group-path rule))
-                (now (float-time (org-memento--current-time))))
-            (let ((tasks (car plans)))
-              (dolist (task tasks)
-                (unless (member (org-memento-order-title task)
-                                org-memento-timeline-dismissed-items)
-                  (magit-insert-section (generated-task task)
-                    (magit-insert-heading
-                      (make-string 2 ?\s)
-                      (propertize (org-memento-order-title task)
-                                  'face 'magit-section-heading)
-                      (when-let (duration (org-memento-order-duration task))
-                        (concat " " (org-memento--format-duration duration)))
-                      (format " (%s)" (org-memento--format-group group-path))
-                      (when-let (latest
-                                 (caar (org-memento-order-previous-activities task)))
-                        (concat " "
-                                (propertize (org-memento--format-diff-days (- now latest))
-                                            'face 'font-lock-comment-face))))))))))))
-    (insert ?\n)))
+(defun org-memento-timeline-zone-list-section (taxy)
+  (when (org-memento-timeline--within-range-p taxy)
+    (let ((now (float-time (org-memento--current-time)))
+          (all-items (append (thread-last
+                               (org-memento-timeline--suggestions taxy)
+                               (mapcan #'cdr)
+                               (mapcan #'identity))
+                             (org-memento--blocks)
+                             (org-memento--planning-items)))
+          (planned-items (thread-last
+                           (org-memento--blocks)
+                           (seq-filter #'org-memento-block-not-closed-p)
+                           (mapcar #'org-memento-get-planning-items)
+                           (apply #'append))))
+      (cl-labels
+          ((make-indent (level)
+             (make-string (* 2 level) ?\s))
+           (planned (item)
+             (and (org-memento-planning-item-p item)
+                  (assoc (org-memento-planning-item-id item) planned-items)))
+           (donep (item)
+             (cl-typecase item
+               (org-memento-block
+                (org-memento-ended-time item))
+               (org-memento-planning-item
+                (org-with-point-at (org-memento-planning-item-hd-marker item)
+                  (org-entry-is-done-p)))))
+           (highlight-previous-line ()
+             (put-text-property (pos-bol 0) (1- (pos-bol))
+                                'face 'org-memento-timeline-active-face))
+           (insert-subheading (level text)
+             (magit-insert-heading
+               (make-indent (1+ level))
+               (propertize text 'face 'org-memento-timeline-subheading-face)))
+           (insert-order (level order)
+             (magit-insert-section (generated-task order)
+               (magit-insert-heading
+                 (make-indent (1+ level))
+                 (propertize (org-memento-order-title order)
+                             'face 'magit-section-heading)
+                 (when-let (duration (org-memento-order-duration order))
+                   (concat " " (org-memento--format-duration duration)))
+                 (format " (%s)" (org-memento--format-group
+                                  (org-memento-group-path order)))
+                 (when-let (latest
+                            (caar (org-memento-order-previous-activities order)))
+                   (concat " "
+                           (propertize (org-memento--format-diff-days (- now latest))
+                                       'face 'font-lock-comment-face))))))
+           (insert-planning-item (level item)
+             (magit-insert-section (planning item)
+               (magit-insert-heading
+                 (make-indent level)
+                 (if (donep item)
+                     (concat org-memento-timeline-done-format " ")
+                   "  ")
+                 (org-memento-planning-item-heading item))))
+           (insert-block (level item)
+             (magit-insert-section (block item)
+               (magit-insert-heading
+                 (make-indent level)
+                 (pcase (org-element-property :todo-keyword (org-memento-headline-element item))
+                   (`nil
+                    "  ")
+                   ((and kwd (guard (equal org-memento-todo-keyword-for-success kwd)))
+                    (concat org-memento-timeline-done-format " "))
+                   (kwd
+                    (concat kwd " ")))
+                 (org-memento-title item))
+               (when (and org-memento-current-block
+                          (equal org-memento-current-block (org-memento-title item)))
+                 (highlight-previous-line))))
+           (insert-items (level items)
+             (pcase-let*
+                 ((`(,done-items-and-blocks ,undone-items-and-blocks)
+                   (thread-last
+                     items
+                     (cl-remove-if #'org-memento-order-p)
+                     (cl-remove-if #'planned)
+                     (-separate #'donep)))
+                  (`(,items-and-blocks-with-time ,items-and-blocks-without-time)
+                   (thread-last
+                     undone-items-and-blocks
+                     (-separate #'org-memento-starting-time)))
+                  (`(,items-without-time ,blocks-without-time)
+                   (-separate #'org-memento-planning-item-p items-and-blocks-without-time)))
+               (dolist (item done-items-and-blocks)
+                 (cl-etypecase item
+                   (org-memento-block
+                    (insert-block level item))
+                   (org-memento-planning-item
+                    (org-memento-timeline-with-overlay
+                     ((keymap . org-memento-timeline-planning-map))
+                     (insert-planning-item level item)))))
+               (when items-without-time
+                 (magit-insert-section (items)
+                   (insert-subheading level "Not allocated")
+                   (org-memento-timeline-with-overlay
+                    ((keymap . org-memento-timeline-planning-map))
+                    (dolist (item items-without-time)
+                      (insert-planning-item level item)))))
+               (when items-and-blocks-with-time
+                 (magit-insert-section (items)
+                   (insert-subheading level "Scheduled with timing")
+                   (dolist (item (seq-sort-by #'org-memento-starting-time #'<
+                                              items-and-blocks-with-time))
+                     (cl-etypecase item
+                       (org-memento-block
+                        (insert-block level item))
+                       (org-memento-planning-item
+                        (org-memento-timeline-with-overlay
+                         ((keymap . org-memento-timeline-planning-map))
+                         (insert-planning-item level item)))))))
+               (when blocks-without-time
+                 (magit-insert-section (items)
+                   (insert-subheading level "Unscheduled blocks")
+                   (dolist (item blocks-without-time)
+                     (insert-block level item)))))
+             (when-let (suggestions (seq-filter #'org-memento-order-p items))
+               (magit-insert-section (suggestions nil t)
+                 (insert-subheading level "Suggestions")
+                 (dolist (suggestion suggestions)
+                   (insert-order level suggestion)))))
+           (done-duration (item)
+             (cl-typecase item
+               (org-memento-block
+                (when-let (ended (org-memento-ended-time item))
+                  (/ (- ended (org-memento-started-time item))
+                     60)))))
+           (planned-duration (item)
+             (cl-typecase item
+               (org-memento-block
+                (unless (org-memento-ended-time item)
+                  (or (org-memento-duration item)
+                      (when-let (ending (org-memento-ending-time item))
+                        (/ (- ending (org-memento-starting-time item))
+                           60)))))))
+           (sum-duration (durations)
+             (cl-reduce #'+ (delq nil durations) :initial-value 0))
+           (format-zone-status (zone-taxy)
+             (cond
+              ((plist-get (cdr (taxy-name zone-taxy)) :complete)
+               (concat org-memento-timeline-done-format " "))
+              (t
+               "  ")))
+           (format-meta (zone-taxy &optional others)
+             (let* ((done (thread-last
+                            (if others
+                                (taxy-items zone-taxy)
+                              (taxy-flatten zone-taxy))
+                            (mapcar #'done-duration)
+                            (sum-duration)))
+                    (planned (unless others
+                               (thread-last
+                                 (taxy-flatten zone-taxy)
+                                 (mapcar #'planned-duration)
+                                 (sum-duration))))
+                    (goal (unless others
+                            (plist-get (cdr (taxy-name zone-taxy)) :duration))))
+               (format-spec (propertize " (%d done%p%g)"
+                                        'face 'default)
+                            `((?d . ,(org-memento--format-duration done))
+                              (?p . ,(if (and planned (> planned 0))
+                                         (format " / %s planned"
+                                                 (org-memento--format-duration
+                                                  (+ planned done)))
+                                       ""))
+                              (?g . ,(if goal
+                                         (format " / %s goal" goal)
+                                       ""))))))
+           (insert-zone (level zone-taxy)
+             (let ((plist (cdr (taxy-name zone-taxy))))
+               (magit-insert-section (zone (car (taxy-name zone-taxy))
+                                           (plist-get plist :complete))
+                 (magit-insert-heading
+                   (unless (= 0 level)
+                     (make-indent (1- level)))
+                   (unless (= 0 level)
+                     (format-zone-status zone-taxy))
+                   (propertize (or (car (taxy-name zone-taxy))
+                                   "Zones")
+                               'face 'magit-section-heading)
+                   (format-meta zone-taxy))
+                 (if (taxy-taxys zone-taxy)
+                     (progn
+                       (dolist (subtaxy (taxy-taxys zone-taxy))
+                         (insert-zone (1+ level) subtaxy))
+                       (when (taxy-items zone-taxy)
+                         (magit-insert-section (zone (taxy-name zone-taxy))
+                           (magit-insert-heading
+                             (format-zone-status zone-taxy)
+                             (make-indent level)
+                             (propertize "Others" 'face 'magit-section-heading)
+                             (format-meta zone-taxy 'others))
+                           (insert-items (1+ level) (taxy-items zone-taxy)))))
+                   (insert-items level (taxy-items zone-taxy)))))))
+        (let ()
+          (if org-memento-zone-taxy
+              (insert-zone 0 (thread-last
+                               (copy-taxy org-memento-zone-taxy)
+                               (taxy-emptied)
+                               (taxy-fill all-items)))
+            (magit-insert-section (zones)
+              (magit-insert-heading "Tasks")
+              (insert-items 1 all-items)))
+          (insert ?\n))))))
+
+(defun org-memento-timeline--suggestions (taxy)
+  (org-memento-yield-for-span taxy org-memento-timeline-span
+    :start-date (car org-memento-timeline-date-range)
+    :end-date (cadr org-memento-timeline-date-range)
+    :require-budget t))
 
 (defun org-memento-timeline-suggestions ()
   "Return the suggestions held in the suggestions section."
@@ -1567,43 +1755,6 @@ section."
     (define-key map (kbd "C-c C-t") #'org-memento-timeline-todo)
     ;; (define-key map (kbd "C-c C-d") #'org-memento-timeline-deadline)
     map))
-
-(defun org-memento-timeline-agenda-section (taxy)
-  (when (org-memento-timeline--within-range-p taxy)
-    (let ((planned-items (thread-last
-                           (org-memento--blocks)
-                           (seq-filter #'org-memento-block-not-closed-p)
-                           (mapcar #'org-memento-get-planning-items)
-                           (apply #'append))))
-      (cl-labels
-          ((file (item)
-             (buffer-name (marker-buffer (org-memento-planning-item-hd-marker item))))
-           (take-file (item taxy)
-             (taxy-take-keyed
-               (list #'file)
-               item taxy))
-           (planned (item)
-             (assoc (org-memento-planning-item-id item) planned-items)))
-        (when-let (planning-items
-                   (cl-remove-if #'planned (org-memento--planning-items)))
-          (org-memento-timeline--section-1 planning-items
-            (magit-insert-heading "Planning Items")
-            (org-memento-timeline-with-overlay
-             ((keymap . org-memento-timeline-planning-map))
-             (dolist (taxy (taxy-taxys (thread-last
-                                         (make-taxy :take #'take-file)
-                                         (taxy-emptied)
-                                         (taxy-fill planning-items))))
-               (magit-insert-section (planning-group)
-                 (magit-insert-heading
-                   (make-string 2 ?\s)
-                   (taxy-name taxy))
-                 (dolist (item (taxy-items taxy))
-                   (magit-insert-section (planning item)
-                     (magit-insert-heading
-                       (make-string 4 ?\s)
-                       (org-memento-planning-item-heading item)))))))))
-        (insert ?\n)))))
 
 (defun org-memento-timeline-edit-agenda-item ()
   (interactive)

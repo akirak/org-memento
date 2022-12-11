@@ -346,6 +346,21 @@ to extend the time for the current block when the time runs out."
 
 (defvar org-memento-current-category nil)
 
+(defvar org-memento-zone-taxy nil
+  "When set, use this as the zone list for the day.
+
+It should be a `taxy' where all of its descendants satisfies the
+following conditions:
+
+- `name' is a cons cell of a string name and a plist.
+
+- `predicate' is a function that take `org-memento-block' or
+`org-memento-planning-item', or `org-memento-order' as an
+argument.
+
+To define such a taxy, one could use `org-memento-def-zone'
+macro, though the user doesn't necessarily have to.")
+
 (defvar org-memento-current-time nil
   "When non-nil, use this as the current time for testing.")
 
@@ -485,6 +500,10 @@ Return a copy of the list."
                              (org-memento-starting-time x))))
         (+ start (* 60 duration)))))
 
+(cl-defmethod org-memento-group-path ((x org-memento-block))
+  (with-current-buffer (org-memento--buffer)
+    (org-memento--get-group (org-memento-block-headline x))))
+
 ;;;;; org-memento-org-event
 
 (cl-defstruct org-memento-org-event
@@ -546,11 +565,16 @@ Return a copy of the list."
 
 ;;;;; org-memento-planning-item
 
-(cl-defstruct org-memento-planning-item hd-marker id heading effort)
+(cl-defstruct org-memento-planning-item hd-marker id heading effort
+              time-of-day-ts)
 
 (cl-defmethod org-memento-duration ((x org-memento-planning-item))
   (when-let (effort (org-memento-planning-item-effort x))
     (org-duration-to-minutes effort)))
+
+(cl-defmethod org-memento-starting-time ((x org-memento-planning-item))
+  (when-let (ts (org-memento-planning-item-time-of-day-ts x))
+    (float-time (org-timestamp-to-time ts))))
 
 ;;;;; org-memento-order
 
@@ -566,6 +590,9 @@ Return a copy of the list."
 
 (cl-defmethod org-memento-group-path ((x org-memento-order))
   (org-memento-order-group x))
+
+(cl-defmethod org-memento-starting-time ((_ org-memento-order))
+  nil)
 
 ;;;;; org-memento-group-data
 
@@ -2659,7 +2686,8 @@ marker to the time stamp, and the margin in seconds."
 
 (defun org-memento--planning-items ()
   "Collect planning items from the agenda files."
-  (let (result)
+  (let (result
+        (last-midnight (org-memento--midnight (org-memento--current-time))))
     (cl-labels
         ;; Faster version of `org-in-archived-heading-p'.
         ((archivedp ()
@@ -2700,21 +2728,29 @@ marker to the time stamp, and the margin in seconds."
                (while (re-search-forward org-planning-line-re nil t)
                  (when (catch 'today
                          (while (re-search-forward org-ts-regexp (pos-eol) t)
-                           (when (time-less-p (org-timestamp-to-time
-                                               (org-timestamp-from-string (match-string 0)))
-                                              (current-time))
-                             (throw 'today t))))
+                           (let ((time (org-timestamp-to-time
+                                        (org-timestamp-from-string (match-string 0)))))
+                             (when (and (time-less-p time (org-memento--current-time))
+                                        (not (time-less-p time last-midnight)))
+                               (throw 'today t)))))
                    (save-excursion
                      (org-back-to-heading)
                      (looking-at org-complex-heading-regexp)
-                     (unless (or (member (match-string 2) org-done-keywords)
-                                 (org-memento--maybe-skip-by-tag t)
-                                 (has-future-time))
+                     (unless (or (org-memento--maybe-skip-by-tag t)
+                                 ;; (member (match-string 2) org-done-keywords)
+                                 ;; (has-future-time)
+                                 )
                        (push (make-org-memento-planning-item
                               :hd-marker (point-marker)
                               :heading (match-string-no-properties 4)
                               :effort (org-entry-get nil "Effort")
-                              :id (org-id-get-create))
+                              :id (org-id-get-create)
+                              :time-of-day-ts
+                              (save-excursion
+                                (when (re-search-forward org-stamp-time-of-day-regexp
+                                                         (org-entry-end-position)
+                                                         t)
+                                  (org-timestamp-from-string (match-string 0)))))
                              result)))
                    (re-search-forward org-heading-regexp nil t)))))))))
     result))
@@ -3501,6 +3537,32 @@ GROUP is a group path and FILE is an Org file."
                (search subtaxy)))))
       (search taxy))
     (nreverse result)))
+
+;;;; Zones
+
+(cl-defmacro org-memento-def-zone (title &key description duration complete
+                                         block-p planning-item-p order-p group-p
+                                         children)
+  (declare (indent 1))
+  `(make-taxy :name ',(list title :duration duration :complete complete)
+              :description ,description
+              :taxys ',children
+              :predicate (lambda (x)
+                           (if-let (fn (cl-typecase x
+                                         (org-memento-planning-item
+                                          ,planning-item-p)
+                                         (org-memento-block
+                                          ,block-p)
+                                         (org-memento-order
+                                          ,order-p)))
+                               (funcall fn x)
+                             (and ,group-p
+                                  (when-let (group (org-memento-group-path x))
+                                    (funcall ,group-p group)))))))
+
+(defun org-memento-set-zone (&rest zones)
+  "Set the value of `org-memento-zone-taxy'."
+  (setq org-memento-zone-taxy (make-taxy :taxys zones)))
 
 ;;;; Utility functions for time representations and Org timestamps
 
