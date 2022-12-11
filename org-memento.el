@@ -3563,9 +3563,13 @@ GROUP is a group path and FILE is an Org file."
                                   (when-let (group (org-memento-group-path x))
                                     (funcall ,group-p group)))))))
 
-  "Set the value of `org-memento-zone-taxy'."
-  (setq org-memento-zone-taxy (make-taxy :taxys zones)))
 (defun org-memento-set-zones (&rest zones)
+  "Set the value of `org-memento-zone-taxy'.
+
+ZONES should be a list of `taxy's that satisfies the conditions
+described in the documentation of `org-memento-zone-taxy'. For
+convenience, \\='nil items are ignored."
+  (setq org-memento-zone-taxy (make-taxy :taxys (delq nil zones))))
 
 ;;;; Utility functions for time representations and Org timestamps
 
