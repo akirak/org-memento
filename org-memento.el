@@ -3550,7 +3550,7 @@ GROUP is a group path and FILE is an Org file."
   (declare (indent 1))
   `(make-taxy :name ',(list title :duration duration :complete complete)
               :description ,description
-              :taxys ',children
+              :taxys (delq nil (eval ',children))
               :predicate (lambda (x)
                            (or (and ,duration-p
                                     (when-let (duration (org-memento-duration x))
