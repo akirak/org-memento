@@ -1540,7 +1540,7 @@ section."
                                (taxy-fill all-items)))
             (magit-insert-section (zones)
               (magit-insert-heading "Tasks")
-              (insert-items 1 all-items)))
+              (insert-items 0 all-items)))
           (insert ?\n))))))
 
 (defun org-memento-timeline--suggestions (taxy)
