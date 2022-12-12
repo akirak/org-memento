@@ -1532,16 +1532,14 @@ section."
                              (format-meta zone-taxy 'others))
                            (insert-items (1+ level) (taxy-items zone-taxy)))))
                    (insert-items level (taxy-items zone-taxy)))))))
-        (let ()
-          (if org-memento-zone-taxy
-              (insert-zone 0 (thread-last
-                               (copy-taxy org-memento-zone-taxy)
-                               (taxy-emptied)
-                               (taxy-fill all-items)))
-            (magit-insert-section (zones)
-              (magit-insert-heading "Tasks")
-              (insert-items 0 all-items)))
-          (insert ?\n))))))
+        (if org-memento-zone-taxy
+            (insert-zone 0 (thread-last
+                             (copy-taxy org-memento-zone-taxy)
+                             (taxy-emptied)
+                             (taxy-fill all-items)))
+          (magit-insert-section (zones)
+            (magit-insert-heading "Tasks")
+            (insert-items 0 all-items)))))))
 
 (defun org-memento-timeline--suggestions (taxy)
   (org-memento-yield-for-span taxy org-memento-timeline-span
