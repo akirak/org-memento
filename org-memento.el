@@ -3543,12 +3543,13 @@ GROUP is a group path and FILE is an Org file."
 
 ;;;; Zones
 
-(cl-defmacro org-memento-def-zone (title &key description duration complete
+(cl-defmacro org-memento-def-zone (title &key description duration complete groups
                                          block-p planning-item-p order-p group-p
                                          duration-p
                                          children)
   (declare (indent 1))
-  `(make-taxy :name ',(list title :duration duration :complete complete)
+  `(make-taxy :name ',(list title :duration duration :complete complete
+                            :groups groups)
               :description ,description
               :taxys (delq nil (eval ',children))
               :predicate (lambda (x)
@@ -3563,11 +3564,24 @@ GROUP is a group path and FILE is an Org file."
                                              (org-memento-order
                                               ,order-p)))
                                    (funcall fn x)
-                                 (and ,group-p
-                                      (when-let (group (and (or (org-memento-block-p x)
-                                                                (org-memento-order-p x))
-                                                            (org-memento-group-path x)))
-                                        (funcall ,group-p group))))))))
+                                 (if (or (org-memento-block-p x)
+                                         (org-memento-order-p x))
+                                     (when-let (group (and ,group-p
+                                                           (org-memento-group-path x)))
+                                       (funcall ,group-p group))
+                                   (when-let (agenda-files
+                                              (and (org-memento-planning-item-p x)
+                                                   ',groups
+                                                   (thread-last
+                                                     ',groups
+                                                     (mapcan #'org-memento-group-agenda-files)
+                                                     (seq-uniq))))
+                                     (member (thread-last
+                                               (org-memento-planning-item-hd-marker x)
+                                               (marker-buffer)
+                                               (buffer-file-name)
+                                               (abbreviate-file-name))
+                                             agenda-files))))))))
 
 (defun org-memento-set-zones (&rest zones)
   "Set the value of `org-memento-zone-taxy'.
