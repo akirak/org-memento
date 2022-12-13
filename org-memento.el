@@ -3441,6 +3441,7 @@ TAXY must be a result of `org-memento-activity-taxy'."
     result))
 
 (cl-defun org-memento-find-by-group-path (group-path items &key key)
+  "Find an item that is contained in a group path."
   (cl-assert (not (null group-path)))
   (cl-labels
       ((path (x)
