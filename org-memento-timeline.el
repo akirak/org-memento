@@ -1345,7 +1345,10 @@ section."
                            (org-memento--blocks)
                            (seq-filter #'org-memento-block-not-closed-p)
                            (mapcar #'org-memento-get-planning-items)
-                           (apply #'append))))
+                           (apply #'append)))
+          (clocked-item-id (when (org-clocking-p)
+                             (org-with-point-at org-clock-marker
+                               (org-id-get)))))
       (cl-labels
           ((make-indent (level)
              (make-string (* 2 level) ?\s))
@@ -1389,6 +1392,15 @@ section."
                      (concat org-memento-timeline-done-format " ")
                    "  ")
                  (org-memento-planning-item-heading item))))
+           (current-item-or-block-p (item)
+             (cl-typecase item
+               (org-memento-block
+                (and org-memento-current-block
+                     (equal org-memento-current-block (org-memento-title item))))
+               (org-memento-planning-item
+                (and clocked-item-id
+                     (equal (org-memento-planning-item-id item)
+                            clocked-item-id)))))
            (insert-block (level item)
              (magit-insert-section (block item)
                (magit-insert-heading
@@ -1401,8 +1413,7 @@ section."
                    (kwd
                     (concat kwd " ")))
                  (org-memento-title item))
-               (when (and org-memento-current-block
-                          (equal org-memento-current-block (org-memento-title item)))
+               (when (current-item-or-block-p item)
                  (highlight-previous-line))))
            (insert-items (level items)
              (pcase-let*
@@ -1412,9 +1423,13 @@ section."
                      (cl-remove-if #'org-memento-order-p)
                      (cl-remove-if #'planned)
                      (-separate #'donep)))
-                  (`(,items-and-blocks-with-time ,items-and-blocks-without-time)
+                  (`(,current-items-and-blocks ,unstarted-items-and-blocks)
                    (thread-last
                      undone-items-and-blocks
+                     (-separate #'current-item-or-block-p)))
+                  (`(,items-and-blocks-with-time ,items-and-blocks-without-time)
+                   (thread-last
+                     unstarted-items-and-blocks
                      (-separate #'org-memento-starting-time)))
                   (`(,items-without-time ,blocks-without-time)
                    (-separate #'org-memento-planning-item-p items-and-blocks-without-time)))
@@ -1426,6 +1441,18 @@ section."
                     (org-memento-timeline-with-overlay
                      ((keymap . org-memento-timeline-planning-map))
                      (insert-planning-item level item)))))
+               (when current-items-and-blocks
+                 (magit-insert-section (items)
+                   (insert-subheading level "In progress")
+                   (dolist (item current-items-and-blocks)
+                     (cl-etypecase item
+                       (org-memento-block
+                        (insert-block level item))
+                       (org-memento-planning-item
+                        (unless org-memento-current-block
+                          (org-memento-timeline-with-overlay
+                           ((keymap . org-memento-timeline-planning-map))
+                           (insert-planning-item level item))))))))
                (when items-without-time
                  (magit-insert-section (items)
                    (insert-subheading level "Not allocated")
