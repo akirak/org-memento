@@ -1334,21 +1334,25 @@ section."
 
 (defun org-memento-timeline-zone-list-section (taxy)
   (when (org-memento-timeline--within-range-p taxy)
-    (let ((now (float-time (org-memento--current-time)))
-          (all-items (append (thread-last
-                               (org-memento-timeline--suggestions taxy)
-                               (mapcan #'cdr)
-                               (mapcan #'identity))
-                             (org-memento--blocks)
-                             (org-memento--planning-items)))
-          (planned-items (thread-last
-                           (org-memento--blocks)
-                           (seq-filter #'org-memento-block-not-closed-p)
-                           (mapcar #'org-memento-get-planning-items)
-                           (apply #'append)))
-          (clocked-item-id (when (org-clocking-p)
-                             (org-with-point-at org-clock-marker
-                               (org-id-get)))))
+    (let* ((now (float-time (org-memento--current-time)))
+           (all-items (append (thread-last
+                                (org-memento-timeline--suggestions taxy)
+                                (mapcan #'cdr)
+                                (mapcan #'identity))
+                              (org-memento--blocks)
+                              (org-memento--planning-items)))
+           (planned-items-map (thread-last
+                                (org-memento--blocks)
+                                (seq-filter #'org-memento-block-not-closed-p)
+                                (mapcar (lambda (block)
+                                          (cons (org-memento-title block)
+                                                (org-memento-get-planning-items block))))))
+           (planned-items (thread-last
+                            (map-values planned-items-map)
+                            (apply #'append)))
+           (clocked-item-id (when (org-clocking-p)
+                              (org-with-point-at org-clock-marker
+                                (org-id-get)))))
       (cl-labels
           ((make-indent (level)
              (make-string (* 2 level) ?\s))
@@ -1414,7 +1418,14 @@ section."
                     (concat kwd " ")))
                  (org-memento-title item))
                (when (current-item-or-block-p item)
-                 (highlight-previous-line))))
+                 (highlight-previous-line))
+               (when-let (items (map-elt planned-items-map (org-memento-title item)))
+                 (magit-insert-section (blocks)
+                   (magit-insert-heading
+                     (make-indent (1+ level))
+                     "TODO")
+                   (dolist (planning-item items)
+                     (insert-planning-item (1+ level) planning-item))))))
            (insert-items (level items)
              (pcase-let*
                  ((`(,done-items-and-blocks ,undone-items-and-blocks)
