@@ -3554,7 +3554,19 @@ GROUP is a group path and FILE is an Org file."
     (cl-flet*
         ((predicate (x)
            (or (and duration-p
-                    (when-let (duration (org-memento-duration x))
+                    (when-let (duration
+                               (or (when (or (org-memento-block-p x)
+                                             (org-memento-planning-item-p x))
+                                     (cond
+                                      ((org-memento-ended-time x)
+                                       (/ (- (org-memento-ended-time x)
+                                             (org-memento-started-time x))
+                                          60))
+                                      ((org-memento-ending-time x)
+                                       (/ (- (org-memento-ending-time x)
+                                             (org-memento-starting-time x))
+                                          60))))
+                                   (org-memento-duration x)))
                       (funcall duration-p duration)))
                (if-let (fn (cl-typecase x
                              (org-memento-planning-item
