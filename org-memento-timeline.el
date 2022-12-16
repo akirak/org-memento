@@ -1427,8 +1427,11 @@ section."
                    (magit-insert-heading
                      (make-indent (1+ level))
                      "TODO")
-                   (dolist (planning-item items)
-                     (insert-planning-item (1+ level) planning-item))))))
+                   (pcase-dolist (`(,id . ,title) items)
+                     (magit-insert-section (item id)
+                       (magit-insert-heading
+                         (make-indent (+ 2 level))
+                         title)))))))
            (insert-items (level items)
              (pcase-let*
                  ((`(,done-items-and-blocks ,undone-items-and-blocks)
