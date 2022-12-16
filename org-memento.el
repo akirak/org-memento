@@ -577,6 +577,10 @@ Return a copy of the list."
   (when-let (ts (org-memento-planning-item-time-of-day-ts x))
     (float-time (org-timestamp-to-time ts))))
 
+(cl-defmethod org-memento-ending-time ((x org-memento-planning-item))
+  (when-let (ts (org-memento-planning-item-time-of-day-ts x))
+    (float-time (org-timestamp-to-time ts t))))
+
 ;;;;; org-memento-order
 
 (cl-defstruct org-memento-order
@@ -3555,17 +3559,20 @@ GROUP is a group path and FILE is an Org file."
         ((predicate (x)
            (or (and duration-p
                     (when-let (duration
-                               (or (when (or (org-memento-block-p x)
-                                             (org-memento-planning-item-p x))
-                                     (cond
-                                      ((org-memento-ended-time x)
-                                       (/ (- (org-memento-ended-time x)
-                                             (org-memento-started-time x))
-                                          60))
-                                      ((org-memento-ending-time x)
-                                       (/ (- (org-memento-ending-time x)
-                                             (org-memento-starting-time x))
-                                          60))))
+                               (or (and (org-memento-block-p x)
+                                        (org-memento-ended-time x)
+                                        (/ (- (org-memento-ended-time x)
+                                              (org-memento-started-time x))
+                                           60))
+                                   (and (or (org-memento-block-p x)
+                                            (and (org-memento-planning-item-p x)
+                                                 (org-with-point-at
+                                                     (org-memento-planning-item-hd-marker x)
+                                                   (org-entry-is-done-p))))
+                                        (org-memento-ending-time x)
+                                        (/ (- (org-memento-ending-time x)
+                                              (org-memento-starting-time x))
+                                           60))
                                    (org-memento-duration x)))
                       (funcall duration-p duration)))
                (if-let (fn (cl-typecase x
