@@ -3570,6 +3570,7 @@ GROUP is a group path and FILE is an Org file."
                                                      (org-memento-planning-item-hd-marker x)
                                                    (org-entry-is-done-p))))
                                         (org-memento-ending-time x)
+                                        (org-memento-starting-time x)
                                         (/ (- (org-memento-ending-time x)
                                               (org-memento-starting-time x))
                                            60))
