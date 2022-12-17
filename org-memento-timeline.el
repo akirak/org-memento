@@ -1234,8 +1234,10 @@ section."
                          45 1))
          (rule-pos (max 0 (1- (floor (* gauge-width threshold)))))
          ;; This can be a constant, but it is tedious.
-         (row-format "| %-16s |%6s /%6s | %s%4.f%%")
-         (total-actual 0)
+         (row-format-1 "| %-16s |%6s /%6s | %s%4.f%%")
+         (row-format-2 "| %-16s |%6s %7s | ")
+         (total-controlled 0)
+         (total-worked 0)
          (total-goal 0))
     (cl-labels
         ((test-budget (span level x)
@@ -1271,7 +1273,7 @@ section."
                                 (org-memento--format-group group-path)))
                   (magit-insert-heading
                     (make-string 2 ?\s)
-                    (format row-format
+                    (format row-format-1
                             (propertize (truncate-string-to-width
                                          (concat (make-string depth ?\s)
                                                  (or title
@@ -1298,7 +1300,8 @@ section."
                               (buffer-string))
                             (* 100 rate)))
                   (when (= depth 0)
-                    (cl-incf total-actual (min sum goal))
+                    (cl-incf total-controlled (min sum goal))
+                    (cl-incf total-worked sum)
                     (cl-incf total-goal goal)))))
              (dolist (subtaxy (sort-taxys (taxy-taxys group-taxy)))
                (insert-group (1+ depth) subtaxy)))))
@@ -1313,12 +1316,13 @@ section."
                               (org-memento-taxy-trees-with-item)
                               (sort-taxys)))
           (insert-group 0 group-taxy))
-        (let* ((rate (/ total-actual total-goal))
+        (let* ((rate (/ total-controlled total-goal))
                (w1 (round (* rate gauge-width))))
           (insert (make-string 2 ?\s)
-                  (propertize (format row-format
-                                      (propertize "Total" 'face 'magit-section-heading)
-                                      (propertize (org-memento--format-duration total-actual)
+                  (propertize (format row-format-1
+                                      (propertize "Total controlled"
+                                                  'face 'magit-section-heading)
+                                      (propertize (org-memento--format-duration total-controlled)
                                                   'face
                                                   (if (> rate threshold)
                                                       'org-memento-timeline-complete-face
@@ -1333,6 +1337,12 @@ section."
                                         (buffer-string))
                                       (* 100 rate))
                               'face '(:overline t))
+                  "\n")
+          (insert (make-string 2 ?\s)
+                  (format row-format-2
+                          "Total worked"
+                          (org-memento--format-duration total-worked)
+                          "")
                   "\n"))))))
 
 (defun org-memento-timeline-zone-list-section (taxy)
