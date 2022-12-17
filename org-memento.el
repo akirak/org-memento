@@ -336,6 +336,12 @@ to extend the time for the current block when the time runs out."
   "When to display the timeline."
   :type '(set (const :tag "After exiting a block" after-exit)))
 
+(defcustom org-memento-new-block-title-fn #'org-memento-new-block-title-1
+  "Function to generate the default heading of a retry block.
+
+It takes two arguments: the old heading and the todo keyword of the failed block."
+  :type 'function)
+
 ;;;; Variables
 
 (defvar org-memento-init-done nil)
@@ -1768,7 +1774,9 @@ This function creates a follow-up task according to the value of
      (let* ((heading (and (looking-at org-complex-heading-regexp)
                           (match-string-no-properties 4)))
             (heading (read-from-minibuffer "Title of the duplicate block: "
-                                           heading nil nil nil nil t))
+                                           (funcall org-memento-new-block-title-fn
+                                                    heading keyword)
+                                           nil nil nil nil t))
             (tags (org-get-tags nil 'local))
             (todo (plist-get plist :todo-keyword))
             (body (org-memento--duplicate-body))
@@ -1812,6 +1820,18 @@ This function creates a follow-up task according to the value of
                   body)
           (unless (bolp)
             (newline))))))))
+
+(defun org-memento-new-block-title-1 (old-heading _keyword)
+  (pcase old-heading
+    ((rx bol "Cont. (" (group (+ digit)) ")" (+ space) (group (+ anything)))
+     (format "Cont. (%d) %s"
+             (1+ (string-to-number (match-string 1 old-heading)))
+             (match-string 2 old-heading)))
+    ((rx bol "Cont." (+ space) (group (+ anything)))
+     (format "Cont. (1) %s"
+             (match-string 1 old-heading)))
+    (_
+     (concat "Cont. " old-heading))))
 
 (defun org-memento--duplicate-body ()
   "Return the body of a copy of the current entry."
