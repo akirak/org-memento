@@ -339,7 +339,8 @@ to extend the time for the current block when the time runs out."
 (defcustom org-memento-new-block-title-fn #'org-memento-new-block-title-1
   "Function to generate the default heading of a retry block.
 
-It takes two arguments: the old heading and the todo keyword of the failed block."
+It takes two arguments: the old heading and the todo keyword of
+the failed block."
   :type 'function)
 
 ;;;; Variables
