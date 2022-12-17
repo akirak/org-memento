@@ -1216,7 +1216,7 @@ The point must be after a \"CLOCK:\" string."
                   ((and (pred numberp)
                         (guard (> spec 0)))
                    (run-with-timer (* spec 60) nil
-                                   `(lambda (_)
+                                   `(lambda ()
                                       (org-memento--notify-end
                                        ,(unless (< (- minutes spec) 1)
                                           (- minutes spec))))))
@@ -1224,7 +1224,7 @@ The point must be after a \"CLOCK:\" string."
                    (run-with-timer (* minutes 60) nil #'org-memento--notify-end))
                   (`(,diff . ,fmt)
                    (run-with-timer (* diff 60) nil
-                                   `(lambda (_)
+                                   `(lambda ()
                                       (org-notify
                                        (format ,fmt org-memento-current-block)))))
                   (_
