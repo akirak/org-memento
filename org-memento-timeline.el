@@ -1320,13 +1320,8 @@ section."
                (w1 (round (* rate gauge-width))))
           (insert (make-string 2 ?\s)
                   (propertize (format row-format-1
-                                      (propertize "Total controlled"
-                                                  'face 'magit-section-heading)
-                                      (propertize (org-memento--format-duration total-controlled)
-                                                  'face
-                                                  (if (> rate threshold)
-                                                      'org-memento-timeline-complete-face
-                                                    'org-memento-timeline-insufficient-face))
+                                      "Total controlled"
+                                      (org-memento--format-duration total-controlled)
                                       (org-memento--format-duration total-goal)
                                       (with-temp-buffer
                                         (insert (make-string w1 ?o)
