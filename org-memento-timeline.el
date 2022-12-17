@@ -856,6 +856,10 @@ If ARG is non-nil, create an away event."
                      (away
                       (adjust-ts marker t)
                       t)
+                     ;; Can be an entry from org-agenda-files or away event
+                     (org-event
+                      (adjust-ts marker t)
+                      t)
                      (gap
                       (add-event start end t arg))
                      (anonymous
