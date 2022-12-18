@@ -1027,6 +1027,13 @@ At present, it runs `org-memento-timeline'."
        (add-hook 'org-memento-update-hook #'org-memento--oneshot-timeline))
      (org-memento-log-update))))
 
+(defun org-memento-cancel-block ()
+  "Revert the state of the current block."
+  (interactive)
+  (org-memento-with-current-block
+    (org-entry-delete nil "MEMENTO_CHECKIN_TIME"))
+  (org-memento-status))
+
 ;;;###autoload
 (defun org-memento-open-journal (&optional arg)
   "Open the current block, the next block, or the daily entry."
