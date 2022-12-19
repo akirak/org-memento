@@ -1714,7 +1714,7 @@ section."
                (add-item (or (org-memento-select-order "Select a task to add: "
                                                        suggestions)
                              (user-error "Not selected"))
-                         nil
+                         t
                          (when (and slot-start slot-end)
                            (list slot-start slot-end)))
              (fallback group-path duration)))
