@@ -1715,7 +1715,8 @@ section."
                                                        suggestions)
                              (user-error "Not selected"))
                          nil
-                         (list slot-start slot-end))
+                         (when (and slot-start slot-end)
+                           (list slot-start slot-end)))
              (fallback group-path duration)))
          (has-title (title block)
            (equal title (org-memento-title block)))
