@@ -1124,7 +1124,13 @@ point to the heading.
 With a universal argument, you can specify the time of check out."
   (interactive "P")
   (when org-memento-current-block
-    (call-interactively #'org-memento-finish-block))
+    (user-error "There is a running block. Please finish it first"))
+  (when-let (blocks (thread-last
+                      (org-memento--blocks)
+                      (seq-filter #'org-memento-block-not-closed-p)))
+    (if (yes-or-no-p "Carry-over blocks to the next day?")
+        (org-memento--carry-over blocks)
+      (user-error "Aborted")))
   (org-memento-with-today-entry
    ;; If org-read-date is aborted, the entire checkout command will be aborted.
    (let ((time (when arg (org-read-date t t))))
@@ -1134,6 +1140,25 @@ With a universal argument, you can specify the time of check out."
    (org-memento--save-buffer)
    (setq org-memento-block-idle-logging t)
    (run-hooks 'org-memento-checkout-hook)))
+
+(defun org-memento--carry-over (blocks &optional date)
+  "Carry over BLOCKS to a future DATE."
+  (let* ((date (or date (org-memento--next-date)))
+         (rfloc (with-current-buffer (org-memento--buffer)
+                  (org-memento--goto-date date)
+                  (list date (buffer-file-name) nil (point)))))
+    (org-memento-with-today-entry
+     (let ((bound (save-excursion
+                    (org-end-of-subtree))))
+       (dolist (title (mapcar #'org-memento-title blocks))
+         (catch 'refiled
+           (save-excursion
+             (while (re-search-forward (format org-complex-heading-regexp-format title)
+                                       bound t)
+               (when (= (- (match-end 1) (match-beginning 1)) 2)
+                 (org-refile nil nil rfloc)
+                 (throw 'refiled t)))
+             (error "Heading \"%s\" was not found" title))))))))
 
 (defun org-memento-set-checkout-time ()
   "Extend the checkout time of the day."
@@ -2629,6 +2654,19 @@ marker to the time stamp, and the margin in seconds."
                  (when (memq ,dow (car cell))
                    (cdr cell)))
               org-memento-workhour-alist)))
+
+(defun org-memento--next-date ()
+  "Return the date of the next work day."
+  (let ((dows (mapcan #'car org-memento-workhour-alist)))
+    (cl-labels
+        ((go (decoded-time)
+           (if (memq (decoded-time-weekday decoded-time) dows)
+               decoded-time
+             (go (decoded-time-add decoded-time (make-decoded-time :day 1))))))
+      (format-time-string "%F" (encode-time (go (thread-first
+                                                  (org-memento--current-time)
+                                                  (decode-time)
+                                                  (org-memento--start-of-day))))))))
 
 ;;;; Planning
 
