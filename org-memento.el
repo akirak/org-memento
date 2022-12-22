@@ -1034,6 +1034,25 @@ At present, it runs `org-memento-timeline'."
     (org-entry-delete nil "MEMENTO_CHECKIN_TIME"))
   (org-memento-status))
 
+(defun org-memento-rename-current-block (new-title)
+  "Rename the currently running block."
+  (interactive (list (if org-memento-current-block
+                         (org-memento-read-title
+                             (format-prompt "Rename the current block"
+                                            org-memento-current-block)
+                           :default org-memento-current-block)
+                       (user-error "No current block"))))
+  (unless org-memento-current-block
+    (user-error "No current block"))
+  (org-memento-with-current-block
+    (org-back-to-heading)
+    (if (org-match-line org-complex-heading-regexp)
+        (progn
+          (replace-match new-title nil nil nil 4)
+          (setq org-memento-current-block new-title)
+          (org-align-tags))
+      (error "Failed to match org-complex-heading-regexp"))))
+
 ;;;###autoload
 (defun org-memento-open-journal (&optional arg)
   "Open the current block, the next block, or the daily entry."
