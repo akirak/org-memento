@@ -1898,10 +1898,10 @@ This function creates a follow-up task according to the value of
                               ;; Properties should be scanned separately
                               '("LOGBOOK" "PROPERTIES"))))
             (let ((pos (point)))
-              (org-end-of-meta-data)
+              (org-end-of-meta-data t)
               (push (buffer-substring-no-properties pos (point))
                     texts))
-          (org-end-of-meta-data)))
+          (org-end-of-meta-data t)))
       (when (looking-at org-ts-regexp)
         (goto-char (match-end 0))
         (when (and (eolp) (not (bolp)))
