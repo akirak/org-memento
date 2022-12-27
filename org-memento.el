@@ -2816,20 +2816,19 @@ marker to the time stamp, and the margin in seconds."
                (org-fold-show-all)
                (goto-char (point-min))
                (while (re-search-forward org-planning-line-re nil t)
-                 (when (catch 'today
-                         (while (re-search-forward org-ts-regexp (pos-eol) t)
-                           (let ((time (org-timestamp-to-time
-                                        (org-timestamp-from-string (match-string 0)))))
-                             (when (and (time-less-p time (org-memento--current-time))
-                                        (not (time-less-p time last-midnight)))
-                               (throw 'today t)))))
+                 (when-let (time (catch 'time
+                                   (while (re-search-forward org-ts-regexp (pos-eol) t)
+                                     (let ((time (org-timestamp-to-time
+                                                  (org-timestamp-from-string (match-string 0)))))
+                                       (when (time-less-p time (org-memento--current-time))
+                                         (throw 'time time))))))
                    (save-excursion
                      (org-back-to-heading)
                      (looking-at org-complex-heading-regexp)
                      (unless (or (org-memento--maybe-skip-by-tag t)
-                                 ;; (member (match-string 2) org-done-keywords)
                                  ;; (has-future-time)
-                                 )
+                                 (and (time-less-p time last-midnight)
+                                      (member (match-string 2) org-done-keywords)))
                        (push (make-org-memento-planning-item
                               :hd-marker (point-marker)
                               :heading (match-string-no-properties 4)
