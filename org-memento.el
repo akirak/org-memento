@@ -1303,30 +1303,31 @@ The point must be after a \"CLOCK:\" string."
     (user-error "No current block"))
   (let* ((now (float-time (org-memento--current-time)))
          (input (org-memento--read-duration
-                 "How long do you want to extend from now? "
+                 "How long do you want to extend from now (or empty to finish)? "
                  :check-next-event t
                  :default 30
-                 :now now))
-         (new-end-time (+ now (* 60 (org-duration-to-minutes input)))))
-    (org-memento-with-current-block
-      (org-back-to-heading)
-      (org-end-of-meta-data t)
-      (let* ((had-ts (looking-at org-ts-regexp))
-             (start (save-match-data
-                      (thread-last
-                        (org-entry-get nil "MEMENTO_CHECKIN_TIME")
-                        (org-timestamp-from-string)
-                        (org-timestamp-to-time)))))
-        (when had-ts
-          (replace-match ""))
-        (unless (bolp) (insert "\n"))
-        (insert (org-memento--format-timestamp start new-end-time))
-        (unless had-ts (insert "\n"))))
-    (org-memento--cancel-next-event-timer)
-    (org-memento--status)
-    (org-memento--setup-block-timers)
-    (org-memento-log-update)))
-
+                 :now now)))
+    (if (string-empty-p input)
+        (org-memento-finish-block '(4))
+      (let ((new-end-time (+ now (* 60 (org-duration-to-minutes input)))))
+        (org-memento-with-current-block
+          (org-back-to-heading)
+          (org-end-of-meta-data t)
+          (let* ((had-ts (looking-at org-ts-regexp))
+                 (start (save-match-data
+                          (thread-last
+                            (org-entry-get nil "MEMENTO_CHECKIN_TIME")
+                            (org-timestamp-from-string)
+                            (org-timestamp-to-time)))))
+            (when had-ts
+              (replace-match ""))
+            (unless (bolp) (insert "\n"))
+            (insert (org-memento--format-timestamp start new-end-time))
+            (unless had-ts (insert "\n"))))
+        (org-memento--cancel-next-event-timer)
+        (org-memento--status)
+        (org-memento--setup-block-timers)
+        (org-memento-log-update)))))
 (defun org-memento--cancel-block-timers ()
   (mapc #'cancel-timer org-memento-block-timers)
   (setq org-memento-block-timers nil))
