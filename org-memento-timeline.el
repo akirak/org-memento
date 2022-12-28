@@ -643,6 +643,7 @@ triggered by an interval timer."
     (define-key map "r" #'org-memento-timeline-rename)
     (define-key map "o" #'org-memento-timeline-open-entry)
     (define-key map "D" #'org-memento-timeline-delete-entry)
+    (define-key map (kbd "C-c C-n") #'org-memento-timeline-next-actionable-item)
     (define-key map (kbd "SPC") #'org-memento-timeline-show-entry)
     map))
 
@@ -894,6 +895,28 @@ If ARG is non-nil, create an away event."
                                                    nil nil nil nil 'inherit))))
         (replace-match new-headline nil nil nil 4)))
     (org-memento-timeline-revert)))
+
+(defun org-memento-timeline-next-actionable-item (&optional bound)
+  "Move point to the next actionable item in the timeline."
+  (interactive)
+  (let ((start (point)))
+    (if-let (section (catch 'section
+                       (while-let ((pos (and (< (point) (or bound (point-max)))
+                                             (next-single-property-change (point)
+                                                                          'magit-section))))
+                         (goto-char pos)
+                         (when-let (section (magit-current-section))
+                           (when (org-memento-timeline--actionable-p section)
+                             (throw 'section section))))))
+        (save-excursion
+          (while (magit-section-invisible-p section)
+            (magit-section-up)
+            (magit-section-show-headings (magit-current-section))))
+      (goto-char start))))
+
+(defun org-memento-timeline--actionable-p (section)
+  (memq (oref section type) '(generated-task
+                              planning)))
 
 ;;;; Utility functions
 
