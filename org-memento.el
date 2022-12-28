@@ -924,12 +924,14 @@ and starting it will affect execution of other events. Please manually moderate 
                                       (org-memento-title upnext-event))))
             (org-memento-start-block (org-memento-title upnext-event)))
            (t
-            (let ((blank-time (/ (- (or (when next-event-time
-                                          (- next-event-time (* 60 org-memento-margin-minutes)))
-                                        checkout-time)
-                                    now)
-                                 60)))
-              (unless (org-memento-pick-next-action blank-time)
+            (let* ((upcoming-time (or (when next-event-time
+                                        (- next-event-time (* 60 org-memento-margin-minutes)))
+                                      checkout-time))
+                   (blank-time (when upcoming-time
+                                 (/ (- upcoming-time now)
+                                    60))))
+              (unless (and blank-time
+                           (org-memento-pick-next-action blank-time))
                 (message "Nothing to do. Running the fallback action")
                 (call-interactively org-memento-next-action-fallback))))))))))
 
