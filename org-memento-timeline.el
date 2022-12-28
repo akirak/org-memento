@@ -773,6 +773,17 @@ If ARG is non-nil, create an away event."
            (org-with-point-at marker
              (org-memento-adjust-time
               :new-start new-start))))
+       (reschedule (start end title marker)
+         (pcase-exhaustive (org-memento-timeline--find-slot
+                            title (when end
+                                    (/ (- end start) 60)))
+           ;; Manually entered starting time
+           (`(,slot-start)
+            (update-ts marker slot-start)
+            t)
+           (`(,slot-start . ,_)
+            (update-ts marker (+ slot-start (* 60 org-memento-margin-minutes)))
+            t)))
        (schedule-new-block (start end-bound)
          (pcase-exhaustive (org-memento--read-time-span
                             (org-memento--format-active-range
@@ -837,23 +848,15 @@ If ARG is non-nil, create an away event."
                   (`(,start ,end ,title ,marker ,type . ,_)
                    (cl-case type
                      (dismissed
-                      ;; TODO:
-                      (pcase-exhaustive (org-memento-timeline--find-slot
-                                         title (when end
-                                                 (/ (- end start) 60)))
-                        ;; Manually entered starting time
-                        (`(,slot-start)
-                         (update-ts marker slot-start)
-                         t)
-                        (`(,slot-start . ,_)
-                         (update-ts marker (+ slot-start (* 60 org-memento-margin-minutes)))
-                         t)))
+                      (reschedule start end title marker))
                      (block
                       ;; Only allow adjusting time of future events.
-                      (when (or (not start)
-                                (> start now))
+                      (cond
+                       ((not start)
+                        (reschedule start end title marker))
+                       ((> start now)
                         (adjust-ts marker)
-                        t))
+                        t)))
                      (away
                       (adjust-ts marker t)
                       t)
