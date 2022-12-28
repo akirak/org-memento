@@ -909,10 +909,19 @@ If ARG is non-nil, create an away event."
                            (when (org-memento-timeline--actionable-p section)
                              (throw 'section section))))))
         (save-excursion
-          (while (magit-section-invisible-p section)
+          (while (and (magit-section-invisible-p section)
+                      (not (org-memento-timeline--zone-complete-p section)))
             (magit-section-up)
             (magit-section-show-headings (magit-current-section))))
       (goto-char start))))
+
+(defun org-memento-timeline--zone-complete-p (section)
+  (and (eq (oref section type) 'zone)
+       (when-let* ((plist (cdr (oref section value)))
+                   (spent (plist-get plist :spent))
+                   (goal (plist-get plist :goal)))
+         (and (> goal 0)
+              (> spent goal)))))
 
 (defun org-memento-timeline--actionable-p (section)
   (memq (oref section type) '(generated-task
