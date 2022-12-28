@@ -924,8 +924,11 @@ If ARG is non-nil, create an away event."
               (> spent goal)))))
 
 (defun org-memento-timeline--actionable-p (section)
-  (memq (oref section type) '(generated-task
-                              planning)))
+  (let ((type (oref section type)))
+    (or (memq type '(generated-task
+                     planning))
+        (and (eq type 'block)
+             (org-memento-block-not-closed-p (oref section value))))))
 
 ;;;; Utility functions
 
