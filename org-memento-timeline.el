@@ -936,6 +936,7 @@ If ARG is non-nil, create an away event."
          (org-memento-planning-item-hd-marker value))
         ((pred org-memento-block-p)
          (org-memento-block-hd-marker value))
+        ((guard (eq 'zone (oref section type))))
         ((and `(,x . ,_)
               (guard (org-memento-block-p x)))
          (org-memento-block-hd-marker x))
@@ -1553,34 +1554,34 @@ section."
                (concat org-memento-timeline-done-format " "))
               (t
                "  ")))
-           (format-meta (zone-taxy &optional others)
-             (let* ((spent (thread-last
-                             (if others
-                                 (taxy-items zone-taxy)
-                               (taxy-flatten zone-taxy))
+           (format-meta (&key spent planned goal)
+             (format-spec (propertize " (%d spent%p%g)"
+                                      'face 'default)
+                          `((?d . ,(org-memento--format-duration spent))
+                            (?p . ,(if (and planned (> planned 0))
+                                       (format " / %s planned"
+                                               (org-memento--format-duration
+                                                (+ planned spent)))
+                                     ""))
+                            (?g . ,(if goal
+                                       (format " / %s goal" goal)
+                                     "")))))
+           (insert-zone (level zone-taxy)
+             (let* ((plist (cdr (taxy-name zone-taxy)))
+                    (spent (thread-last
+                             (taxy-flatten zone-taxy)
                              (mapcar #'done-duration)
                              (sum-duration)))
-                    (planned (unless others
-                               (thread-last
-                                 (taxy-flatten zone-taxy)
-                                 (mapcar #'planned-duration)
-                                 (sum-duration))))
-                    (goal (unless others
-                            (plist-get (cdr (taxy-name zone-taxy)) :duration))))
-               (format-spec (propertize " (%d spent%p%g)"
-                                        'face 'default)
-                            `((?d . ,(org-memento--format-duration spent))
-                              (?p . ,(if (and planned (> planned 0))
-                                         (format " / %s planned"
-                                                 (org-memento--format-duration
-                                                  (+ planned spent)))
-                                       ""))
-                              (?g . ,(if goal
-                                         (format " / %s goal" goal)
-                                       ""))))))
-           (insert-zone (level zone-taxy)
-             (let ((plist (cdr (taxy-name zone-taxy))))
-               (magit-insert-section (zone (car (taxy-name zone-taxy))
+                    (planned (thread-last
+                               (taxy-flatten zone-taxy)
+                               (mapcar #'planned-duration)
+                               (sum-duration)))
+                    (goal (plist-get plist :duration)))
+               (magit-insert-section (zone (cons (car (taxy-name zone-taxy))
+                                                 (list :spent spent
+                                                       :planned planned
+                                                       :goal (when goal
+                                                               (org-duration-to-minutes goal))))
                                            (plist-get plist :complete))
                  (magit-insert-heading
                    (unless (= 0 level)
@@ -1590,7 +1591,7 @@ section."
                    (propertize (or (car (taxy-name zone-taxy))
                                    "Zones")
                                'face 'magit-section-heading)
-                   (format-meta zone-taxy))
+                   (format-meta :spent spent :planned planned :goal goal))
                  (when-let (description (taxy-description zone-taxy))
                    (insert (make-indent level)
                            (propertize description 'face 'font-lock-comment-face)
@@ -1600,12 +1601,16 @@ section."
                        (dolist (subtaxy (taxy-taxys zone-taxy))
                          (insert-zone (1+ level) subtaxy))
                        (when (taxy-items zone-taxy)
-                         (magit-insert-section (zone (taxy-name zone-taxy))
+                         (magit-insert-section (zone (cons (taxy-name zone-taxy)
+                                                           nil))
                            (magit-insert-heading
                              (format-zone-status zone-taxy)
                              (make-indent level)
                              (propertize "Others" 'face 'magit-section-heading)
-                             (format-meta zone-taxy 'others))
+                             (format-meta :spent (thread-last
+                                                   (taxy-items zone-taxy)
+                                                   (mapcar #'done-duration)
+                                                   (sum-duration))))
                            (insert-items (1+ level) (taxy-items zone-taxy)))))
                    (insert-items level (taxy-items zone-taxy)))
                  (when-let (groups (plist-get plist :groups))
