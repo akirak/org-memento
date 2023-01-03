@@ -1149,10 +1149,10 @@ With a universal argument, you can specify the time of check out."
          (rfloc (with-current-buffer (org-memento--buffer)
                   (org-memento--goto-date date)
                   (list date (buffer-file-name) nil (point)))))
-    (org-memento-with-today-entry
-     (let ((bound (save-excursion
-                    (org-end-of-subtree))))
-       (dolist (title (mapcar #'org-memento-title blocks))
+    (dolist (title (mapcar #'org-memento-title blocks))
+      (org-memento-with-today-entry
+       (let ((bound (save-excursion
+                      (org-end-of-subtree))))
          (catch 'refiled
            (save-excursion
              (while (re-search-forward (format org-complex-heading-regexp-format title)
@@ -2662,14 +2662,17 @@ marker to the time stamp, and the margin in seconds."
   "Return the date of the next work day."
   (let ((dows (mapcan #'car org-memento-workhour-alist)))
     (cl-labels
-        ((go (decoded-time)
+        ((inc-day (decoded-time)
+           (decoded-time-add decoded-time (make-decoded-time :day 1)))
+         (go (decoded-time)
            (if (memq (decoded-time-weekday decoded-time) dows)
                decoded-time
-             (go (decoded-time-add decoded-time (make-decoded-time :day 1))))))
+             (go (inc-day decoded-time)))))
       (format-time-string "%F" (encode-time (go (thread-first
                                                   (org-memento--current-time)
                                                   (decode-time)
-                                                  (org-memento--start-of-day))))))))
+                                                  (org-memento--start-of-day)
+                                                  (inc-day))))))))
 
 ;;;; Planning
 
