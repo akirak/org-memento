@@ -77,8 +77,12 @@ timeline as an argument."
                  (const :tag "Beginning of the buffer" nil)))
 
 (defcustom org-memento-timeline-hide-planning t
-  "Whether to hide the planning section when in a block."
-  :type 'boolean)
+  "Whether to hide the planning section when in a block.
+
+Alternatively, the value can be a function that takes the group
+of the current block as an argument. If the function returns
+non-nil, the section will be hidden."
+  :type '(choice boolean function))
 
 (defcustom org-memento-timeline-refresh-interval 180
   "Interval in seconds to refresh the timeline."
@@ -1854,10 +1858,22 @@ section."
                       #'always))))))
 
 (defun org-memento-timeline-planning-sections (taxy)
-  (when (and (or (not org-memento-timeline-hide-planning)
-                 (not org-memento-current-block))
-             (eq org-memento-timeline-span 'day))
+  (when (and (eq org-memento-timeline-span 'day)
+             (or (not org-memento-current-block)
+                 (org-memento-timeline--show-planning-p)))
     (run-hook-with-args 'org-memento-timeline-planning-hook taxy)))
+
+(defun org-memento-timeline--show-planning-p ()
+  (cl-etypecase org-memento-timeline-hide-planning
+    (boolean
+     (not org-memento-timeline-hide-planning))
+    (function
+     (when-let (block (seq-find `(lambda (x)
+                                   (equal (org-memento-title x)
+                                          ,org-memento-current-block))
+                                (org-memento--blocks)))
+       (funcall org-memento-timeline-hide-planning
+                (org-memento--get-group (org-memento-headline-element block)))))))
 
 (defvar org-memento-timeline-planning-map
   (let ((map (make-sparse-keymap)))
