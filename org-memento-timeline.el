@@ -903,24 +903,48 @@ If ARG is non-nil, create an away event."
         (replace-match new-headline nil nil nil 4)))
     (org-memento-timeline-revert)))
 
-(defun org-memento-timeline-next-actionable-item (&optional bound)
-  "Move point to the next actionable item in the timeline."
-  (interactive)
-  (let ((start (point)))
-    (if-let (section (catch 'section
-                       (while-let ((pos (and (< (point) (or bound (point-max)))
-                                             (next-single-property-change (point)
-                                                                          'magit-section))))
-                         (goto-char pos)
-                         (when-let (section (magit-current-section))
-                           (when (org-memento-timeline--actionable-p section)
-                             (throw 'section section))))))
-        (save-excursion
-          (while (and (magit-section-invisible-p section)
-                      (not (org-memento-timeline--zone-complete-p section)))
-            (magit-section-up)
-            (magit-section-show-headings (magit-current-section))))
-      (goto-char start))))
+(defvar org-memento-timeline-current-zone nil
+  "Path to the last visited zone.")
+
+(defun org-memento-timeline-next-actionable-item (&optional arg)
+  "Move point to the next actionable item in the timeline.
+
+With two universal prefixes, the function moves the point to the
+last visited zone with the same command."
+  (interactive "P")
+  (if (equal arg '(16))
+      (org-memento-timeline--goto-zone org-memento-timeline-current-zone)
+    (let ((start (point)))
+      (if-let (section (catch 'section
+                         (while-let ((pos (and (< (point) (point-max))
+                                               (next-single-property-change (point)
+                                                                            'magit-section))))
+                           (goto-char pos)
+                           (when-let (section (magit-current-section))
+                             (cond
+                              ((org-memento-timeline--actionable-p section)
+                               (throw 'section section))
+                              ((eq 'zone (oref section type))
+                               (setq org-memento-timeline-current-zone
+                                     (car (oref section value)))))))))
+          (save-excursion
+            (while (and (magit-section-invisible-p section)
+                        (not (org-memento-timeline--zone-complete-p section)))
+              (magit-section-up)
+              (magit-section-show-headings (magit-current-section))))
+        (goto-char start)))))
+
+(defun org-memento-timeline--goto-zone (path)
+  (let ((pos (point)))
+    (goto-char (point-min))
+    (catch 'found
+      (while (text-property-search-forward 'magit-section)
+        (when-let (section (magit-current-section))
+          (when (and (eq 'zone (oref section type))
+                     (equal path (car (oref section value))))
+            (throw 'found (point)))))
+      (goto-char pos)
+      (message "Path %s is not found" path))))
 
 (defun org-memento-timeline--zone-complete-p (section)
   (and (eq (oref section type) 'zone)
