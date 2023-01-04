@@ -937,6 +937,16 @@ If ARG is non-nil, create an away event."
         (and (eq type 'block)
              (org-memento-block-not-closed-p (oref section value))))))
 
+(defun org-memento-timeline-carry-over ()
+  "Carry over the block at point."
+  (interactive)
+  (when-let (section (magit-current-section))
+    (if (eq 'block (oref section type))
+        (org-with-point-at (org-memento-block-hd-marker (oref section value))
+          (org-memento-carry-over-item (org-read-date nil nil nil
+                                                      "Carry over")))
+      (user-error "Not on a block"))))
+
 ;;;; Utility functions
 
 (defun org-memento-timeline--within-range-p (taxy)

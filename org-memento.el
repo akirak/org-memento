@@ -1143,12 +1143,24 @@ With a universal argument, you can specify the time of check out."
    (setq org-memento-block-idle-logging t)
    (run-hooks 'org-memento-checkout-hook)))
 
+(defun org-memento-carry-over-item (date)
+  "Carry over the memento entry at point."
+  (interactive (list (org-read-date)))
+  (unless (and (derived-mode-p 'org-mode)
+               (file-equal-p org-memento-file
+                             (buffer-file-name (org-base-buffer (current-buffer)))))
+    (user-error "This command must be run from inside org-memento-file buffer"))
+  (pcase (org-outline-level)
+    (1 (user-error "Not on a block"))
+    (2 (org-refile nil nil (org-memento--rfloc-on-date date)))
+    (_ (org-with-wide-buffer
+        (re-search-backward (rx bol "**" blank))
+        (org-refile nil nil (org-memento--rfloc-on-date date))))))
+
 (defun org-memento--carry-over (blocks &optional date)
   "Carry over BLOCKS to a future DATE."
   (let* ((date (or date (org-memento--next-date)))
-         (rfloc (with-current-buffer (org-memento--buffer)
-                  (org-memento--goto-date date)
-                  (list date (buffer-file-name) nil (point)))))
+         (rfloc (org-memento--rfloc-on-date date)))
     (dolist (title (mapcar #'org-memento-title blocks))
       (org-memento-with-today-entry
        (let ((bound (save-excursion
@@ -1161,6 +1173,12 @@ With a universal argument, you can specify the time of check out."
                  (org-refile nil nil rfloc)
                  (throw 'refiled t)))
              (error "Heading \"%s\" was not found" title))))))))
+
+(defun org-memento--rfloc-on-date (date)
+  (with-current-buffer (org-memento--buffer)
+    (org-with-wide-buffer
+     (org-memento--goto-date date)
+     (list date (buffer-file-name) nil (point)))))
 
 (defun org-memento-set-checkout-time ()
   "Extend the checkout time of the day."
