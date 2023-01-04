@@ -1598,8 +1598,13 @@ section."
                             (?g . ,(if goal
                                        (format " / %s goal" goal)
                                      "")))))
-           (insert-zone (level zone-taxy)
-             (let* ((plist (cdr (taxy-name zone-taxy)))
+           (insert-zone (parent-zone-path zone-taxy)
+             (let* ((level (length parent-zone-path))
+                    (label (car (taxy-name zone-taxy)))
+                    (zone-path (append parent-zone-path
+                                       (when label
+                                         (list label))))
+                    (plist (cdr (taxy-name zone-taxy)))
                     (spent (thread-last
                              (taxy-flatten zone-taxy)
                              (mapcar #'done-duration)
@@ -1609,16 +1614,16 @@ section."
                                (mapcar #'planned-duration)
                                (sum-duration)))
                     (goal (plist-get plist :duration)))
-               (magit-insert-section (zone (cons (car (taxy-name zone-taxy))
+               (magit-insert-section (zone (cons zone-path
                                                  (list :spent spent
                                                        :planned planned
                                                        :goal (when goal
                                                                (org-duration-to-minutes goal))))
                                            (plist-get plist :complete))
                  (magit-insert-heading
-                   (unless (= 0 level)
+                   (when parent-zone-path
                      (make-indent (1- level)))
-                   (unless (= 0 level)
+                   (when parent-zone-path
                      (format-zone-status zone-taxy))
                    (propertize (or (car (taxy-name zone-taxy))
                                    "Zones")
@@ -1631,7 +1636,7 @@ section."
                  (if (taxy-taxys zone-taxy)
                      (progn
                        (dolist (subtaxy (taxy-taxys zone-taxy))
-                         (insert-zone (1+ level) subtaxy))
+                         (insert-zone zone-path subtaxy))
                        (when (taxy-items zone-taxy)
                          (magit-insert-section (zone (cons (taxy-name zone-taxy)
                                                            nil))
@@ -1654,10 +1659,10 @@ section."
                          (make-indent (1+ level))
                          (org-memento--format-group group)))))))))
         (if org-memento-zone-taxy
-            (insert-zone 0 (thread-last
-                             (copy-taxy org-memento-zone-taxy)
-                             (taxy-emptied)
-                             (taxy-fill all-items)))
+            (insert-zone nil (thread-last
+                               (copy-taxy org-memento-zone-taxy)
+                               (taxy-emptied)
+                               (taxy-fill all-items)))
           (magit-insert-section (zones)
             (magit-insert-heading "Tasks")
             (insert-items 0 all-items)))))
