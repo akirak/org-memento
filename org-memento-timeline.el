@@ -779,8 +779,10 @@ If ARG is non-nil, create an away event."
               :new-start new-start))))
        (reschedule (start end title marker)
          (pcase-exhaustive (org-memento-timeline--find-slot
-                            title (when end
-                                    (/ (- end start) 60)))
+                            title (or (when end
+                                        (/ (- end start) 60))
+                                      (when-let (effort (org-entry-get marker "Effort"))
+                                        (org-duration-to-minutes effort))))
            ;; Manually entered starting time
            (`(,slot-start)
             (update-ts marker slot-start)
