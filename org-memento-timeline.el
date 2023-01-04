@@ -1623,11 +1623,11 @@ section."
                                        (format " / %s goal" goal)
                                      "")))))
            (insert-zone (parent-zone-path zone-taxy)
-             (let* ((level (length parent-zone-path))
-                    (label (car (taxy-name zone-taxy)))
+             (let* ((label (car (taxy-name zone-taxy)))
                     (zone-path (append parent-zone-path
                                        (when label
                                          (list label))))
+                    (level (length zone-path))
                     (plist (cdr (taxy-name zone-taxy)))
                     (spent (thread-last
                              (taxy-flatten zone-taxy)
@@ -1645,8 +1645,9 @@ section."
                                                                (org-duration-to-minutes goal))))
                                            (plist-get plist :complete))
                  (magit-insert-heading
-                   (when parent-zone-path
-                     (make-indent (1- level)))
+                   (make-indent (if parent-zone-path
+                                    (1- (length zone-path))
+                                  (length zone-path)))
                    (when parent-zone-path
                      (format-zone-status zone-taxy))
                    (propertize (or (car (taxy-name zone-taxy))
