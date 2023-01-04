@@ -1716,6 +1716,7 @@ section."
                                        :body (org-memento--order-template value)
                                        :group (org-memento--default-group
                                                (org-memento-order-group value))
+                                       :template-id (org-memento--order-template-id value)
                                        :copy-from (org-memento-order-sample-marker value))))))
          (match-group (group-path x)
            (equal group-path

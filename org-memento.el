@@ -4045,7 +4045,8 @@ range."
 
 ;;;###autoload
 (cl-defun org-memento-add-event (&key title category group start end duration
-                                      body copy-from interactive away)
+                                      body copy-from interactive away
+                                      template-id)
   "Insert an block/event entry into the journal"
   (interactive (let* ((span (org-memento--read-time-span))
                       (title (org-memento-read-title))
@@ -4076,18 +4077,20 @@ range."
          (group (unless away
                   (or group
                       (org-memento-read-group nil :title title))))
-         (arguments (org-memento--merge-template-arguments-1
-                     (org-memento--template-group group)
-                     (when copy-from
-                       (save-current-buffer
-                         (org-with-point-at copy-from
-                           (list :tags (org-get-tags nil t)
-                                 :properties
-                                 (cl-remove-if
-                                  (lambda (key)
-                                    (member key org-memento-unique-properties))
-                                  (org-entry-properties nil 'standard)
-                                  :key #'car)))))))
+         (arguments (org-memento--merge-template-arguments
+                     (list (org-memento--template-group group)
+                           (when copy-from
+                             (save-current-buffer
+                               (org-with-point-at copy-from
+                                 (list :tags (org-get-tags nil t)
+                                       :properties
+                                       (cl-remove-if
+                                        (lambda (key)
+                                          (member key org-memento-unique-properties))
+                                        (org-entry-properties nil 'standard)
+                                        :key #'car)))))
+                           (when template-id
+                             `(:properties (("MEMENTO_TEMPLATE_ID" . ,template-id)))))))
          (category (unless (or away copy-from)
                      (or category
                          (cdr (assoc "MEMENTO_CATEGORY" (plist-get arguments :properties)))
@@ -4203,10 +4206,24 @@ range."
                                 :interactive t
                                 :group (org-memento--default-group
                                         (org-memento-order-group event))
+                                :template-id (org-memento--order-template-id event)
                                 :body (org-memento--order-template event)
                                 :copy-from (org-memento-order-sample-marker event)))))))
 
+(defun org-memento--order-template-id (order)
+  (pcase (org-memento-order-template order)
+    (`(link ,link)
+     (if (string-match org-link-bracket-re link)
+         (let ((url (match-string 1 link)))
+           (pcase-exhaustive url
+             ((rx bol "id:" (group (+ anything)))
+              (match-string 1 url))))
+       (error "Link must match `org-link-bracket-re': %s" link)))
+    (`(id ,id)
+     id)))
+
 (defun org-memento--order-template (order)
+  "Return the template body, if any."
   (pcase-exhaustive (org-memento-order-template order)
     (`nil)
     ((and (pred stringp) string)
