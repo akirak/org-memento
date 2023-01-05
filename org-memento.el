@@ -2157,7 +2157,7 @@ This function creates a follow-up task according to the value of
                            now)
                         60)
                      org-memento-margin-minutes)))
-         (default-minutes (cl-typecase default
+         (default-minutes (cl-etypecase default
                             (string (org-duration-to-minutes default))
                             (number default))))
     (completing-read (concat
