@@ -2817,6 +2817,11 @@ marker to the time stamp, and the margin in seconds."
 (defun org-memento--planning-items ()
   "Collect planning items from the agenda files."
   (let (result
+        (day-start (thread-first
+                     (org-memento--current-time)
+                     (decode-time)
+                     (org-memento--start-of-day)
+                     (encode-time)))
         (last-midnight (org-memento--midnight (org-memento--current-time))))
     (cl-labels
         ;; Faster version of `org-in-archived-heading-p'.
@@ -2860,7 +2865,7 @@ marker to the time stamp, and the margin in seconds."
                                    (while (re-search-forward org-ts-regexp (pos-eol) t)
                                      (let ((time (org-timestamp-to-time
                                                   (org-timestamp-from-string (match-string 0)))))
-                                       (when (time-less-p time (org-memento--current-time))
+                                       (when (time-less-p time day-start)
                                          (throw 'time time))))))
                    (save-excursion
                      (org-back-to-heading)
