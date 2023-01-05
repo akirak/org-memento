@@ -1849,59 +1849,62 @@ The point must be at the heading."
 
 This function creates a follow-up task according to the value of
 `org-memento-state-trigger-alist'."
-  (pcase-exhaustive (assoc keyword org-memento-state-trigger-alist)
-    (`nil)
-    ((and `(,_ . ,plist)
-          (guard (plistp plist)))
-     (let* ((heading (and (looking-at org-complex-heading-regexp)
-                          (match-string-no-properties 4)))
-            (heading (read-from-minibuffer "Title of the duplicate block: "
-                                           (funcall org-memento-new-block-title-fn
-                                                    heading keyword)
-                                           nil nil nil nil t))
-            (tags (org-get-tags nil 'local))
-            (todo (plist-get plist :todo-keyword))
-            (body (org-memento--duplicate-body))
-            (date (org-read-date nil nil nil
-                                 (format "Date on which you work on \"%s\""
-                                         heading)))
-            (block (org-memento--current-block))
-            (now (float-time (org-memento--current-time)))
-            (ending-time (org-memento-ending-time block))
-            (remaining-duration (when ending-time
-                                  (max (/ (- ending-time now) 60)
-                                       0)))
-            (duration (org-memento--read-duration "Duration: "
-                                                  :default remaining-duration))
-            (properties (cons (cons "Effort" duration)
-                              (cl-remove-if
-                               (lambda (key)
-                                 (member key (cons "EFFORT"
-                                                   org-memento-unique-properties)))
-                               (org-entry-properties nil 'standard)
-                               :key #'car))))
-       (with-current-buffer (org-memento--buffer)
-         (org-with-wide-buffer
-          (org-memento--goto-date date)
-          (org-end-of-subtree)
-          (unless (bolp)
-            (newline))
-          (insert "** " (if todo (concat todo " ") "") heading
-                  (if tags
-                      (concat " " (org-make-tag-string tags))
-                    "")
-                  "\n"
-                  (if properties
-                      (concat ":PROPERTIES:\n"
-                              (mapconcat (lambda (cell)
-                                           (format ":%s: %s" (car cell) (cdr cell)))
-                                         properties
-                                         "\n")
-                              "\n:END:\n")
-                    "")
-                  body)
-          (unless (bolp)
-            (newline))))))))
+  (catch 'abort-copy-entry
+    (pcase-exhaustive (assoc keyword org-memento-state-trigger-alist)
+      (`nil)
+      ((and `(,_ . ,plist)
+            (guard (plistp plist)))
+       (let* ((heading (and (looking-at org-complex-heading-regexp)
+                            (match-string-no-properties 4)))
+              (heading (read-from-minibuffer "Title of the duplicate block (empty to no duplicate): "
+                                             (funcall org-memento-new-block-title-fn
+                                                      heading keyword)
+                                             nil nil nil nil t))
+              (_ (when (string-empty-p heading)
+                   (throw 'abort-copy-entry t)))
+              (tags (org-get-tags nil 'local))
+              (todo (plist-get plist :todo-keyword))
+              (body (org-memento--duplicate-body))
+              (date (org-read-date nil nil nil
+                                   (format "Date on which you work on \"%s\""
+                                           heading)))
+              (block (org-memento--current-block))
+              (now (float-time (org-memento--current-time)))
+              (ending-time (org-memento-ending-time block))
+              (remaining-duration (when ending-time
+                                    (max (/ (- ending-time now) 60)
+                                         0)))
+              (duration (org-memento--read-duration "Duration: "
+                                                    :default remaining-duration))
+              (properties (cons (cons "Effort" duration)
+                                (cl-remove-if
+                                 (lambda (key)
+                                   (member key (cons "EFFORT"
+                                                     org-memento-unique-properties)))
+                                 (org-entry-properties nil 'standard)
+                                 :key #'car))))
+         (with-current-buffer (org-memento--buffer)
+           (org-with-wide-buffer
+            (org-memento--goto-date date)
+            (org-end-of-subtree)
+            (unless (bolp)
+              (newline))
+            (insert "** " (if todo (concat todo " ") "") heading
+                    (if tags
+                        (concat " " (org-make-tag-string tags))
+                      "")
+                    "\n"
+                    (if properties
+                        (concat ":PROPERTIES:\n"
+                                (mapconcat (lambda (cell)
+                                             (format ":%s: %s" (car cell) (cdr cell)))
+                                           properties
+                                           "\n")
+                                "\n:END:\n")
+                      "")
+                    body)
+            (unless (bolp)
+              (newline)))))))))
 
 (defun org-memento-new-block-title-1 (old-heading _keyword)
   (pcase old-heading
