@@ -1874,15 +1874,19 @@ This function creates a follow-up task according to the value of
               (remaining-duration (when ending-time
                                     (max (/ (- ending-time now) 60)
                                          0)))
-              (duration (org-memento--read-duration "Duration: "
-                                                    :default remaining-duration))
-              (properties (cons (cons "Effort" duration)
-                                (cl-remove-if
-                                 (lambda (key)
-                                   (member key (cons "EFFORT"
-                                                     org-memento-unique-properties)))
-                                 (org-entry-properties nil 'standard)
-                                 :key #'car))))
+              (duration (when remaining-duration
+                          (org-memento--read-duration "Duration: "
+                                                      :default remaining-duration)))
+              (properties (cl-remove-if
+                           (lambda (key)
+                             (member key (cons "EFFORT"
+                                               org-memento-unique-properties)))
+                           (org-entry-properties nil 'standard)
+                           :key #'car))
+              (properties (if duration
+                              (cons (cons "Effort" duration)
+                                    properties)
+                            properties)))
          (with-current-buffer (org-memento--buffer)
            (org-with-wide-buffer
             (org-memento--goto-date date)
