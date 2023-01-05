@@ -1152,10 +1152,10 @@ With a universal argument, you can specify the time of check out."
     (user-error "This command must be run from inside org-memento-file buffer"))
   (pcase (org-outline-level)
     (1 (user-error "Not on a block"))
-    (2 (org-refile nil nil (org-memento--rfloc-on-date date)))
+    (2 (org-memento--carry-over-to-rfloc (org-memento--rfloc-on-date date)))
     (_ (org-with-wide-buffer
         (re-search-backward (rx bol "**" blank))
-        (org-refile nil nil (org-memento--rfloc-on-date date))))))
+        (org-memento--carry-over-to-rfloc (org-memento--rfloc-on-date date))))))
 
 (defun org-memento--carry-over (blocks &optional date)
   "Carry over BLOCKS to a future DATE."
@@ -1170,9 +1170,18 @@ With a universal argument, you can specify the time of check out."
              (while (re-search-forward (format org-complex-heading-regexp-format title)
                                        bound t)
                (when (= (- (match-end 1) (match-beginning 1)) 2)
-                 (org-refile nil nil rfloc)
+                 (org-memento--carry-over-to-rfloc rfloc)
                  (throw 'refiled t)))
              (error "Heading \"%s\" was not found" title))))))))
+
+(defun org-memento--carry-over-to-rfloc (rfloc)
+  "Carry over the current entry to RFLOC."
+  ;; Remove the existing time stamp, if any.
+  (save-excursion
+    (org-end-of-meta-data t)
+    (when (looking-at (concat org-ts-regexp (rx (* blank) "\n")))
+      (replace-match "")))
+  (org-refile nil nil rfloc))
 
 (defun org-memento--rfloc-on-date (date)
   (with-current-buffer (org-memento--buffer)
