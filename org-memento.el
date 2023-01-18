@@ -1142,6 +1142,14 @@ With a universal argument, you can specify the time of check out."
        (org-add-planning-info 'closed time)))
    (org-memento--save-buffer)
    (setq org-memento-block-idle-logging t)
+   (let ((check-in (org-entry-get nil "MEMENTO_CHECKIN_TIME"))
+         (check-out (org-entry-get nil "CLOSED")))
+     (message "Check out after %s of activities"
+              (org-duration-from-minutes
+               (/ (time-subtract
+                   (org-timestamp-to-time (org-timestamp-from-string check-out))
+                   (org-timestamp-to-time (org-timestamp-from-string check-in)))
+                  60))))
    (run-hooks 'org-memento-checkout-hook)))
 
 (defun org-memento-carry-over-item (date)
