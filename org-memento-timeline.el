@@ -119,6 +119,41 @@ width of the window. This is useful if you use a package like
   '((t (:inherit font-lock-comment-face :bold t)))
   "Face for headings that doesn't provide folding")
 
+(defface org-memento-timeline-zone-title-face
+  '((((class color) (min-colors 88) (background light))
+     :foreground "#61284f" :underline t)
+    (t (:inherit magit-section-heading)))
+  "Face for the titles of inactive zones.")
+
+(defface org-memento-timeline-active-zone-title-face
+  '((((class color) (min-colors 88) (background light))
+     :inherit org-memento-timeline-zone-title-face
+     :weight bold)
+    (t (:inherit org-memento-timeline-zone-title-face)))
+  "Face for highlighting active zones.")
+
+(defface org-memento-timeline-group-path-face
+  '((((class color) (min-colors 88) (background light))
+     :foreground "#184034")
+    (t (:inherit magit-section-heading)))
+  "Face for group titles.")
+
+(defface org-memento-timeline-agenda-item-face
+  '((((class color) (min-colors 88) (background light))
+     :foreground "#541f4f")
+    (t (:inherit magit-section-heading)))
+  "Face for agenda items.")
+
+(defface org-memento-timeline-order-face
+  '((((class color) (min-colors 88) (background light))
+     :foreground "#333333")
+    (t (:inherit magit-section-heading)))
+  "Face for suggested tasks.")
+
+(defface org-memento-timeline-zone-desc-face
+  '((t (:inherit font-lock-comment-face)))
+  "Face for zone descriptions.")
+
 (defface org-memento-timeline-time-face
   '((t (:inherit default :slant italic)))
   "Face for time ranges.")
@@ -1256,7 +1291,7 @@ section."
                                      (propertize
                                       (org-memento--format-group-last-node
                                        (taxy-name group-taxy))
-                                      'face 'magit-section-heading))
+                                      'face 'org-memento-timeline-group-path-face))
                              16)
                             (if (> spent 0)
                                 (org-memento--format-duration spent)
@@ -1366,7 +1401,7 @@ section."
                                                      (org-memento--format-group-last-node
                                                       group-path)))
                                          16)
-                                        'face 'magit-section-heading)
+                                        'face 'org-memento-timeline-group-path-face)
                             (propertize (org-memento--format-duration sum)
                                         'face
                                         (cond
@@ -1472,7 +1507,7 @@ section."
                (magit-insert-heading
                  (make-indent (1+ level))
                  (propertize (org-memento-order-title order)
-                             'face 'magit-section-heading)
+                             'face 'org-memento-timeline-order-face)
                  (when-let (duration (org-memento-order-duration order))
                    (concat " " (org-memento--format-duration duration)))
                  (format " (%s)" (org-memento--format-group
@@ -1489,7 +1524,8 @@ section."
                  (if (donep item)
                      (concat org-memento-timeline-done-format " ")
                    "  ")
-                 (org-memento-planning-item-heading item))))
+                 (propertize (org-memento-planning-item-heading item)
+                             'face 'org-memento-timeline-agenda-item-face))))
            (current-item-or-block-p (item)
              (cl-typecase item
                (org-memento-block
@@ -1510,7 +1546,8 @@ section."
                     (concat org-memento-timeline-done-format " "))
                    (kwd
                     (concat kwd " ")))
-                 (org-memento-title item))
+                 (propertize (org-memento-title item)
+                             'face 'org-memento-timeline-group-path-face))
                (when (current-item-or-block-p item)
                  (highlight-previous-line))
                (when-let (items (map-elt planned-items-map (org-memento-title item)))
@@ -1522,7 +1559,7 @@ section."
                      (magit-insert-section (item id)
                        (magit-insert-heading
                          (make-indent (+ 2 level))
-                         title)))))))
+                         (propertize title 'face 'org-memento-timeline-agenda-item-face))))))))
            (insert-items (level items)
              (pcase-let*
                  ((`(,done-items-and-blocks ,undone-items-and-blocks)
@@ -1652,13 +1689,19 @@ section."
                                   (length zone-path)))
                    (when parent-zone-path
                      (format-zone-status zone-taxy))
-                   (propertize (or (car (taxy-name zone-taxy))
-                                   "Zones")
-                               'face 'magit-section-heading)
+                   (if-let (name (car (taxy-name zone-taxy)))
+                       (propertize name
+                                   'face
+                                   (if (equal (seq-take org-memento-timeline-current-zone
+                                                        (1+ (length parent-zone-path)))
+                                              (append parent-zone-path (list name)))
+                                       'org-memento-timeline-active-zone-title-face
+                                     'org-memento-timeline-zone-title-face))
+                     (propertize "Zones" 'face 'magit-section-heading))
                    (format-meta :spent spent :planned planned :goal goal))
                  (when-let (description (taxy-description zone-taxy))
                    (insert (make-indent level)
-                           (propertize description 'face 'font-lock-comment-face)
+                           (propertize description 'face 'org-memento-timeline-zone-desc-face)
                            "\n"))
                  (if (taxy-taxys zone-taxy)
                      (progn
@@ -1670,7 +1713,7 @@ section."
                            (magit-insert-heading
                              (format-zone-status zone-taxy)
                              (make-indent level)
-                             (propertize "Others" 'face 'magit-section-heading)
+                             (propertize "Others" 'face 'org-memento-timeline-zone-title-face)
                              (format-meta :spent (thread-last
                                                    (taxy-items zone-taxy)
                                                    (mapcar #'done-duration)
@@ -1684,7 +1727,8 @@ section."
                      (magit-insert-section (group group)
                        (magit-insert-heading
                          (make-indent (1+ level))
-                         (org-memento--format-group group)))))))))
+                         (propertize (org-memento--format-group group)
+                                     'face 'org-memento-timeline-group-path-face)))))))))
         (if org-memento-zone-taxy
             (insert-zone nil (thread-last
                                (copy-taxy org-memento-zone-taxy)
