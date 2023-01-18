@@ -1621,12 +1621,14 @@ section."
                  (magit-insert-section (items)
                    (insert-subheading level "Unscheduled blocks")
                    (dolist (item blocks-without-time)
-                     (insert-block level item)))))
-             (when-let (suggestions (seq-filter #'org-memento-order-p items))
-               (magit-insert-section (suggestions nil t)
-                 (insert-subheading level "Suggestions")
-                 (dolist (suggestion suggestions)
-                   (insert-order level suggestion)))))
+                     (insert-block level item))))
+               (when-let (suggestions (seq-filter #'org-memento-order-p items))
+                 (magit-insert-section (suggestions nil
+                                                    ;; Hide if there is undone item
+                                                    (and undone-items-and-blocks t))
+                   (insert-subheading level "Suggestions")
+                   (dolist (suggestion suggestions)
+                     (insert-order level suggestion))))))
            (done-duration (item)
              (cl-typecase item
                (org-memento-block
