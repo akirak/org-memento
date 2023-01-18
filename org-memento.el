@@ -3368,6 +3368,7 @@ denoting the type of the activity. ARGS is an optional list."
                              (string-lessp start-date-string
                                            date-string)))
                 (let ((marker (progn
+                                ;; This moves the point to the beginning of the entry.
                                 (beginning-of-line)
                                 (point-marker)))
                       (include-future (not (string-lessp date-string
@@ -3385,6 +3386,9 @@ denoting the type of the activity. ARGS is an optional list."
                                       date-string marker 'date))
                            (subtree-end (save-excursion (org-end-of-subtree)))
                            blocks)
+                       ;; Move the point to prevent from matching the date
+                       ;; heading twice.
+                       (end-of-line)
                        (while (re-search-forward org-complex-heading-regexp subtree-end t)
                          (beginning-of-line)
                          (let* ((level (length (match-string 1)))
