@@ -899,13 +899,14 @@ should not be run inside the journal file."
            (late-block
             (if (and (or (org-memento-duration late-block)
                          (org-memento-ending-time late-block))
-                     (< (+ now (if-let (duration (org-memento-duration late-block))
-                                   (* 60 duration)
-                                 (- (org-memento-ending-time late-block)
-                                    (org-memento-starting-time late-block))))
-                        (or next-event-time
-                            (org-memento-ending-time (org-memento-today-as-block))
-                            (error "No checkout time is set"))))
+                     (if-let (limit (or next-event-time
+                                        (org-memento-ending-time (org-memento-today-as-block))))
+                         (< (+ now (if-let (duration (org-memento-duration late-block))
+                                       (* 60 duration)
+                                     (- (org-memento-ending-time late-block)
+                                        (org-memento-starting-time late-block))))
+                            limit)
+                       t))
                 (if (yes-or-no-p (format "Start \"%s\" right now? "
                                          (org-memento-title late-block)))
                     (org-memento-start-block (org-memento-title late-block))
