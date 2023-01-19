@@ -463,7 +463,7 @@ triggered by an interval timer."
                        (make-string 2 ?\s)
                        (if title
                            (propertize (org-link-display-format title)
-                                       'face 'magit-section-heading)
+                                       'face 'org-memento-timeline-agenda-item-face)
                          (when (cadr (car group))
                            (propertize "Gap" 'face 'font-lock-comment-face)))
                        (format " (%s)\n"
@@ -532,11 +532,11 @@ triggered by an interval timer."
                      (make-string 7 ?\s))
                    (if-let (title (title taxy))
                        (propertize title
-                                   ;; TODO: Apply a different face if the block
-                                   ;; type is away
-                                   'face (if (eq (cadddr (cdr (get-record taxy))) 'idle)
-                                             'font-lock-comment-face
-                                           'magit-section-heading))
+                                   'face
+                                   (cl-ecase (cadddr (cdr (get-record taxy)))
+                                     (idle 'font-lock-comment-face)
+                                     (block 'org-memento-timeline-group-path-face)
+                                     (away 'default)))
                      (if (taxy-items taxy)
                          (let ((marker (cadddr (car (taxy-items taxy)))))
                            (propertize (file-name-base (buffer-name (marker-buffer marker)))
