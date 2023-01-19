@@ -1660,8 +1660,9 @@ section."
                                                (org-memento--format-duration
                                                 (+ planned spent)))
                                      ""))
-                            (?g . ,(if goal
-                                       (format " / %s goal" goal)
+                            (?g . ,(if (and goal (> goal 0))
+                                       (format " / %s goal"
+                                               (org-memento--format-duration goal))
                                      "")))))
            (insert-zone (parent-zone-path zone-taxy)
              (let* ((label (car (taxy-name zone-taxy)))
@@ -1678,12 +1679,13 @@ section."
                                (taxy-flatten zone-taxy)
                                (mapcar #'planned-duration)
                                (sum-duration)))
-                    (goal (plist-get plist :duration)))
+                    (goal-string (plist-get plist :duration))
+                    (goal (when goal-string
+                            (org-duration-to-minutes goal-string))))
                (magit-insert-section (zone (cons zone-path
                                                  (list :spent spent
                                                        :planned planned
-                                                       :goal (when goal
-                                                               (org-duration-to-minutes goal))))
+                                                       :goal goal))
                                            (plist-get plist :complete))
                  (magit-insert-heading
                    (make-indent (if parent-zone-path
