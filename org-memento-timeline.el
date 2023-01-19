@@ -67,7 +67,7 @@ timeline as an argument."
   :type 'hook)
 
 (defcustom org-memento-timeline-display-function
-  #'org-memento-timeline-pop-to-buffer-1
+  #'org-memento-timeline-pop-to-buffer-2
   "Function used to display the timeline buffer."
   :type 'function)
 
@@ -270,10 +270,22 @@ width of the window. This is useful if you use a package like
                           #'org-memento-timeline-refresh-1))))
 
 (defun org-memento-timeline-pop-to-buffer-1 (buffer &rest _args)
-  "Default function to display the timeline buffer."
+  "Old function to display the timeline buffer."
   (if org-memento-current-block
       (pop-to-buffer buffer)
     (pop-to-buffer-same-window buffer)))
+
+(defun org-memento-timeline-pop-to-buffer-2 (buffer &rest _args)
+  "Default function to display the timeline buffer.
+
+Unlike `org-memento-timeline-pop-to-buffer-1', if there is a
+window that displays the buffer in the current frame, this
+function selects the window."
+  (if-let (window (get-buffer-window buffer))
+      (select-window window)
+    (if org-memento-current-block
+        (pop-to-buffer buffer)
+      (pop-to-buffer-same-window buffer))))
 
 ;;;###autoload
 (defun org-memento-timeline-goto-now ()
