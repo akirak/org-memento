@@ -1560,7 +1560,7 @@ section."
                        (magit-insert-heading
                          (make-indent (+ 2 level))
                          (propertize title 'face 'org-memento-timeline-agenda-item-face))))))))
-           (insert-items (level items)
+           (insert-items (level items &key hide-suggestions)
              (pcase-let*
                  ((`(,done-items-and-blocks ,undone-items-and-blocks)
                    (thread-last
@@ -1623,9 +1623,7 @@ section."
                    (dolist (item blocks-without-time)
                      (insert-block level item))))
                (when-let (suggestions (seq-filter #'org-memento-order-p items))
-                 (magit-insert-section (suggestions nil
-                                                    ;; Hide if there is undone item
-                                                    (and undone-items-and-blocks t))
+                 (magit-insert-section (suggestions nil hide-suggestions)
                    (insert-subheading level "Suggestions")
                    (dolist (suggestion suggestions)
                      (insert-order level suggestion))))))
@@ -1723,7 +1721,8 @@ section."
                                                    (mapcar #'done-duration)
                                                    (sum-duration))))
                            (insert-items (1+ level) (taxy-items zone-taxy)))))
-                   (insert-items level (taxy-items zone-taxy)))
+                   (insert-items level (taxy-items zone-taxy)
+                                 :hide-suggestions (and planned goal (>= planned goal))))
                  (when-let (groups (plist-get plist :groups))
                    (magit-insert-section (associated-groups nil t)
                      (insert-subheading level "Primary groups"))
