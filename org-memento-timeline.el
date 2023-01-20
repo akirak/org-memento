@@ -1066,8 +1066,10 @@ last visited zone with the same command."
             (app section-value path))
        path)
       ((and (app section-type 'block)
-            (app section-value `(,_ ,_ ,_ ,_ block . ,plist)))
-       (plist-get plist :group))
+            (app section-value `(,_ ,_ ,_ ,marker block . ,plist)))
+       (or (plist-get plist :group)
+           (org-with-point-at marker
+             (org-memento--get-group))))
       ((and (app section-value (cl-type org-memento-order))
             (app section-value order))
        (org-memento-group-path order)))))
