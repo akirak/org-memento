@@ -1557,14 +1557,16 @@ daily entry."
                                       (org-entry-get nil "MEMENTO_CATEGORY"))))
   (org-entry-put nil "MEMENTO_CATEGORY" category))
 
-(cl-defun org-memento--maybe-check-in (&key adjust)
+(cl-defun org-memento--maybe-check-in (&key adjust ask)
   "If the entry has no check-in time, record the current time.
 
 This function can be called both on a daily entry (at level 1)
 and on a time block entry (at level 2).
 
 The function returns non-nil if the check-in is done."
-  (unless (org-entry-get nil "MEMENTO_CHECKIN_TIME")
+  (when (and (not (org-entry-get nil "MEMENTO_CHECKIN_TIME"))
+             (or (not ask)
+                 (yes-or-no-p "Check in to today? ")))
     (let ((now (org-memento--current-time)))
       (org-entry-put nil "MEMENTO_CHECKIN_TIME" (org-memento--format-timestamp
                                                  now nil 'inactive))
@@ -1581,6 +1583,14 @@ The function returns non-nil if the check-in is done."
                           (org-memento--duration-secs-ts-at-point))))
     (replace-match (org-memento--format-active-range
                     start-time (time-add start-time duration)))))
+
+(defun org-memento--ensure-today-entry ()
+  "Ensure there is an entry for the day."
+  (with-current-buffer (org-memento--buffer)
+    (org-memento--ensure-file-mode)
+    (org-memento--find-today)
+    (unless (org-entry-is-done-p)
+      (org-memento--maybe-check-in :ask t))))
 
 (defun org-memento--maybe-checkin-to-day ()
   "Check in to the daily entry, if it is not done yet."

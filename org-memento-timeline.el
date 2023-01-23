@@ -245,6 +245,10 @@ width of the window. This is useful if you use a package like
   (interactive (if (equal current-prefix-arg '(4))
                    (list (org-read-date)
                          (org-read-date))
+                 ;; If the the target date range is on today, ensure the entry
+                 ;; exists. Otherwise, the data will be empty, so it will raise
+                 ;; an error.
+                 (org-memento--ensure-today-entry)
                  (let ((today (org-memento--today-string (decode-time))))
                    (list today today :span 'day))))
   (when (string-lessp end-day start-day)
