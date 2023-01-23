@@ -2123,14 +2123,14 @@ This function creates a follow-up task according to the value of
         (when (and from-policies
                    (bound-and-true-p org-memento-policy-data)
                    (taxy-p org-memento-policy-data))
-          (dolist (group-path (cl-remove-duplicates
-                               (mapcar #'org-memento-group-path
-                                       (org-memento-policy-contexts))
-                               :test #'equal))
-            (when (check-group group-path)
-              (let ((title (org-memento--format-group group-path)))
+          (dolist (group (cl-remove-duplicates
+                          (mapcar #'org-memento-group-path
+                                  (org-memento-policy-contexts))
+                          :test #'equal))
+            (when (check-group group)
+              (let ((title (org-memento--format-group group)))
                 (unless (gethash title cache)
-                  (puthash title group-path cache))
+                  (puthash title group cache))
                 (push title candidates)))))
         (setq candidates (nreverse candidates))
         (unwind-protect
