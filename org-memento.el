@@ -998,7 +998,7 @@ At present, it runs `org-memento-timeline'."
      (org-memento--save-buffer)))
   (setq org-memento-current-block title)
   (org-memento-setup-daily-timer)
-  (org-memento-status)
+  (org-memento--status)
   (run-hooks 'org-memento-block-start-hook)
   (org-memento--setup-block-timers)
   (org-memento-log-update))
