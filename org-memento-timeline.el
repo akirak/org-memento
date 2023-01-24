@@ -1825,7 +1825,7 @@ With ARG, interactivity is inverted."
                                                 (when (and start duration)
                                                   (+ start (* 60 duration))))
                                        :duration duration
-                                       :interactive t
+                                       :interactive interactive
                                        :body (org-memento--order-template value)
                                        :group (org-memento--default-group
                                                (org-memento-order-group value))
