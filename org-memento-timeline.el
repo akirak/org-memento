@@ -1781,8 +1781,11 @@ section."
               result))
       (nreverse result))))
 
-(defun org-memento-timeline-add ()
-  (interactive)
+(defun org-memento-timeline-add (&optional arg)
+  "Add an item to the timeline.
+
+With ARG, interactivity is inverted."
+  (interactive "P")
   (let ((now (float-time (org-memento--current-time))))
     (cl-flet*
         ((get-time-range (title &optional duration slot)
@@ -1919,7 +1922,7 @@ section."
            (select-suggestion group-path))
           ((and (app section-value (cl-type org-memento-order))
                 (app section-value order))
-           (add-item order t))
+           (add-item order (not arg)))
           ((app section-value `nil)
            (fallback))
           ((and (app section-value `(,start ,end ,_))
