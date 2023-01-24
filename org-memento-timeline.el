@@ -863,8 +863,8 @@ If ARG is non-nil, create an away event."
                                 (org-memento--format-active-range start end)
                                 start)
                              (list start end))
-           (`(,start ,end)
-            (org-memento-add-event :start start :end end
+           (`(,new-start ,new-end)
+            (org-memento-add-event :start new-start :end (or new-end end)
                                    :interactive t :away away))))
        (log-away-event (start-bound end-bound marker)
          (pcase-exhaustive (thread-last
