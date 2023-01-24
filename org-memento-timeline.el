@@ -1809,9 +1809,17 @@ With ARG, interactivity is inverted."
            (cl-etypecase value
              (org-memento-order
               (pcase-let*
-                  ((title (or (org-memento-order-title value)
-                              (org-memento-read-title nil
-                                :default (org-memento-order-title value))))
+                  ((title (org-memento-order-title value))
+                   (title (cond
+                           ((and title
+                                 (member title (mapcar #'org-memento-title
+                                                       (org-memento--blocks))))
+                            (org-memento-read-title "Enter a new title to avoid duplicate: "
+                              :default title))
+                           (title)
+                           (t
+                            (org-memento-read-title nil
+                              :default (org-memento-order-title value)))))
                    (duration (org-memento-order-duration value))
                    (`(,start ,end) (if (and slot duration)
                                        (list (+ (car slot)
