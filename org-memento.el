@@ -1003,6 +1003,11 @@ At present, it runs `org-memento-timeline'."
   (org-memento--setup-block-timers)
   (org-memento-log-update))
 
+(defun org-memento-rerun-block-hook ()
+  "Run `org-memento-block-start-hook'."
+  (interactive)
+  (run-hooks 'org-memento-block-start-hook))
+
 (defun org-memento-finish-block (&optional arg)
   "Finish the current block."
   (interactive "P")
