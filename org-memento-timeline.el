@@ -829,11 +829,13 @@ If ARG is non-nil, create an away event."
              (org-memento-adjust-time
               :new-start new-start))))
        (reschedule (start end title marker)
-         (pcase-exhaustive (org-memento-timeline--find-slot
-                            title (or (when end
-                                        (/ (- end start) 60))
-                                      (when-let (effort (org-entry-get marker "Effort"))
-                                        (org-duration-to-minutes effort))))
+         (pcase-exhaustive (condition-case _
+                               (org-memento-timeline--find-slot
+                                title (or (when end
+                                            (/ (- end start) 60))
+                                          (when-let (effort (org-entry-get marker "Effort"))
+                                            (org-duration-to-minutes effort))))
+                             (no-empty-slot (user-error "No empty slot")))
            ;; Manually entered starting time
            (`(,slot-start)
             (update-ts marker slot-start)
@@ -1790,7 +1792,9 @@ With ARG, interactivity is inverted."
     (cl-flet*
         ((get-time-range (title &optional duration slot)
            (when-let (slot (or slot
-                               (org-memento-timeline--find-slot title duration)))
+                               (condition-case _
+                                   (org-memento-timeline--find-slot title duration)
+                                 (no-empty-slot (user-error "No empty slot")))))
              (pcase-exhaustive (org-memento--read-time-span
                                 (when slot
                                   (org-memento--format-timestamp
@@ -1955,7 +1959,8 @@ With ARG, interactivity is inverted."
        :new-start start))))
 
 (defun org-memento-timeline--find-slot (title &optional duration)
-  (when-let (slots (org-memento-timeline--filter-slots duration))
+  (when-let (slots (or (org-memento-timeline--filter-slots duration)
+                       (signal 'no-empty-slot t)))
     (org-memento-select-slot
      (format "Choose a slot for \"%s\": " title)
      slots)))
