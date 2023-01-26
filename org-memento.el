@@ -1246,9 +1246,11 @@ The point must be after a \"CLOCK:\" string."
                        (org-memento--format-timestamp
                         (org-timestamp-to-time orig-ts)
                         (org-timestamp-to-time orig-ts t))
-                       (org-memento--start-of-day
-                        (decode-time
-                         (org-timestamp-to-time orig-ts))))
+                       (thread-first
+                         (org-timestamp-to-time orig-ts)
+                         (decode-time)
+                         (org-memento--start-of-day)
+                         (encode-time)))
       (`(,start ,end)
        (goto-char (org-element-property :begin orig-ts))
        (delete-region (org-element-property :begin orig-ts)
@@ -3955,7 +3957,8 @@ nil. If one of them is nil, the other one is returned."
 DEFAULT is an optional timestamp string which contains the
 default range.
 
-If ON-DATE is given, the result will be adjusted to be on the date.
+If ON-DATE, which should be an Emacs internal time, is given, the
+result will be adjusted to be on the date.
 
 This function returns (START END) where START and END are time
 representations. END can be nil if the user doesn't enter a time
