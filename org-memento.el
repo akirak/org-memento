@@ -1212,6 +1212,7 @@ With a universal argument, you can specify the time of check out."
    (let* ((org-read-date-prefer-future nil)
           (orig-ts (org-element-timestamp-parser))
           (string (org-read-date t nil nil "Checkout time"
+                                 ;; FIXME: Set the default time correctly
                                  (org-memento-ending-time (org-memento-today-as-block)))))
      (delete-region (org-element-property :begin orig-ts)
                     (org-element-property :end orig-ts))
