@@ -931,6 +931,20 @@ If ARG is non-nil, create an away event."
                         (add-event start end nil nil)))
                      (idle
                       (log-away-event start end marker))
+                     (date
+                      ;; If the check out time is in the future
+                      (when (and end
+                                 (> end now)
+                                 start
+                                 (> start (thread-first
+                                            (org-memento--current-time)
+                                            (decode-time)
+                                            (org-memento--start-of-day)
+                                            (encode-time)
+                                            (float-time))))
+                        ;; Edit the check out time
+                        (org-memento-set-checkout-time)
+                        t))
                      (otherwise
                       (error "Unexpected event type %s" type))))
                   ;; Gap between blocks
