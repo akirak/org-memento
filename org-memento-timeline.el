@@ -768,7 +768,7 @@ triggered by an interval timer."
                  (org-with-point-at marker
                    (org-end-of-meta-data t)
                    (if (looking-at (concat org-ts-regexp "\n"))
-                       (when (yes-or-no-p "Remove the timestamp of the entry?")
+                       (when (yes-or-no-p "Remove the timestamp from the entry?")
                          (delete-region (point) (1+ (pos-eol)))
                          (message "Removed an active timestamp")
                          t)
