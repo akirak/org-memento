@@ -1717,7 +1717,8 @@ section."
                                (sum-duration)))
                     (goal-string (plist-get plist :duration))
                     (goal (when goal-string
-                            (org-duration-to-minutes goal-string))))
+                            (org-duration-to-minutes goal-string)))
+                    (hide-suggestions (and planned goal (>= planned goal))))
                (magit-insert-section (zone (cons zone-path
                                                  (list :spent spent
                                                        :planned planned
@@ -1760,16 +1761,20 @@ section."
                                                    (sum-duration))))
                            (insert-items (1+ level) (taxy-items zone-taxy)))))
                    (insert-items level (taxy-items zone-taxy)
-                                 :hide-suggestions (and planned goal (>= planned goal))))
+                                 :hide-suggestions hide-suggestions))
                  (when-let (groups (plist-get plist :groups))
-                   (magit-insert-section (associated-groups nil t)
-                     (insert-subheading level "Primary groups"))
-                   (dolist (group groups)
-                     (magit-insert-section (group group)
-                       (magit-insert-heading
-                         (make-indent (1+ level))
-                         (propertize (org-memento--format-group group)
-                                     'face 'org-memento-timeline-group-path-face)))))))))
+                   (magit-insert-section (associated-groups
+                                          nil
+                                          (or hide-suggestions
+                                              (or (taxy-taxys zone-taxy)
+                                                  (taxy-items zone-taxy))))
+                     (insert-subheading level "Primary groups")
+                     (dolist (group groups)
+                       (magit-insert-section (group group)
+                         (magit-insert-heading
+                           (make-indent (1+ level))
+                           (propertize (org-memento--format-group group)
+                                       'face 'org-memento-timeline-group-path-face))))))))))
         (if org-memento-zone-taxy
             (insert-zone nil (thread-last
                                (copy-taxy org-memento-zone-taxy)
