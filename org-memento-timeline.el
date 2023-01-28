@@ -760,10 +760,11 @@ triggered by an interval timer."
   (when-let* ((section (magit-current-section))
               (value (oref section value)))
     (when (pcase value
-            ((and `(,start ,_end ,_ ,marker . ,_)
+            ((and `(,start ,_end ,_ ,marker ,type . ,_)
                   (guard marker))
              (cond
-              ((and start (> start (float-time (org-memento--current-time))))
+              ((and start (or (> start (float-time (org-memento--current-time)))
+                              (eq type 'dismissed)))
                (save-current-buffer
                  (org-with-point-at marker
                    (org-end-of-meta-data t)
