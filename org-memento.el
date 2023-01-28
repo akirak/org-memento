@@ -1935,7 +1935,8 @@ This function creates a follow-up task according to the value of
                                 "\n:END:\n")
                       "")
                     body)
-            (unless (bolp)
+            (unless (or (bolp)
+                        (eolp))
               (newline)))))))))
 
 (defun org-memento-new-block-title-1 (old-heading _keyword)
