@@ -1903,6 +1903,82 @@ The point must be at the heading."
                   (when-let (ts (org-memento-block-active-ts block))
                     (org-timestamp-to-time ts)))))
 
+;;;;; Validating the journal file
+
+;;;###autoload
+(defun org-memento-validate ()
+  "Validate the journal file."
+  (interactive)
+  (condition-case err
+      (with-current-buffer (org-memento--buffer)
+        (org-memento-mode t)
+        (org-with-wide-buffer
+         (goto-char (point-min))
+         (let ((today (org-memento--today-string))
+               date)
+           (cl-flet*
+               ((signal-error (msg &rest args)
+                  (signal 'format-error (cons (point-marker) (cons msg args))))
+                (check-entry-body ()
+                  (let ((bound (org-entry-end-position)))
+                    (org-end-of-meta-data)
+                    (when (search-forward ":PROPERTIES:" bound t)
+                      (signal-error "Multiple property drawers"))
+                    (when (search-forward "*" bound t)
+                      (signal-error "Possibly another heading")))))
+             ;; TODO: Add more checks
+             (while (re-search-forward org-complex-heading-regexp nil t)
+               (let* ((level (- (match-end 1) (match-beginning 1)))
+                      (kw (match-string 2))
+                      (donep (member kw org-done-keywords))
+                      (headline (match-string 4)))
+                 (pcase level
+                   ;; Date
+                   (1
+                    (unless (string-match-p (rx bol (repeat 4 digit)
+                                                "-" (repeat 2 digit)
+                                                "-" (repeat 2 digit)
+                                                eol)
+                                            headline)
+                      (signal-error "Invalid date format: %s" headline))
+                    (setq date headline)
+                    (cond
+                     ((string< date today)
+                      (unless donep
+                        (signal-error "Unclosed past date entry: %s" headline)))
+                     ((string= date today)
+                      (when donep
+                        (signal-error "Closed present date entry: %s" headline)))
+                     (t
+                      (when donep
+                        (signal-error "Closed future date entry: %s" headline)))))
+                   ;; Block or idle
+                   (2
+                    (unless (equal headline org-memento-idle-heading)
+                      (let* ((properties (org-entry-properties))
+                             (closed (cdr (assoc "CLOSED" properties)))
+                             (checkin (cdr (assoc "MEMENTO_CHECKIN_TIME" properties))))
+                        (unless (eq (and closed t)
+                                    (and donep t))
+                          (signal-error (if donep
+                                            "A done entry must have a closed property"
+                                          "Set CLOSED property in a wrong context")))
+                        (when (and donep
+                                   (not checkin))
+                          (signal-error "A done entry must have a checkin time"))
+                        (when (and checkin
+                                   (not (equal headline org-memento-current-block))
+                                   (not donep))
+                          (signal-error "A non-current block has a check-in time")))))
+                   ;; TODO: Validate idle
+                   ;; (3)
+                   ;; Ignored
+                   (_))
+                 (check-entry-body)))))))
+    (format-error
+     (org-goto-marker-or-bmk (car err))
+     (message (apply #'format-message (cdr err))))))
+
 ;;;; Workflow
 
 (defun org-memento-after-state-change (keyword)
