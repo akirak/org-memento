@@ -1585,7 +1585,10 @@ section."
                    (kwd
                     (concat kwd " ")))
                  (propertize (org-memento-title item)
-                             'face 'org-memento-timeline-group-path-face))
+                             'face 'org-memento-timeline-group-path-face)
+                 (when-let* ((start (org-memento-started-time item))
+                             (end (org-memento-ended-time item)))
+                   (format " (%s)" (org-memento--format-duration (/ (- end start) 60)))))
                (when (current-item-or-block-p item)
                  (highlight-previous-line))
                (when-let (items (map-elt planned-items-map (org-memento-title item)))
