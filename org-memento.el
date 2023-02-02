@@ -1210,14 +1210,16 @@ With a universal argument, you can specify the time of check out."
   (org-memento-with-today-entry
    (org-end-of-meta-data t)
    (let* ((org-read-date-prefer-future nil)
+          (block (org-memento-today-as-block))
           (orig-ts (org-element-timestamp-parser))
           (string (org-read-date t nil nil "Checkout time"
                                  ;; FIXME: Set the default time correctly
-                                 (org-memento-ending-time (org-memento-today-as-block)))))
-     (delete-region (org-element-property :begin orig-ts)
-                    (org-element-property :end orig-ts))
+                                 (org-memento-ending-time block))))
+     (when orig-ts
+       (delete-region (org-element-property :begin orig-ts)
+                      (org-element-property :end orig-ts)))
      (insert (org-memento--format-timestamp
-              (org-timestamp-to-time orig-ts)
+              (org-memento-started-time block)
               (encode-time (parse-time-string string)))))))
 
 (cl-defun org-memento-adjust-time (&key allow-edit-clock new-start)
