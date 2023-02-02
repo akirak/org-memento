@@ -1736,7 +1736,9 @@ section."
                                                  (list :spent spent
                                                        :planned planned
                                                        :goal goal))
-                                           (plist-get plist :complete))
+                                           (and (= goal 0)
+                                                (= planned 0)
+                                                (= spent 0)))
                  (magit-insert-heading
                    (make-indent (if parent-zone-path
                                     (1- (length zone-path))
