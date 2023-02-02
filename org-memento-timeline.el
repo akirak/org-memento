@@ -1703,6 +1703,12 @@ section."
                                        (format " / %s goal"
                                                (org-memento--format-duration goal))
                                      "")))))
+           (zone-goal-in-minutes (zone-taxy)
+             (if-let (goal-string (thread-first
+                                    (cdr (taxy-name zone-taxy))
+                                    (plist-get :duration)))
+                 (org-duration-to-minutes goal-string)
+               0))
            (insert-zone (parent-zone-path zone-taxy)
              (let* ((label (car (taxy-name zone-taxy)))
                     (zone-path (append parent-zone-path
@@ -1718,9 +1724,13 @@ section."
                                (taxy-flatten zone-taxy)
                                (mapcar #'planned-duration)
                                (sum-duration)))
-                    (goal-string (plist-get plist :duration))
-                    (goal (when goal-string
-                            (org-duration-to-minutes goal-string)))
+                    (goal (zone-goal-in-minutes zone-taxy))
+                    (goal (if (> goal 0)
+                              goal
+                            (cl-reduce #'+
+                                       (mapcar #'zone-goal-in-minutes
+                                               (taxy-taxys zone-taxy))
+                                       :initial-value 0)))
                     (hide-suggestions (and planned goal (>= planned goal))))
                (magit-insert-section (zone (cons zone-path
                                                  (list :spent spent
