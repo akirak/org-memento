@@ -2179,6 +2179,9 @@ You should update the status before you call this function."
              (or (cl-find (car cell) planning-items
                           :key #'org-memento-planning-item-id
                           :test #'equal)
+                 (when-let (marker (org-id-find (car cell) 'marker))
+                   (org-with-point-at marker
+                     (org-memento--planning-item)))
                  (progn
                    (message "Cannot find an item \"%s\" by its ID" (cdr cell))
                    nil)))

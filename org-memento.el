@@ -2905,20 +2905,28 @@ marker to the time stamp, and the margin in seconds."
                                  ;; (has-future-time)
                                  (and (time-less-p time last-midnight)
                                       (member (match-string 2) org-done-keywords)))
-                       (push (make-org-memento-planning-item
-                              :hd-marker (point-marker)
-                              :heading (match-string-no-properties 4)
-                              :effort (org-entry-get nil "Effort")
-                              :id (org-id-get-create)
-                              :time-of-day-ts
-                              (save-excursion
-                                (when (re-search-forward org-stamp-time-of-day-regexp
-                                                         (org-entry-end-position)
-                                                         t)
-                                  (org-timestamp-from-string (match-string 0)))))
+                       (push (org-memento--planning-item)
                              result)))
                    (re-search-forward org-heading-regexp nil t)))))))))
     result))
+
+(defun org-memento--planning-item ()
+  "Return an `org-memento-planning-item' at point.
+
+This function should be called at the headline of an entry."
+  (make-org-memento-planning-item
+   :hd-marker (point-marker)
+   :heading (if (looking-at org-complex-heading-regexp)
+                (match-string-no-properties 4)
+              (error "Not on a headline"))
+   :effort (org-entry-get nil "Effort")
+   :id (org-id-get-create)
+   :time-of-day-ts
+   (save-excursion
+     (when (re-search-forward org-stamp-time-of-day-regexp
+                              (org-entry-end-position)
+                              t)
+       (org-timestamp-from-string (match-string 0))))))
 
 (defun org-memento--maybe-skip-by-tag (&optional goto-end)
   "Return non-nil if an Org entry at point has a skip tag.
