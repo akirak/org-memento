@@ -824,26 +824,10 @@ If ARG is non-nil, create an away event."
          (save-current-buffer
            (org-with-point-at marker
              (org-memento-adjust-time :allow-edit-clock away))))
-       (update-ts (marker new-start)
-         (save-current-buffer
-           (org-with-point-at marker
-             (org-memento-adjust-time
-              :new-start new-start))))
        (reschedule (start end title marker)
-         (pcase-exhaustive (condition-case _
-                               (org-memento-timeline--find-slot
-                                title (or (when end
-                                            (/ (- end start) 60))
-                                          (when-let (effort (org-entry-get marker "Effort"))
-                                            (org-duration-to-minutes effort))))
-                             (no-empty-slot (user-error "No empty slot")))
-           ;; Manually entered starting time
-           (`(,slot-start)
-            (update-ts marker slot-start)
-            t)
-           (`(,slot-start . ,_)
-            (update-ts marker (+ slot-start (* 60 org-memento-margin-minutes)))
-            t)))
+         (org-memento-timeline--reschedule-block marker
+           :title title
+           :duration (org-memento--entry-duration marker :start start :end end)))
        (schedule-new-block (start end-bound)
          (pcase-exhaustive (org-memento--read-time-span
                             (org-memento--format-active-range
@@ -958,6 +942,24 @@ If ARG is non-nil, create an away event."
                   (_
                    (user-error "Don't know what to do for the section")))))
         (org-memento-timeline-revert)))))
+
+(cl-defun org-memento-timeline--reschedule-block (marker &key title duration)
+  (declare (indent 1))
+  (cl-flet ((update-ts (marker new-start)
+              (save-current-buffer
+                (org-with-point-at marker
+                  (org-memento-adjust-time
+                   :new-start new-start)))))
+    (pcase-exhaustive (condition-case _
+                          (org-memento-timeline--find-slot title duration)
+                        (no-empty-slot (user-error "No empty slot")))
+      ;; Manually entered starting time
+      (`(,slot-start)
+       (update-ts marker slot-start)
+       t)
+      (`(,slot-start . ,_)
+       (update-ts marker (+ slot-start (* 60 org-memento-margin-minutes)))
+       t))))
 
 (defun org-memento-timeline-rename ()
   "Change the headline of the item at point."

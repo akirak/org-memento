@@ -3788,6 +3788,13 @@ convenience, \\='nil items are ignored."
 
 ;;;; Utility functions for time representations and Org timestamps
 
+(cl-defun org-memento--entry-duration (marker &key start end)
+  "Return the duration in minutes of an entry."
+  (or (when end
+        (/ (- end start) 60))
+      (when-let (effort (org-entry-get marker "Effort"))
+        (org-duration-to-minutes effort))))
+
 (defun org-memento-week-date-range (n)
   (let* ((today (thread-first
                   (org-memento--current-time)
