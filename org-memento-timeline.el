@@ -1977,6 +1977,15 @@ With ARG, interactivity is inverted."
           ((and (app section-value `(,start ,end ,_))
                 (guard (> start now)))
            (add-to-slot start end))
+          ((and (app section-value (cl-type org-memento-block))
+                (app section-value block)
+                (guard (late-or-unscheduled block)))
+           (org-memento-timeline--reschedule-block (org-memento-block-hd-marker block)
+             :title (org-memento-title block)
+             :duration (or (org-memento-duration block)
+                           (when-let* ((end (org-memento-ending-time block))
+                                       (start (org-memento-starting-time block)))
+                             (/ (- end start) 60)))))
           (obj
            (if-let (group-path (ignore-errors
                                  (org-memento-group-path obj)))
