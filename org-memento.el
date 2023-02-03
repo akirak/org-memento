@@ -2891,23 +2891,25 @@ marker to the time stamp, and the margin in seconds."
               (org-with-wide-buffer
                (org-fold-show-all)
                (goto-char (point-min))
-               (while (re-search-forward org-planning-line-re nil t)
-                 (when-let (time (catch 'time
-                                   (while (re-search-forward org-ts-regexp (pos-eol) t)
-                                     (let ((time (org-timestamp-to-time
-                                                  (org-timestamp-from-string (match-string 0)))))
-                                       (when (time-less-p time day-start)
-                                         (throw 'time time))))))
-                   (save-excursion
-                     (org-back-to-heading)
-                     (looking-at org-complex-heading-regexp)
-                     (unless (or (org-memento--maybe-skip-by-tag t)
-                                 ;; (has-future-time)
-                                 (and (time-less-p time last-midnight)
-                                      (member (match-string 2) org-done-keywords)))
-                       (push (org-memento--planning-item)
-                             result)))
-                   (re-search-forward org-heading-regexp nil t)))))))))
+               ;; Ignore timestamps before the first headline
+               (when (re-search-forward org-heading-regexp nil t)
+                 (while (re-search-forward org-planning-line-re nil t)
+                   (when-let (time (catch 'time
+                                     (while (re-search-forward org-ts-regexp (pos-eol) t)
+                                       (let ((time (org-timestamp-to-time
+                                                    (org-timestamp-from-string (match-string 0)))))
+                                         (when (time-less-p time day-start)
+                                           (throw 'time time))))))
+                     (save-excursion
+                       (org-back-to-heading)
+                       (looking-at org-complex-heading-regexp)
+                       (unless (or (org-memento--maybe-skip-by-tag t)
+                                   ;; (has-future-time)
+                                   (and (time-less-p time last-midnight)
+                                        (member (match-string 2) org-done-keywords)))
+                         (push (org-memento--planning-item)
+                               result)))
+                     (re-search-forward org-heading-regexp nil t))))))))))
     result))
 
 (defun org-memento--planning-item ()
