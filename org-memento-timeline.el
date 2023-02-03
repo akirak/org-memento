@@ -2179,7 +2179,9 @@ You should update the status before you call this function."
              (or (cl-find (car cell) planning-items
                           :key #'org-memento-planning-item-id
                           :test #'equal)
-                 (error "Cannot find an item \"%s\" by its ID" (cdr cell))))
+                 (progn
+                   (message "Cannot find an item \"%s\" by its ID" (cdr cell))
+                   nil)))
            (compare-maybe-number (x y)
              (if (and x y)
                  (< x y)
@@ -2190,7 +2192,8 @@ You should update the status before you call this function."
                     (items (thread-last
                              (org-memento-get-planning-items
                               (org-memento-block-hd-marker block))
-                             (mapcar #'find-planning-item)))
+                             (mapcar #'find-planning-item)
+                             (delq nil)))
                     (effort-values (when (seq-every-p #'org-memento-planning-item-effort
                                                       items)
                                      ;; Some of the effort property values can be in an
