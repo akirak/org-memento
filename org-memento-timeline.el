@@ -1680,10 +1680,7 @@ section."
              (cl-typecase item
                (org-memento-block
                 (unless (org-memento-ended-time item)
-                  (or (org-memento-duration item)
-                      (when-let (ending (org-memento-ending-time item))
-                        (/ (- ending (org-memento-starting-time item))
-                           60)))))))
+                  (org-memento--block-duration item)))))
            (sum-duration (durations)
              (cl-reduce #'+ (delq nil durations) :initial-value 0))
            (format-zone-status (zone-taxy)
@@ -1901,12 +1898,7 @@ With ARG, interactivity is inverted."
                                     :start start
                                     :end end)))
          (check-duration (duration-minutes block)
-           (if-let (this-duration (or (org-memento-duration block)
-                                      (and (org-memento-starting-time block)
-                                           (org-memento-ending-time block)
-                                           (/ (- (org-memento-ending-time block)
-                                                 (org-memento-starting-time block))
-                                              60))))
+           (if-let (this-duration (org-memento--block-duration block))
                (<= this-duration (+ duration-minutes
                                     (* 2 org-memento-margin-minutes)))
              t))
@@ -1982,10 +1974,7 @@ With ARG, interactivity is inverted."
                 (guard (late-or-unscheduled block)))
            (org-memento-timeline--reschedule-block (org-memento-block-hd-marker block)
              :title (org-memento-title block)
-             :duration (or (org-memento-duration block)
-                           (when-let* ((end (org-memento-ending-time block))
-                                       (start (org-memento-starting-time block)))
-                             (/ (- end start) 60)))))
+             :duration (org-memento--block-duration block)))
           (obj
            (if-let (group-path (ignore-errors
                                  (org-memento-group-path obj)))
@@ -2171,10 +2160,6 @@ You should update the status before you call this function."
       (cl-labels
           ((block-not-started-p (block)
              (not (org-memento-started-time block)))
-           (duration-from-time (block)
-             (when-let* ((starting (org-memento-starting-time block))
-                         (ending (org-memento-ending-time block)))
-               (/ (- ending starting) 60)))
            (find-planning-item (cell)
              (or (cl-find (car cell) planning-items
                           :key #'org-memento-planning-item-id
@@ -2190,8 +2175,7 @@ You should update the status before you call this function."
                  (< x y)
                x))
            (insert-block (block)
-             (let* ((duration (or (org-memento-duration block)
-                                  (duration-from-time block)))
+             (let* ((duration (org-memento--block-duration block))
                     (items (thread-last
                              (org-memento-get-planning-items
                               (org-memento-block-hd-marker block))
@@ -2203,7 +2187,7 @@ You should update the status before you call this function."
                                      ;; invalid form. In that case, the resulting value
                                      ;; will be nil.
                                      (ignore-errors
-                                       (mapcar #'org-memento-duration items))))
+                                       (mapcar #'org-memento--block-duration items))))
                     (effort-sum (when effort-values
                                   (-sum effort-values))))
                (magit-insert-section (block-feasibility (cons block effort-sum) 'hide)
