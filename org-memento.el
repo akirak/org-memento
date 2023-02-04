@@ -508,6 +508,20 @@ Return a copy of the list."
                              (org-memento-starting-time x))))
         (+ start (* 60 duration)))))
 
+(defun org-memento--block-duration (x)
+  "Return the duration of a block.
+
+This function returns the duration of a block in minutes. If the
+block has an active timestamp range set at the beginning of the
+entry body. Otherwise, an effort property will be used, if any."
+  (or (let ((ts (org-memento-block-active-ts x)))
+        (when (and ts
+                   (eq 'active-range (org-element-type ts)))
+          (/ (- (float-time (org-timestamp-to-time ts 'end))
+                (float-time (org-timestamp-to-time ts)))
+             60)))
+      (org-memento-duration x)))
+
 (cl-defmethod org-memento-group-path ((x org-memento-block))
   (with-current-buffer (org-memento--buffer)
     (org-memento--get-group (org-memento-block-headline x))))
