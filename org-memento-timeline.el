@@ -1288,8 +1288,8 @@ section."
                          45 1))
          (rule-pos (max 0 (1- (floor (* gauge-width threshold)))))
          ;; This can be a constant, but it is tedious.
-         (row-format-1 "| %-16s |%6s /%6s | %s%4.f%%")
-         (row-format-2 "| %-16s |%6s %7s | ")
+         (row-format-1 "| %-16s |%6s /%6s |%s%4.f%%")
+         (row-format-2 "| %-16s |%6s %7s |")
          (total-controlled 0)
          (total-worked 0)
          (total-goal 0))
