@@ -1932,8 +1932,8 @@ With ARG, interactivity is inverted."
                                    (equal (org-memento-title x)
                                           ,org-memento-current-block))
                                 (org-memento--blocks)))
-       (funcall org-memento-timeline-hide-planning
-                (org-memento--get-group (org-memento-headline-element block)))))))
+       (not (funcall org-memento-timeline-hide-planning
+                     (org-memento--get-group (org-memento-headline-element block))))))))
 
 (defvar org-memento-timeline-planning-map
   (let ((map (make-sparse-keymap)))
