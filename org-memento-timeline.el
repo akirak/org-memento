@@ -1273,119 +1273,12 @@ section."
                 :start-date (car org-memento-timeline-date-range)
                 :end-date (cadr org-memento-timeline-date-range)))
         (group-sums-for-span (org-memento-group-sums-1 taxy)))
-    (cl-labels
-        ((spentp (x)
-           (and (org-memento-group-data-p x)
-                (eq 'activity-sum (org-memento-group-data-tag x))))
-         (plannedp (x)
-           (and (org-memento-group-data-p x)
-                (eq 'planned-sum (org-memento-group-data-tag x))))
-         (budget-for-span-p (span x)
-           (and (org-memento-policy-budget-rule-p x)
-                (eq (slot-value x 'span) span)))
-         (test-budget (span level x)
-           (and (org-memento-policy-budget-rule-p x)
-                (eq (slot-value x 'span) span)
-                (eq (slot-value x 'level) level)))
-         (budget (span level rules)
-           (when-let (rule (seq-find (apply-partially #'test-budget span level) rules))
-             (slot-value rule 'duration-minutes)))
-         (format-budget (span level rules spent)
-           (if-let (budget (budget span level rules))
-               (propertize (org-memento--format-duration budget)
-                           'face
-                           (if (>= spent budget)
-                               (if (eq level 'limit)
-                                   'org-memento-timeline-above-limit-face
-                                 'org-memento-timeline-complete-face)
-                             'default))
-             ""))
-         (group-value (x)
-           (org-memento-group-data-value x))
-         (sum (nums)
-           (cl-reduce #'+ nums :initial-value 0))
-         (insert-group (span depth group-taxy)
-           (let* ((spent (thread-last
-                           (taxy-flatten group-taxy)
-                           (seq-filter #'spentp)
-                           (mapcar #'group-value)
-                           (sum)))
-                  (planned (thread-last
-                             (taxy-flatten group-taxy)
-                             (seq-filter #'plannedp)
-                             (mapcar #'group-value)
-                             (sum)))
-                  (goal (budget span 'goal (taxy-items group-taxy)))
-                  (demand (when goal
-                            (- goal (+ spent planned)))))
-             (magit-insert-section (group-budgets (list span
-                                                        (taxy-name group-taxy)
-                                                        demand))
-               (magit-insert-heading
-                 (make-string 2 ?\s)
-                 (pcase span
-                   (`day
-                    (format "| %-16s | %4s%s%4s | %4s | %4s %-7s | %4s |"
-                            (truncate-string-to-width
-                             (concat (make-string depth ?\s)
-                                     (propertize
-                                      (org-memento--format-group-last-node
-                                       (taxy-name group-taxy))
-                                      'face 'org-memento-timeline-group-path-face))
-                             16)
-                            (if (> spent 0)
-                                (org-memento--format-duration spent)
-                              "")
-                            (if (> planned 0)
-                                "+"
-                              " ")
-                            (if (> planned 0)
-                                (org-memento--format-duration planned)
-                              "")
-                            (format-budget 'day 'minimum (taxy-items group-taxy) spent)
-                            (format-budget 'day 'goal (taxy-items group-taxy) spent)
-                            (cond
-                             ((and demand (> demand 0))
-                              (propertize (format "(-%s)" (org-memento--format-duration demand))
-                                          'face 'org-memento-timeline-insufficient-face))
-                             ((and spent goal (>= spent goal))
-                              (propertize (format "(%.f%%)" (* 100 (/ spent goal)))
-                                          'face 'org-memento-timeline-complete-face))
-                             (t
-                              ""))
-                            (format-budget 'day 'limit (taxy-items group-taxy) spent)))))
-               (dolist (subtaxy (taxy-taxys group-taxy))
-                 (insert-group span (1+ depth) subtaxy))))))
-      (org-memento-timeline--section-1 progress
-        (magit-insert-heading "Progress")
-        ;; (when (eq 'day org-memento-timeline-span)
-        ;;   (org-memento-timeline--section-1 daily-progress
-        ;;     (magit-insert-heading
-        ;;       (make-string 2 ?\s)
-        ;;       "Daily")
-        ;;     (insert (propertize
-        ;;              (concat
-        ;;               (make-string 2 ?\s)
-        ;;               (format "| %-16s | %-9s | %-26s |\n"
-        ;;                       "Group" "Today" "Daily budget")
-        ;;               (make-string 2 ?\s)
-        ;;               (format "| %-16s | %-9s | %-4s | %-12s | %-4s |\n"
-        ;;                       "" "Current" "Min" "Goal" "Lim"))
-        ;;              'face 'magit-section-heading))
-        ;;     (dolist (group-taxy
-        ;;              (thread-last
-        ;;                rules
-        ;;                (seq-filter (apply-partially #'budget-for-span-p 'day))
-        ;;                (org-memento-policy-group-taxy)
-        ;;                (taxy-fill group-sums-for-span)
-        ;;                (taxy-fill (org-memento-group-planned-sums-1))
-        ;;                (taxy-taxys)))
-        ;;       (insert-group 'day 0 group-taxy)))
-        ;;   (insert ?\n))
-        (org-memento-timeline--weekly-progress
-         rules
-         (append group-sums-for-span org-memento-weekly-group-sums)))
-      (insert ?\n))))
+    (org-memento-timeline--section-1 progress
+      (magit-insert-heading "Progress")
+      (org-memento-timeline--weekly-progress
+       rules
+       (append group-sums-for-span org-memento-weekly-group-sums)))
+    (insert ?\n)))
 
 (defun org-memento-timeline--weekly-progress (rules group-sums)
   (let* ((threshold (/ (org-memento--percentage-on-week) 100))
