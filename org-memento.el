@@ -324,6 +324,10 @@ If this variable is nil, no timer will be run when you start a
 block."
   :type '(choice function (const nil)))
 
+(defcustom org-memento-carry-over-on-checkin t
+  "Whether to carry over items from the previous day."
+  :type 'boolean)
+
 (defcustom org-memento-extend-on-end 'ask
   "Whether to ask if the user wants to extend the time.
 
@@ -1635,6 +1639,16 @@ The function returns non-nil if the check-in is done."
     (when (boundp 'org-memento-timeline-dismissed-items)
       (setq org-memento-timeline-dismissed-items nil))
     (org-memento--ensure-file-mode)
+    (when org-memento-carry-over-on-checkin
+      (let ((today (org-memento--today-string)))
+        (save-excursion
+          (when (re-search-forward (rx bol "*" blank) nil t)
+            (org-narrow-to-subtree)
+            (let ((blocks (thread-last
+                            (org-memento--collect-blocks)
+                            (seq-filter #'org-memento-block-not-closed-p))))
+              (widen)
+              (org-memento--carry-over blocks today))))))
     (save-excursion
       (run-hooks 'org-memento-checkin-hook))
     (org-memento-status)
@@ -1779,19 +1793,22 @@ The point must be at the heading."
    (when check-in
      (org-memento--maybe-checkin-to-day))
    (org-narrow-to-subtree)
-   (org-save-outline-visibility t
-     (org-fold-show-subtree)
-     (org-map-entries #'org-memento-block-entry
-                      nil nil
-                      (lambda ()
-                        (and (looking-at org-complex-heading-regexp)
-                             (not (= 1 (length (match-string 1))))
-                             (or (> (length (match-string 1))
-                                    2)
-                                 (let ((headline (match-string 4)))
-                                   (or (equal org-memento-idle-heading headline)
-                                       (string-prefix-p "COMMENT" headline))))
-                             (org-end-of-subtree)))))))
+   (org-memento--collect-blocks)))
+
+(defun org-memento--collect-blocks ()
+  (org-save-outline-visibility t
+    (org-fold-show-subtree)
+    (org-map-entries #'org-memento-block-entry
+                     nil nil
+                     (lambda ()
+                       (and (looking-at org-complex-heading-regexp)
+                            (not (= 1 (length (match-string 1))))
+                            (or (> (length (match-string 1))
+                                   2)
+                                (let ((headline (match-string 4)))
+                                  (or (equal org-memento-idle-heading headline)
+                                      (string-prefix-p "COMMENT" headline))))
+                            (org-end-of-subtree))))))
 
 (defun org-memento-block-entry ()
   "Return information on the block at point."
