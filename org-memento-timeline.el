@@ -77,11 +77,11 @@ timeline as an argument."
                  (const :tag "Beginning of the buffer" nil)))
 
 (defcustom org-memento-timeline-hide-planning t
-  "Whether to hide the planning section when in a block.
+  "Whether to hide the planning sections when in a block.
 
 Alternatively, the value can be a function that takes the group
 of the current block as an argument. If the function returns
-non-nil, the section will be hidden."
+non-nil, the sections will be hidden."
   :type '(choice boolean function))
 
 (defcustom org-memento-timeline-refresh-interval 180
