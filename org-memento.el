@@ -3268,32 +3268,36 @@ This function must be called at the beginning of the entry."
                             (or org-extend-today-until) 0 0)
                            (decoded-time-add (make-decoded-time :hour 23 :minute 59))
                            (encode-time)))))
-      (thread-last
-        (make-taxy
-         :name (list start-time end-time)
-         :taxys (thread-last
-                  (org-memento--block-activities start-day end-day
-                                                 :annotate-todos todos
-                                                 :annotate-groups groups)
-                  (fill-voids (float-time start-time)
-                              (float-time end-time)
-                              #'car #'make-gap-date)
-                  (mapcar #'make-date-taxy)))
-        (taxy-emptied)
-        (taxy-fill (when (and (not org-memento-current-block)
-                              (not (org-clocking-p))
-                              (> now (float-time start-time))
-                              (< now (float-time end-time)))
-                     (list (list now now nil nil 'now))))
-        (taxy-fill (org-memento--agenda-activities
-                    start-time
-                    end-time
-                    (cl-remove (expand-file-name org-memento-file)
-                               (org-agenda-files)
-                               :test #'equal)))
-        (taxy-sort-items #'< #'car)
-        (postprocess-root-taxy)
-        (fill-date-gaps)))))
+      (condition-case err
+          (thread-last
+            (make-taxy
+             :name (list start-time end-time)
+             :taxys (thread-last
+                      (org-memento--block-activities start-day end-day
+                                                     :annotate-todos todos
+                                                     :annotate-groups groups)
+                      (fill-voids (float-time start-time)
+                                  (float-time end-time)
+                                  #'car #'make-gap-date)
+                      (mapcar #'make-date-taxy)))
+            (taxy-emptied)
+            (taxy-fill (when (and (not org-memento-current-block)
+                                  (not (org-clocking-p))
+                                  (> now (float-time start-time))
+                                  (< now (float-time end-time)))
+                         (list (list now now nil nil 'now))))
+            (taxy-fill (org-memento--agenda-activities
+                        start-time
+                        end-time
+                        (cl-remove (expand-file-name org-memento-file)
+                                   (org-agenda-files)
+                                   :test #'equal)))
+            (taxy-sort-items #'< #'car)
+            (postprocess-root-taxy)
+            (fill-date-gaps))
+        (error (progn
+                 (org-memento-validate)
+                 (error err)))))))
 
 (cl-defun org-memento--agenda-activities (start-bound end-bound &optional files)
   "Gather activities during a certain date period from files.
