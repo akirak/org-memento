@@ -868,7 +868,8 @@ should not be run inside the journal file."
       (progn
         (when (org-clocking-p)
           (user-error "Before you finish the block, please finish your clock."))
-        (when (yes-or-no-p "Finish the current block?")
+        (when (yes-or-no-p (format "Finish the current block \"%s\"?"
+                                   org-memento-current-block))
           (org-memento-finish-block arg)))
     (if (org-clocking-p)
         (org-memento-start-block
