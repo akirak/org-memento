@@ -901,6 +901,8 @@ should not be run inside the journal file."
               (`(,_ ,_ ,_ ,command)
                (call-interactively command)))
           (cond
+           ((equal arg '(4))
+            (call-interactively #'org-memento-start-block))
            ;; If there is an upcoming event that should be started within 10
            ;; minutes, display it.
            ((and next-event-time
