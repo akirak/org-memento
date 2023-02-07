@@ -47,7 +47,8 @@
 (defcustom org-memento-timeline-hook
   '(org-memento-timeline-overview-section
     org-memento-timeline-planning-sections
-    org-memento-timeline-section)
+    org-memento-timeline-section
+    org-memento-timeline-progress-section)
   "Hook run every time the buffer is refreshed.
 
 The hook is run inside the timeline buffer.
@@ -57,9 +58,8 @@ timeline as an argument."
   :type 'hook)
 
 (defcustom org-memento-timeline-planning-hook
-  '(org-memento-timeline-progress-section
-    org-memento-timeline-zone-list-section
-    org-memento-timeline-late-blocks-section
+  '(org-memento-timeline-late-blocks-section
+    ;; org-memento-timeline-zone-list-section
     org-memento-timeline-next-event-section
     org-memento-timeline-feasibility-section
     org-memento-timeline-unscheduled-blocks-section)
