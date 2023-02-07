@@ -2182,14 +2182,7 @@ This function creates a follow-up task according to the value of
                        orders)))
     (cl-labels
         ((annotator (candidate)
-           (let ((order (cdr (assoc candidate alist))))
-             (concat (if-let (duration (org-memento-duration order))
-                         (propertize (format " (%s)" (org-duration-from-minutes duration))
-                                     'face 'font-lock-doc-face)
-                       "")
-                     " "
-                     (propertize (org-memento--format-group (org-memento-order-group order))
-                                 'face 'font-lock-comment-face))))
+           (org-memento--order-annotator (cdr (assoc candidate alist))))
          (completions (string pred action)
            (if (eq action 'metadata)
                (cons 'metadata
@@ -2198,6 +2191,15 @@ This function creates a follow-up task according to the value of
              (complete-with-action action alist string pred))))
       (cdr (assoc (completing-read prompt #'completions nil t)
                   alist)))))
+
+(defun org-memento--order-annotator (order)
+  (concat (if-let (duration (org-memento-duration order))
+              (propertize (format " (%s)" (org-duration-from-minutes duration))
+                          'face 'font-lock-doc-face)
+            "")
+          " "
+          (propertize (org-memento--format-group (org-memento-order-group order))
+                      'face 'font-lock-comment-face)))
 
 (cl-defun org-memento-read-group (&optional prompt &key title default group-path
                                             (from-group-cache t) (from-policies t))
