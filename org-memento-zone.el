@@ -299,7 +299,8 @@
                  (when-let (description (taxy-description zone-taxy))
                    (insert (make-indent level)
                            (propertize description 'face 'org-memento-timeline-zone-desc-face)
-                           "\n")))
+                           "\n"))
+                 (insert ?\n))
                (if (taxy-taxys zone-taxy)
                    (progn
                      (dolist (subtaxy (taxy-taxys zone-taxy))
@@ -330,7 +331,8 @@
                        (magit-insert-heading
                          (make-indent (1+ level))
                          (propertize (org-memento--format-group group)
-                                     'face 'org-memento-timeline-group-path-face))))))))))
+                                     'face 'org-memento-timeline-group-path-face))))))
+               (insert ?\n)))))
       (if org-memento-zone-taxy
           (insert-zone nil (thread-last
                              (copy-taxy org-memento-zone-taxy)
