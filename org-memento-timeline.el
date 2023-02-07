@@ -579,16 +579,6 @@ triggered by an interval timer."
                              (when (title taxy)
                                end))
                (setq last-block-end end))))
-         (sum-durations (pred records)
-           (cl-reduce #'+
-                      (thread-last
-                        records
-                        (seq-filter pred)
-                        (mapcar (lambda (record)
-                                  (/ (- (cadr record)
-                                        (car record))
-                                     60))))
-                      :initial-value 0))
          (block-record-p (record)
            (eq (nth 4 record) 'block))
          (insert-date (taxy)
@@ -617,51 +607,23 @@ triggered by an interval timer."
                                       " (%d focused, %f unfocused, %u untracked, \
 %s scheduled, %a available)"
                                     " (%d focused, %f unfocused, %u untracked)")
-                                  `((?d . ,(thread-last
-                                             (taxy-taxys taxy)
-                                             (mapcar #'taxy-name)
-                                             (sum-durations
-                                              (lambda (record)
-                                                (and (block-record-p record)
-                                                     (cadr record)
-                                                     (< (cadr record) now))))
-                                             (org-memento--format-duration)))
-                                    (?f . ,(thread-last
-                                             (taxy-taxys taxy)
-                                             (mapcar #'taxy-name)
-                                             (sum-durations
-                                              (lambda (record)
-                                                (eq (nth 4 record) 'anonymous)))
-                                             (org-memento--format-duration)))
-                                    (?u . ,(thread-last
-                                             (taxy-taxys taxy)
-                                             (mapcar #'taxy-name)
-                                             (sum-durations
-                                              (lambda (record)
-                                                (and (null (nth 4 record))
-                                                     (cadr record)
-                                                     (< (cadr record) now))))
-                                             (org-memento--format-duration)))
+                                  `((?d . ,(org-memento--format-duration
+                                            (org-memento-timeline--sum-day
+                                             'focused taxy now)))
+                                    (?f . ,(org-memento--format-duration
+                                            (org-memento-timeline--sum-day
+                                             'unfocused taxy now)))
+                                    (?u . ,(org-memento--format-duration
+                                            (org-memento-timeline--sum-day
+                                             'untracked taxy now)))
                                     (?s . ,(when day-unfinished
-                                             (thread-last
-                                               (taxy-taxys taxy)
-                                               (mapcar #'taxy-name)
-                                               (sum-durations
-                                                (lambda (record)
-                                                  (and (block-record-p record)
-                                                       (car record)
-                                                       (> (cadr record) now))))
-                                               (org-memento--format-duration))))
+                                             (org-memento--format-duration
+                                              (org-memento-timeline--sum-day
+                                               'scheduled taxy now))))
                                     (?a . ,(when day-unfinished
-                                             (thread-last
-                                               (taxy-taxys taxy)
-                                               (mapcar #'taxy-name)
-                                               (sum-durations
-                                                (lambda (record)
-                                                  (and (null (nth 4 record))
-                                                       (cadr record)
-                                                       (> (cadr record) now))))
-                                               (org-memento--format-duration))))))
+                                             (org-memento--format-duration
+                                              (org-memento-timeline--sum-day
+                                               'available taxy now))))))
                      (propertize
                       'face 'default))))
                (insert indent
@@ -1079,6 +1041,75 @@ section."
                                  (throw 'section pos)))))))
       (goto-char new-pos))))
 
+(defun org-memento-timeline--sum-day (type taxy &optional now)
+  (cl-flet
+      ((block-record-p (record)
+         (eq (nth 4 record) 'block))
+       (sum-durations (pred records)
+         (cl-reduce #'+
+                    (thread-last
+                      records
+                      (seq-filter pred)
+                      (mapcar (lambda (record)
+                                (/ (- (cadr record)
+                                      (car record))
+                                   60))))
+                    :initial-value 0)))
+    (let ((now (or now (float-time (org-memento--current-time)))))
+      (cl-ecase type
+        (focused
+         (thread-last
+           (taxy-taxys taxy)
+           (mapcar #'taxy-name)
+           (sum-durations
+            (lambda (record)
+              (and (block-record-p record)
+                   (cadr record)
+                   (< (cadr record) now))))))
+        (idle
+         (thread-last
+           (taxy-taxys taxy)
+           (mapcar #'taxy-name)
+           (sum-durations
+            (lambda (record)
+              (and (memq (nth 4 record) '(idle away))
+                   (cadr record)
+                   (< (cadr record) now))))))
+        (unfocused
+         (thread-last
+           (taxy-taxys taxy)
+           (mapcar #'taxy-name)
+           (sum-durations
+            (lambda (record)
+              (eq (nth 4 record) 'anonymous)))))
+        (untracked
+         (thread-last
+           (taxy-taxys taxy)
+           (mapcar #'taxy-name)
+           (sum-durations
+            (lambda (record)
+              (and (null (nth 4 record))
+                   (cadr record)
+                   (< (cadr record) now))))))
+        (scheduled
+         (thread-last
+           (taxy-taxys taxy)
+           (mapcar #'taxy-name)
+           (sum-durations
+            (lambda (record)
+              (and (block-record-p record)
+                   (car record)
+                   (> (cadr record) now))))))
+        (available
+         (thread-last
+           (taxy-taxys taxy)
+           (mapcar #'taxy-name)
+           (sum-durations
+            (lambda (record)
+              (and (null (nth 4 record))
+                   (cadr record)
+                   (> (cadr record) now))))))))))
+
 ;;;; Extra hooks
 
 (defun org-memento-timeline-overview-section (taxy)
@@ -1135,32 +1166,14 @@ section."
                        (duration-seconds (when (and checkin-time checkout-time)
                                            (- checkout-time checkin-time)))
                        (focused (when date-taxy
-                                  (thread-last
-                                    (taxy-taxys date-taxy)
-                                    (mapcar #'taxy-name)
-                                    (sum-durations
-                                     (lambda (record)
-                                       (and (eq (nth 4 record) 'block)
-                                            (cadr record)
-                                            (< (cadr record) now)))))))
+                                  (org-memento-timeline--sum-day
+                                   'focused date-taxy now)))
                        (idle (when date-taxy
-                               (thread-last
-                                 (taxy-taxys date-taxy)
-                                 (mapcar #'taxy-name)
-                                 (sum-durations
-                                  (lambda (record)
-                                    (and (memq (nth 4 record) '(idle away))
-                                         (cadr record)
-                                         (< (cadr record) now)))))))
+                               (org-memento-timeline--sum-day
+                                'idle date-taxy now)))
                        (untracked (when date-taxy
-                                    (thread-last
-                                      (taxy-taxys date-taxy)
-                                      (mapcar #'taxy-name)
-                                      (sum-durations
-                                       (lambda (record)
-                                         (and (null (nth 4 record))
-                                              (cadr record)
-                                              (< (cadr record) now))))))))
+                                    (org-memento-timeline--sum-day
+                                     'untracked date-taxy now))))
                   (push (cons 'idle idle) totals)
                   (push (cons 'focused focused) totals)
                   (push (cons 'untracked untracked) totals)
