@@ -64,7 +64,10 @@
                               (org-id-get)))))
     (cl-labels
         ((make-indent (level)
-           (make-string (* 2 level) ?\s))
+           (let ((n (* 2 (1- level))))
+             (if (> n 0)
+                 (make-string n ?\s)
+               "")))
          (planned (item)
            (and (org-memento-planning-item-p item)
                 (assoc (org-memento-planning-item-id item) planned-items)))
@@ -278,26 +281,25 @@
                                          (and (= goal 0)
                                               (= planned 0)
                                               (= spent 0)))
-               (magit-insert-heading
-                 (make-indent (if parent-zone-path
-                                  (1- (length zone-path))
-                                (length zone-path)))
-                 (when parent-zone-path
-                   (format-zone-status zone-taxy))
-                 (if-let (name (car (taxy-name zone-taxy)))
-                     (propertize name
-                                 'face
-                                 (if (equal (seq-take org-memento-zone-current
-                                                      (1+ (length parent-zone-path)))
-                                            (append parent-zone-path (list name)))
-                                     'org-memento-timeline-active-zone-title-face
-                                   'org-memento-timeline-zone-title-face))
-                   (propertize "Zones" 'face 'magit-section-heading))
-                 (format-meta :spent spent :planned planned :goal goal))
-               (when-let (description (taxy-description zone-taxy))
-                 (insert (make-indent level)
-                         (propertize description 'face 'org-memento-timeline-zone-desc-face)
-                         "\n"))
+               (when-let (name (car (taxy-name zone-taxy)))
+                 (magit-insert-heading
+                   (make-indent (if parent-zone-path
+                                    (1- (length zone-path))
+                                  (length zone-path)))
+                   (when parent-zone-path
+                     (format-zone-status zone-taxy))
+                   (propertize name
+                               'face
+                               (if (equal (seq-take org-memento-zone-current
+                                                    (1+ (length parent-zone-path)))
+                                          (append parent-zone-path (list name)))
+                                   'org-memento-timeline-active-zone-title-face
+                                 'org-memento-timeline-zone-title-face))
+                   (format-meta :spent spent :planned planned :goal goal))
+                 (when-let (description (taxy-description zone-taxy))
+                   (insert (make-indent level)
+                           (propertize description 'face 'org-memento-timeline-zone-desc-face)
+                           "\n")))
                (if (taxy-taxys zone-taxy)
                    (progn
                      (dolist (subtaxy (taxy-taxys zone-taxy))
