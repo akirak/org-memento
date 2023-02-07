@@ -959,7 +959,9 @@ and starting it will affect execution of other events. Please manually moderate 
 
 (defun org-memento-pick-next-action (max-duration)
   "Pick an action the user can do within a certain duration."
-  (interactive "sDuration: ")
+  (interactive (list (org-memento--read-duration "Duration: "
+                                                 :default "0:25"
+                                                 :check-next-event t)))
   (let ((max-duration (cl-etypecase max-duration
                         (string (org-duration-to-minutes max-duration))
                         (number max-duration))))
