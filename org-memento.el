@@ -347,6 +347,14 @@ It takes two arguments: the old heading and the todo keyword of
 the failed block."
   :type 'function)
 
+(defcustom org-memento-pick-from-suggestions t
+  "Whether to use suggestions.
+
+When this option is non-nil, `org-memento-pick-next-action'
+yields suggestions for the time span and allows the user to pick
+an action from them."
+  :type 'boolean)
+
 ;;;; Variables
 
 (defvar org-memento-init-done nil)
@@ -976,12 +984,27 @@ and starting it will affect execution of other events. Please manually moderate 
                             (org-memento--blocks)
                             (seq-filter #'org-memento-block-not-closed-p)
                             (seq-filter #'duration-ok-p)))
+                  (today (org-memento--today-string))
+                  (extra-actions (when org-memento-pick-from-suggestions
+                                   (thread-last
+                                     (org-memento-yield-for-span
+                                         (org-memento-activity-taxy today today)
+                                         'span
+                                       :start-date today :end-date today
+                                       :require-budget t)
+                                     (mapcan #'cdr)
+                                     (mapcan #'identity)
+                                     (seq-filter #'duration-ok-p)
+                                     (mapcar (lambda (x)
+                                               (cons (org-memento-title x) x))))))
                   (block-or-event (org-memento-read-block
                                    (format "Pick an action you can finish within %s: "
                                            (org-memento--format-duration max-duration))
                                    blocks
                                    :return-struct t
-                                   :extra-actions '(("Do nothing or something else" . nil)))))
+                                   :extra-actions
+                                   (cons '("Do nothing or something else" . nil)
+                                         extra-actions))))
         (pcase block-or-event
           (`nil
            nil)
@@ -990,7 +1013,25 @@ and starting it will affect execution of other events. Please manually moderate 
            t)
           ((cl-type org-memento-org-event)
            (org-clock-clock-in (list (org-memento-marker block-or-event)))
-           t))))))
+           t)
+          ((cl-type org-memento-order)
+           (let* ((order block-or-event)
+                  (title (org-memento-order-title order))
+                  ;; TODO: Avoid duplicate of the title
+                  (duration (org-memento-order-duration order))
+                  (start (float-time)))
+             (org-memento-add-event :title title
+                                    :start start
+                                    :end (+ start (* duration 60))
+                                    :duration duration
+                                    :interactive nil
+                                    :body (org-memento--order-template order)
+                                    :group (org-memento--default-group
+                                            (org-memento-order-group order))
+                                    :template-id (org-memento--order-template-id order)
+                                    :copy-from (org-memento-order-sample-marker order))
+             (org-memento-start-block title)
+             t)))))))
 
 ;;;###autoload
 (defun org-memento-moderate (&optional message-text)
@@ -2373,7 +2414,9 @@ into the candidates as well."
                  (org-memento-org-event
                   (if-let (duration (org-memento-duration block-or-event))
                       (format " Duration %s" (org-memento--format-duration duration))
-                    "")))
+                    ""))
+                 (org-memento-order
+                  (org-memento--order-annotator block-or-event)))
              ""))
          (group (candidate transform)
            (if transform
@@ -2381,6 +2424,7 @@ into the candidates as well."
              (cl-typecase (gethash candidate cache)
                (org-memento-block "Block")
                (org-memento-org-event "Event from org-agenda-files")
+               (org-memento-order "Suggestion")
                (otherwise "Other actions"))))
          (completions (string pred action)
            (if (eq action 'metadata)
