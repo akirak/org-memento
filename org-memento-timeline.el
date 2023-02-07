@@ -600,32 +600,7 @@ triggered by an interval timer."
                                         (/ (- (end-time taxy)
                                               (start-time taxy))
                                            60)))
-                               'face 'font-lock-comment-face))
-                 (when title
-                   (thread-first
-                     (format-spec (if day-unfinished
-                                      " (%d focused, %f unfocused, %u untracked, \
-%s scheduled, %a available)"
-                                    " (%d focused, %f unfocused, %u untracked)")
-                                  `((?d . ,(org-memento--format-duration
-                                            (org-memento-timeline--sum-day
-                                             'focused taxy now)))
-                                    (?f . ,(org-memento--format-duration
-                                            (org-memento-timeline--sum-day
-                                             'unfocused taxy now)))
-                                    (?u . ,(org-memento--format-duration
-                                            (org-memento-timeline--sum-day
-                                             'untracked taxy now)))
-                                    (?s . ,(when day-unfinished
-                                             (org-memento--format-duration
-                                              (org-memento-timeline--sum-day
-                                               'scheduled taxy now))))
-                                    (?a . ,(when day-unfinished
-                                             (org-memento--format-duration
-                                              (org-memento-timeline--sum-day
-                                               'available taxy now))))))
-                     (propertize
-                      'face 'default))))
+                               'face 'font-lock-comment-face)))
                (insert indent
                        (if-let (time (start-time taxy))
                            (format-time-string "%R" time)
