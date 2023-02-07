@@ -1147,7 +1147,7 @@ section."
                (final-date (midnight-from-string (cadr org-memento-timeline-date-range)))
                (now (float-time (org-memento--current-time)))
                totals)
-          (insert (format "| %-14s | ChkIn | ChkOut| Total |Focusd| Idle |Untrkd|\n"
+          (insert (format "| %-14s | Check in/out (dur) |Focused|Unfocsd|Untrakd| Idle | Active|\n"
                           "Date"))
           (while (not (org-memento-date--le final-date date))
             (let* ((date-string (format-time-string "%F" (encode-time date)))
@@ -1168,6 +1168,9 @@ section."
                        (focused (when date-taxy
                                   (org-memento-timeline--sum-day
                                    'focused date-taxy now)))
+                       (unfocused (when date-taxy
+                                    (org-memento-timeline--sum-day
+                                     'unfocused date-taxy now)))
                        (idle (when date-taxy
                                (org-memento-timeline--sum-day
                                 'idle date-taxy now)))
@@ -1177,7 +1180,7 @@ section."
                   (push (cons 'idle idle) totals)
                   (push (cons 'focused focused) totals)
                   (push (cons 'untracked untracked) totals)
-                  (insert (format "| %-14s | %5s | %5s | %5s | %4s | %4s | %4s |\n"
+                  (insert (format "| %-14s | %4s-%4s (%4s) | %5s | %5s | %5s |%5s | %5s |\n"
                                   (format-time-string "%F %a" (encode-time date))
                                   (if checkin-time
                                       (format-seconds (- checkin-time midnight)
@@ -1194,12 +1197,19 @@ section."
                                   (if focused
                                       (org-memento--format-duration focused)
                                     "")
-                                  (if idle
-                                      (org-memento--format-duration idle)
+                                  (if unfocused
+                                      (org-memento--format-duration unfocused)
                                     "")
                                   (if untracked
                                       (org-memento--format-duration untracked)
-                                    ""))))))
+                                    "")
+                                  (if idle
+                                      (org-memento--format-duration idle)
+                                    "")
+                                  (org-memento--format-duration
+                                   (+ (or focused 0)
+                                      (or unfocused 0)
+                                      (or untracked 0))))))))
             (setq date (decoded-time-add date (make-decoded-time :day 1))))
           (cl-flet
               ((group-sum (key)
@@ -1211,7 +1221,7 @@ section."
                               (cdr)
                               (mapcar #'cdr))
                             :initial-value 0)))
-            (insert (propertize (format "| %-14s | %5s | %5s | %5s |%5s |%5s |%5s |\n"
+            (insert (propertize (format "| %-14s | %18s | %5s | %5s | %5s |%5s | %5s |\n"
                                         "Total"
                                         ""
                                         ""
