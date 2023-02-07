@@ -601,6 +601,15 @@ triggered by an interval timer."
                                               (start-time taxy))
                                            60)))
                                'face 'font-lock-comment-face)))
+               (when day-unfinished
+                 (insert indent
+                         (format "Scheduled: %5s\n"
+                                 (org-memento--format-duration
+                                  (org-memento-timeline--sum-day 'scheduled taxy now))))
+                 (insert indent
+                         (format "Available: %5s\n"
+                                 (org-memento--format-duration
+                                  (org-memento-timeline--sum-day 'available taxy now)))))
                (insert indent
                        (if-let (time (start-time taxy))
                            (format-time-string "%R" time)
