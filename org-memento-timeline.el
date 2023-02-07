@@ -347,6 +347,7 @@ function selects the window."
       (delete-all-overlays)
       (erase-buffer)
       (run-hook-with-args 'org-memento-timeline-hook taxy)
+      (goto-char (point-min))
       (or (when on-now
             (org-memento-timeline--search-section
              `(lambda (section)
@@ -683,11 +684,9 @@ triggered by an interval timer."
                                          60)))
                            "\n")))))
            (insert ?\n)))
-
       (org-memento-timeline--section-1 timeline
         (dolist (taxy (taxy-taxys root-taxy))
-          (insert-date taxy)))
-      (goto-char (point-min)))))
+          (insert-date taxy))))))
 
 ;;;; Mode
 
