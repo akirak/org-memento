@@ -2193,13 +2193,18 @@ This function creates a follow-up task according to the value of
                   alist)))))
 
 (defun org-memento--order-annotator (order)
-  (concat (if-let (duration (org-memento-duration order))
-              (propertize (format " (%s)" (org-duration-from-minutes duration))
-                          'face 'font-lock-doc-face)
-            "")
-          " "
-          (propertize (org-memento--format-group (org-memento-order-group order))
-                      'face 'font-lock-comment-face)))
+  (let ((latest (caar (org-memento-order-previous-activities order))))
+    (concat (if-let (duration (org-memento-duration order))
+                (propertize (format " (%s)" (org-duration-from-minutes duration))
+                            'face 'font-lock-doc-face)
+              "")
+            " "
+            (propertize (org-memento--format-group (org-memento-order-group order))
+                        'face 'font-lock-comment-face)
+            (if latest
+                (concat " " (propertize (org-memento--format-diff-days (- (float-time) latest))
+                                        'face 'font-lock-comment-face))
+              ""))))
 
 (cl-defun org-memento-read-group (&optional prompt &key title default group-path
                                             (from-group-cache t) (from-policies t))
