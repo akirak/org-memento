@@ -69,6 +69,7 @@
 (declare-function org-clock-clock-in "org-clock")
 (declare-function org-fold-show-subtree "org-fold")
 (declare-function org-fold-show-all "org-fold")
+(declare-function org-memento-yield-for-span "org-memento-yield")
 (defvar org-super-agenda-properties-inherit)
 (defvar org-capture-entry)
 (defvar org-agenda-start-on-weekday)

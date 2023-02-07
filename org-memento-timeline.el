@@ -34,6 +34,7 @@
 
 (declare-function org-clocking-p "org-clock")
 (declare-function org-fold-show-context "org-fold")
+(declare-function org-memento-zone-list "org-memento-zone")
 
 (defgroup org-memento-timeline nil
   "Activity timeline."

@@ -2,6 +2,8 @@
 
 (require 'org-memento-timeline)
 
+(declare-function org-clocking-p "org-clock")
+
 (defconst org-memento-zone-list-buffer "*Org-Memento Zones*")
 
 (defvar org-memento-zone-current nil
