@@ -1775,7 +1775,7 @@ You should update the status before you call this function."
                       (let* ((record (taxy-name block-taxy))
                              (start (car record))
                              (end (cadr record)))
-                        (when (> end now)
+                        (when (and end (> end now))
                           (when (and last-end
                                      (< start last-end))
                             (push (cons record last-end) overlaps))
