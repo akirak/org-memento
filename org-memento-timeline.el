@@ -711,6 +711,12 @@ triggered by an interval timer."
             ((and `(,start ,_end ,_ ,marker ,type . ,_)
                   (guard marker))
              (cond
+              ((or (not start)
+                   (eq type 'away))
+               (when (yes-or-no-p "Remove the entry?")
+                 (save-current-buffer
+                   (org-with-point-at marker
+                     (org-cut-subtree)))))
               ((and start (or (> start (float-time (org-memento--current-time)))
                               (eq type 'dismissed)))
                (save-current-buffer
@@ -722,11 +728,6 @@ triggered by an interval timer."
                          (message "Removed an active timestamp")
                          t)
                      (error "No timestamp is found")))))
-              ((not start)
-               (when (yes-or-no-p "Remove the entry?")
-                 (save-current-buffer
-                   (org-with-point-at marker
-                     (org-cut-subtree)))))
               (t
                (user-error "Nothing to do"))))
             ((cl-type org-memento-order)
