@@ -301,7 +301,20 @@
                  (when-let (description (taxy-description zone-taxy))
                    (insert (make-indent level)
                            (propertize description 'face 'org-memento-timeline-zone-desc-face)
-                           "\n"))
+                           "\n")))
+               (when-let (groups (plist-get plist :groups))
+                 (magit-insert-section (associated-groups
+                                        nil
+                                        (or hide-suggestions
+                                            (or (taxy-taxys zone-taxy)
+                                                (taxy-items zone-taxy))))
+                   (insert-subheading level "Primary groups")
+                   (dolist (group groups)
+                     (magit-insert-section (group group)
+                       (magit-insert-heading
+                         (make-indent (1+ level))
+                         (propertize (org-memento--format-group group)
+                                     'face 'org-memento-timeline-group-path-face)))))
                  (insert ?\n))
                (if (taxy-taxys zone-taxy)
                    (progn
@@ -321,19 +334,6 @@
                          (insert-items (1+ level) (taxy-items zone-taxy)))))
                  (insert-items level (taxy-items zone-taxy)
                                :hide-suggestions hide-suggestions))
-               (when-let (groups (plist-get plist :groups))
-                 (magit-insert-section (associated-groups
-                                        nil
-                                        (or hide-suggestions
-                                            (or (taxy-taxys zone-taxy)
-                                                (taxy-items zone-taxy))))
-                   (insert-subheading level "Primary groups")
-                   (dolist (group groups)
-                     (magit-insert-section (group group)
-                       (magit-insert-heading
-                         (make-indent (1+ level))
-                         (propertize (org-memento--format-group group)
-                                     'face 'org-memento-timeline-group-path-face))))))
                (insert ?\n)))))
       (if org-memento-zone-taxy
           (insert-zone nil (thread-last
