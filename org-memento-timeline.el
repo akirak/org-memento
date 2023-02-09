@@ -1132,7 +1132,7 @@ section."
              (final-date (midnight-from-string (cadr org-memento-timeline-date-range)))
              (now (float-time (org-memento--current-time)))
              totals)
-        (insert (format "| %-14s | Check in/out (dur) |Focused|Unfocsd|Untrakd| Idle | Active|\n"
+        (insert (format "| %-14s | Check in/out (dur.) |Focused|Unfocsd|Untrakd| Idle | Active|\n"
                         "Date"))
         (while (not (org-memento-date--le final-date date))
           (let* ((date-string (format-time-string "%F" (encode-time date)))
@@ -1165,7 +1165,7 @@ section."
                 (push (cons 'idle idle) totals)
                 (push (cons 'focused focused) totals)
                 (push (cons 'untracked untracked) totals)
-                (insert (format "| %-14s | %4s-%4s (%4s) | %5s | %5s | %5s |%5s | %5s |\n"
+                (insert (format "| %-14s | %4s-%4s %7s | %5s | %5s | %5s |%5s | %5s |\n"
                                 (format-time-string "%F %a" (encode-time date))
                                 (if checkin-time
                                     (format-seconds (- checkin-time midnight)
@@ -1176,8 +1176,9 @@ section."
                                                     (> checkout-time now))
                                   "")
                                 (if duration-seconds
-                                    (format-seconds duration-seconds
-                                                    (> checkout-time now))
+                                    (concat "(" (format-seconds duration-seconds
+                                                                (> checkout-time now))
+                                            ")")
                                   "")
                                 (if focused
                                     (org-memento--format-duration focused)
@@ -1206,7 +1207,7 @@ section."
                             (cdr)
                             (mapcar #'cdr))
                           :initial-value 0)))
-          (insert (propertize (format "| %-14s | %18s | %5s | %5s | %5s |%5s | %5s |\n"
+          (insert (propertize (format "| %-14s | %19s | %5s | %5s | %5s |%5s | %5s |\n"
                                       "Total"
                                       ""
                                       ""
