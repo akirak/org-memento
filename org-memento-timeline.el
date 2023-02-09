@@ -1529,41 +1529,59 @@ With ARG, interactivity is inverted."
 (defun org-memento-timeline-shift ()
   "Shift the time of the event/block at point."
   (interactive)
-  (if-let (section (magit-current-section))
-      (pcase (oref section value)
-        (`(,start ,end ,_ ,marker ,type . ,_)
-         ;; See where `adjust-ts' is called in `org-memento-timeline-edit-dwim'.
-         (let ((now (float-time (org-memento--current-time))))
-           (cl-flet
-               ((get-margin (section)
-                  (when (and section
-                             (eq (oref section type) 'block))
-                    (pcase (oref section value)
-                      (`(,start ,end nil)
-                       (floor (/ (- end start) 60)))))))
-             (when (and (memq type '(away org-event block))
-                        start
-                        (> start now))
-               (let* ((forward-margin (get-margin (car (magit-section-siblings section 'next))))
-                      (backward-margin (get-margin (car (magit-section-siblings section 'prev))))
-                      (diff-secs (when (or forward-margin backward-margin)
-                                   (* (read-number (format "Shift the event in minutes (%d - %d): "
-                                                           (if backward-margin
-                                                               (- backward-margin)
-                                                             0)
-                                                           (or forward-margin 0)))
-                                      60))))
-                 (org-with-point-at marker
-                   (org-end-of-meta-data t)
-                   (or (looking-at org-ts-regexp)
-                       (error "No timestamp at point"))
-                   (replace-match "")
-                   (insert (org-memento--format-timestamp (+ start diff-secs)
-                                                          (+ end diff-secs))))
-                 (org-memento-timeline-revert))))))
-        (_
-         (user-error "Not adjustable item")))
-    (user-error "No section at point")))
+  (let ((now (float-time (org-memento--current-time))))
+    (cl-flet*
+        ((futurep (section)
+           (let ((block (oref section value)))
+             (and (listp block)
+                  (numberp (car block))
+                  (> (car block) now))))
+         (get-margin (section)
+           (when (and section
+                      (eq (oref section type) 'block))
+             (pcase (oref section value)
+               (`(,start ,end nil)
+                (floor (/ (- end start) 60))))))
+         (read-margin (first-value last-value)
+           (let* ((forward-margin (get-margin (car (magit-section-siblings last-value 'next))))
+                  (backward-margin (get-margin (car (magit-section-siblings first-value 'prev)))))
+             (when (or forward-margin backward-margin)
+               (* (read-number (format "Shift the event in minutes (%d - %d): "
+                                       (if backward-margin
+                                           (- backward-margin)
+                                         0)
+                                       (or forward-margin 0)))
+                  60))))
+         (shift-item (marker start end diff-secs)
+           (org-with-point-at marker
+             (org-end-of-meta-data t)
+             (or (looking-at org-ts-regexp)
+                 (error "No timestamp at point"))
+             (replace-match "")
+             (insert (org-memento--format-timestamp (+ start diff-secs)
+                                                    (+ end diff-secs))))))
+      (if-let (sections (magit-region-sections))
+          (if (seq-every-p #'futurep sections)
+              (let ((diff-secs (read-margin (car sections) (car (last sections)))))
+                (dolist (section sections)
+                  (pcase (oref section value)
+                    (`(,start ,end ,_ ,marker . ,_)
+                     (shift-item marker start end diff-secs))))
+                (org-memento-timeline-revert))
+            (user-error "Not a future item"))
+        (if-let (section (magit-current-section))
+            (pcase (oref section value)
+              (`(,start ,end ,_ ,marker ,type . ,_)
+               ;; See where `adjust-ts' is called in `org-memento-timeline-edit-dwim'.
+               (when (and (memq type '(away org-event block))
+                          start
+                          (> start now))
+                 (let ((diff-secs (read-margin section section)))
+                   (shift-item marker start end diff-secs)
+                   (org-memento-timeline-revert))))
+              (_
+               (user-error "Not adjustable item")))
+          (user-error "No section at point"))))))
 
 (defun org-memento-timeline--update-event-time (event start)
   "Update the starting time of an event."
