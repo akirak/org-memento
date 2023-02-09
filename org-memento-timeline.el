@@ -1166,7 +1166,7 @@ section."
                 (push (cons 'idle idle) totals)
                 (push (cons 'focused focused) totals)
                 (push (cons 'untracked untracked) totals)
-                (insert (format "| %-14s | %4s-%4s %7s | %5s | %5s | %5s |%5s | %5s |\n"
+                (insert (format "| %-14s | %5s-%5s %7s | %5s | %5s | %5s |%5s | %5s |\n"
                                 (format-time-string "%F %a" (encode-time date))
                                 (if checkin-time
                                     (format-seconds (- checkin-time midnight)
