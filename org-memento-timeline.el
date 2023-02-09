@@ -1348,11 +1348,14 @@ section."
                   "\n"))))))
 
 (defun org-memento-timeline-suggestions ()
-  (org-memento-yield-for-span (org-memento-timeline--activity-taxy)
-      org-memento-timeline-span
-    :start-date (car org-memento-timeline-date-range)
-    :end-date (cadr org-memento-timeline-date-range)
-    :require-budget t))
+  (thread-last
+    (org-memento-yield-for-span (org-memento-timeline--activity-taxy)
+        org-memento-timeline-span
+      :start-date (car org-memento-timeline-date-range)
+      :end-date (cadr org-memento-timeline-date-range)
+      :require-budget t)
+    (mapcan #'cdr)
+    (mapcan #'identity)))
 
 (defun org-memento-timeline-add (&optional arg)
   "Add an item to the timeline.
@@ -1435,7 +1438,9 @@ With ARG, interactivity is inverted."
                                     :start start
                                     :end end)))
          (check-duration (duration-minutes block)
-           (if-let (this-duration (org-memento--block-duration block))
+           (if-let (this-duration (if (org-memento-block-p block)
+                                      (org-memento--block-duration block)
+                                    (org-memento-duration block)))
                (<= this-duration (+ duration-minutes
                                     (* 2 org-memento-margin-minutes)))
              t))
