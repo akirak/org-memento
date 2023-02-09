@@ -645,6 +645,7 @@ triggered by an interval timer."
     (define-key map "e" #'org-memento-timeline-edit-dwim)
     (define-key map "r" #'org-memento-timeline-rename)
     (define-key map "o" #'org-memento-timeline-open-entry)
+    (define-key map "+" #'org-memento-timeline-shift)
     (define-key map "D" #'org-memento-timeline-delete-entry)
     (define-key map (kbd "SPC") #'org-memento-timeline-show-entry)
     (define-key map "z" #'org-memento-zone-list)
@@ -1522,6 +1523,45 @@ With ARG, interactivity is inverted."
                                  (org-memento-group-path obj)))
                (select-suggestion group-path)
              (fallback))))))))
+
+(defun org-memento-timeline-shift ()
+  "Shift the time of the event/block at point."
+  (interactive)
+  (if-let (section (magit-current-section))
+      (pcase (oref section value)
+        (`(,start ,end ,_ ,marker ,type . ,_)
+         ;; See where `adjust-ts' is called in `org-memento-timeline-edit-dwim'.
+         (let ((now (float-time (org-memento--current-time))))
+           (cl-flet
+               ((get-margin (section)
+                  (when (and section
+                             (eq (oref section type) 'block))
+                    (pcase (oref section value)
+                      (`(,start ,end nil)
+                       (floor (/ (- end start) 60)))))))
+             (when (and (memq type '(away org-event block))
+                        start
+                        (> start now))
+               (let* ((forward-margin (get-margin (car (magit-section-siblings section 'next))))
+                      (backward-margin (get-margin (car (magit-section-siblings section 'prev))))
+                      (diff-secs (when (or forward-margin backward-margin)
+                                   (* (read-number (format "Shift the event in minutes (%d - %d): "
+                                                           (if backward-margin
+                                                               (- backward-margin)
+                                                             0)
+                                                           (or forward-margin 0)))
+                                      60))))
+                 (org-with-point-at marker
+                   (org-end-of-meta-data t)
+                   (or (looking-at org-ts-regexp)
+                       (error "No timestamp at point"))
+                   (replace-match "")
+                   (insert (org-memento--format-timestamp (+ start diff-secs)
+                                                          (+ end diff-secs))))
+                 (org-memento-timeline-revert))))))
+        (_
+         (user-error "Not adjustable item")))
+    (user-error "No section at point")))
 
 (defun org-memento-timeline--update-event-time (event start)
   "Update the starting time of an event."
