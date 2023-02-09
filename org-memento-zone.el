@@ -314,7 +314,8 @@
                        (magit-insert-heading
                          (make-indent (+ 2 level))
                          (propertize (org-memento--format-group group)
-                                     'face 'org-memento-timeline-group-path-face)))))
+                                     'face 'org-memento-timeline-group-path-face))))))
+               (when (car (taxy-name zone-taxy))
                  (insert ?\n))
                (if (taxy-taxys zone-taxy)
                    (progn
