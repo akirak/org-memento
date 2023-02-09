@@ -773,7 +773,8 @@ If ARG is non-nil, create an away event."
        (adjust-ts (marker &optional away)
          (save-current-buffer
            (org-with-point-at marker
-             (org-memento-adjust-time :allow-edit-clock away))))
+             (org-memento-adjust-time :allow-edit-clock away)
+             t)))
        (reschedule (start end title marker)
          (org-memento-timeline--reschedule-block marker
            :title title
