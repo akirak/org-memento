@@ -90,7 +90,7 @@
          (insert-order (level order)
            (magit-insert-section (generated-task order)
              (magit-insert-heading
-               (make-indent (1+ level))
+               (make-indent (+ 2 level))
                (propertize (org-memento-order-title order)
                            'face 'org-memento-timeline-order-face)
                (when-let (duration (org-memento-order-duration order))
@@ -105,7 +105,7 @@
          (insert-planning-item (level item)
            (magit-insert-section (planning item)
              (magit-insert-heading
-               (make-indent level)
+               (make-indent (1+ level))
                (if (donep item)
                    (concat org-memento-timeline-done-format " ")
                  "  ")
@@ -200,11 +200,11 @@
                                             items-and-blocks-with-time))
                    (cl-etypecase item
                      (org-memento-block
-                      (insert-block level item))
+                      (insert-block (1+ level) item))
                      (org-memento-planning-item
                       (org-memento-timeline-with-overlay
                        ((keymap . org-memento-timeline-planning-map))
-                       (insert-planning-item level item)))))))
+                       (insert-planning-item (1+ level) item)))))))
              (when blocks-without-time
                (magit-insert-section (items)
                  (insert-subheading level "Unscheduled blocks")
@@ -299,7 +299,7 @@
                                  'org-memento-timeline-zone-title-face))
                    (format-meta :spent spent :planned planned :goal goal))
                  (when-let (description (taxy-description zone-taxy))
-                   (insert (make-indent level)
+                   (insert (make-indent (1+ level))
                            (propertize description 'face 'org-memento-timeline-zone-desc-face)
                            "\n")))
                (when-let (groups (plist-get plist :groups))
@@ -312,7 +312,7 @@
                    (dolist (group groups)
                      (magit-insert-section (group group)
                        (magit-insert-heading
-                         (make-indent (1+ level))
+                         (make-indent (+ 2 level))
                          (propertize (org-memento--format-group group)
                                      'face 'org-memento-timeline-group-path-face)))))
                  (insert ?\n))
@@ -331,7 +331,7 @@
                                                  (taxy-items zone-taxy)
                                                  (mapcar #'done-duration)
                                                  (sum-duration))))
-                         (insert-items (1+ level) (taxy-items zone-taxy)))))
+                         (insert-items (+ 2 level) (taxy-items zone-taxy)))))
                  (insert-items level (taxy-items zone-taxy)
                                :hide-suggestions hide-suggestions))
                (insert ?\n)))))
