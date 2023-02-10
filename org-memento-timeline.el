@@ -1792,7 +1792,7 @@ You should update the status before you call this function."
                                      ;; invalid form. In that case, the resulting value
                                      ;; will be nil.
                                      (ignore-errors
-                                       (mapcar #'org-memento--block-duration items))))
+                                       (mapcar #'org-memento-duration items))))
                     (effort-sum (when effort-values
                                   (-sum effort-values))))
                (magit-insert-section (block-feasibility (cons block effort-sum) 'hide)
