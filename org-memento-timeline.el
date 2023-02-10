@@ -988,7 +988,10 @@ If ARG is non-nil, create an away event."
              (org-memento--get-group))))
       ((and (app section-value (cl-type org-memento-order))
             (app section-value order))
-       (org-memento-group-path order)))))
+       (org-memento-group-path order))
+      ((and (app section-type 'block-feasibility)
+            (app section-value `(,block . ,_)))
+       (org-memento-group-path block)))))
 
 (defun org-memento-timeline--group-marker (section)
   (when-let (path (org-memento-timeline--section-group section))
