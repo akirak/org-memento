@@ -1443,11 +1443,11 @@ With ARG, interactivity is inverted."
                                     :duration duration
                                     :start start
                                     :end end)))
-         (check-duration (duration-minutes block)
+         (duration-less-p (slot-duration block)
            (if-let (this-duration (if (org-memento-block-p block)
                                       (org-memento--block-duration block)
                                     (org-memento-duration block)))
-               (<= this-duration (+ duration-minutes
+               (<= this-duration (- slot-duration
                                     (* 2 org-memento-margin-minutes)))
              t))
          (select-suggestion (&optional group-path duration slot-start slot-end)
@@ -1455,7 +1455,7 @@ With ARG, interactivity is inverted."
                                   (org-memento-timeline-suggestions)
                                   (seq-filter (if (or duration
                                                       (and slot-start slot-end))
-                                                  (apply-partially #'check-duration
+                                                  (apply-partially #'duration-less-p
                                                                    (or duration
                                                                        (/ (- slot-end
                                                                              slot-start)
@@ -1490,7 +1490,7 @@ With ARG, interactivity is inverted."
            (if-let (blocks (thread-last
                              (org-memento--blocks)
                              (seq-filter #'late-or-unscheduled)
-                             (seq-filter (apply-partially #'check-duration
+                             (seq-filter (apply-partially #'duration-less-p
                                                           (/ (- end start) 60)))))
                (select-block blocks start end)
              (select-suggestion nil nil start end)))
