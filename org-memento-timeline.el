@@ -1103,139 +1103,143 @@ section."
 ;;;; Extra hooks
 
 (defun org-memento-timeline-overview-section (taxy)
-  (magit-insert-section (overview)
-    (magit-insert-heading
-      "Overview")
-    (cl-labels
-        ((midnight-from-string (string)
-           (org-memento--set-time-of-day (parse-time-string string)
-                                         0 0 0))
-         (taxy-match-date (string taxy)
-           (and (eq 'date (nth 4 (taxy-name taxy)))
-                (equal string (nth 2 (taxy-name taxy)))))
-         (find-date-taxy (string)
-           (seq-find (apply-partially #'taxy-match-date string)
-                     (taxy-taxys taxy)))
-         (format-seconds (time future)
-           (propertize (org-memento--format-duration (/ time 60))
-                       'face
-                       (if future
-                           'org-memento-timeline-planned-face
-                         'default)))
-         (sum-durations (pred records)
-           (cl-reduce #'+
-                      (thread-last
-                        records
-                        (seq-filter pred)
-                        (mapcar (lambda (record)
-                                  (/ (- (cadr record)
-                                        (car record))
-                                     60))))
-                      :initial-value 0)))
-      (let* ((date (midnight-from-string (car org-memento-timeline-date-range)))
-             (final-date (midnight-from-string (cadr org-memento-timeline-date-range)))
-             (now (float-time (org-memento--current-time)))
-             totals)
-        (insert (format "| %-14s | Check in/out (dur.) |Focused|Unfocsd|Untrakd| Idle | Active|\n"
-                        "Date"))
-        (while (not (org-memento-date--le final-date date))
-          (let* ((date-string (format-time-string "%F" (encode-time date)))
-                 (date-taxy (find-date-taxy date-string))
-                 (date-record (when date-taxy (taxy-name date-taxy)))
-                 (plist (org-memento--normal-workhour date)))
-            (when (or date-taxy plist)
-              (let* ((midnight (float-time (encode-time date)))
-                     (checkin-time (or (car date-record)
-                                       (when-let (string (plist-get plist :normal-checkin))
-                                         (+ midnight (* 60 (org-duration-to-minutes string))))))
-                     (checkout-time (or (cadr date-record)
-                                        (when-let (duration (plist-get plist :normal-duration))
-                                          (+ checkin-time
-                                             (* 60 (org-duration-to-minutes duration))))))
-                     (duration-seconds (when (and checkin-time checkout-time)
-                                         (- checkout-time checkin-time)))
-                     (focused (when date-taxy
-                                (org-memento-timeline--sum-day
-                                 'focused date-taxy now)))
-                     (unfocused (when date-taxy
+  (when (or (not org-memento-current-block)
+            (org-memento-timeline--show-planning-p))
+    (magit-insert-section (overview)
+      (magit-insert-heading
+        "Overview")
+      (cl-labels
+          ((midnight-from-string (string)
+             (org-memento--set-time-of-day (parse-time-string string)
+                                           0 0 0))
+           (taxy-match-date (string taxy)
+             (and (eq 'date (nth 4 (taxy-name taxy)))
+                  (equal string (nth 2 (taxy-name taxy)))))
+           (find-date-taxy (string)
+             (seq-find (apply-partially #'taxy-match-date string)
+                       (taxy-taxys taxy)))
+           (format-seconds (time future)
+             (propertize (org-memento--format-duration (/ time 60))
+                         'face
+                         (if future
+                             'org-memento-timeline-planned-face
+                           'default)))
+           (sum-durations (pred records)
+             (cl-reduce #'+
+                        (thread-last
+                          records
+                          (seq-filter pred)
+                          (mapcar (lambda (record)
+                                    (/ (- (cadr record)
+                                          (car record))
+                                       60))))
+                        :initial-value 0)))
+        (let* ((date (midnight-from-string (car org-memento-timeline-date-range)))
+               (final-date (midnight-from-string (cadr org-memento-timeline-date-range)))
+               (now (float-time (org-memento--current-time)))
+               totals)
+          (insert (format "| %-14s | Check in/out (dur.) |Focused|Unfocsd|Untrakd| Idle | Active|\n"
+                          "Date"))
+          (while (not (org-memento-date--le final-date date))
+            (let* ((date-string (format-time-string "%F" (encode-time date)))
+                   (date-taxy (find-date-taxy date-string))
+                   (date-record (when date-taxy (taxy-name date-taxy)))
+                   (plist (org-memento--normal-workhour date)))
+              (when (or date-taxy plist)
+                (let* ((midnight (float-time (encode-time date)))
+                       (checkin-time (or (car date-record)
+                                         (when-let (string (plist-get plist :normal-checkin))
+                                           (+ midnight (* 60 (org-duration-to-minutes string))))))
+                       (checkout-time (or (cadr date-record)
+                                          (when-let (duration (plist-get plist :normal-duration))
+                                            (+ checkin-time
+                                               (* 60 (org-duration-to-minutes duration))))))
+                       (duration-seconds (when (and checkin-time checkout-time)
+                                           (- checkout-time checkin-time)))
+                       (focused (when date-taxy
                                   (org-memento-timeline--sum-day
-                                   'unfocused date-taxy now)))
-                     (idle (when date-taxy
-                             (org-memento-timeline--sum-day
-                              'idle date-taxy now)))
-                     (untracked (when date-taxy
-                                  (org-memento-timeline--sum-day
-                                   'untracked date-taxy now))))
-                (push (cons 'idle idle) totals)
-                (push (cons 'focused focused) totals)
-                (push (cons 'untracked untracked) totals)
-                (insert (format "| %-14s | %5s-%5s %7s | %5s | %5s | %5s |%5s | %5s |\n"
-                                (format-time-string "%F %a" (encode-time date))
-                                (if checkin-time
-                                    (format-seconds (- checkin-time midnight)
-                                                    (> checkin-time now))
-                                  "")
-                                (if checkout-time
-                                    (format-seconds (- checkout-time midnight)
-                                                    (> checkout-time now))
-                                  "")
-                                (if duration-seconds
-                                    (concat "(" (format-seconds duration-seconds
-                                                                (> checkout-time now))
-                                            ")")
-                                  "")
-                                (if focused
-                                    (org-memento--format-duration focused)
-                                  "")
-                                (if unfocused
-                                    (org-memento--format-duration unfocused)
-                                  "")
-                                (if untracked
-                                    (org-memento--format-duration untracked)
-                                  "")
-                                (if idle
-                                    (org-memento--format-duration idle)
-                                  "")
-                                (org-memento--format-duration
-                                 (+ (or focused 0)
-                                    (or unfocused 0)
-                                    (or untracked 0))))))))
-          (setq date (decoded-time-add date (make-decoded-time :day 1))))
-        (cl-flet
-            ((group-sum (key)
-               (cl-reduce #'+
-                          (thread-last
-                            totals
-                            (seq-group-by #'car)
-                            (assq key)
-                            (cdr)
-                            (mapcar #'cdr))
-                          :initial-value 0)))
-          (insert (propertize (format "| %-14s | %19s | %5s | %5s | %5s |%5s | %5s |\n"
-                                      "Total"
-                                      ""
-                                      ""
-                                      ""
-                                      (org-memento--format-duration (group-sum 'focused))
-                                      (org-memento--format-duration (group-sum 'idle))
-                                      (org-memento--format-duration (group-sum 'untracked)))
-                              'face '(:overline t))))))
-    (insert ?\n)))
+                                   'focused date-taxy now)))
+                       (unfocused (when date-taxy
+                                    (org-memento-timeline--sum-day
+                                     'unfocused date-taxy now)))
+                       (idle (when date-taxy
+                               (org-memento-timeline--sum-day
+                                'idle date-taxy now)))
+                       (untracked (when date-taxy
+                                    (org-memento-timeline--sum-day
+                                     'untracked date-taxy now))))
+                  (push (cons 'idle idle) totals)
+                  (push (cons 'focused focused) totals)
+                  (push (cons 'untracked untracked) totals)
+                  (insert (format "| %-14s | %5s-%5s %7s | %5s | %5s | %5s |%5s | %5s |\n"
+                                  (format-time-string "%F %a" (encode-time date))
+                                  (if checkin-time
+                                      (format-seconds (- checkin-time midnight)
+                                                      (> checkin-time now))
+                                    "")
+                                  (if checkout-time
+                                      (format-seconds (- checkout-time midnight)
+                                                      (> checkout-time now))
+                                    "")
+                                  (if duration-seconds
+                                      (concat "(" (format-seconds duration-seconds
+                                                                  (> checkout-time now))
+                                              ")")
+                                    "")
+                                  (if focused
+                                      (org-memento--format-duration focused)
+                                    "")
+                                  (if unfocused
+                                      (org-memento--format-duration unfocused)
+                                    "")
+                                  (if untracked
+                                      (org-memento--format-duration untracked)
+                                    "")
+                                  (if idle
+                                      (org-memento--format-duration idle)
+                                    "")
+                                  (org-memento--format-duration
+                                   (+ (or focused 0)
+                                      (or unfocused 0)
+                                      (or untracked 0))))))))
+            (setq date (decoded-time-add date (make-decoded-time :day 1))))
+          (cl-flet
+              ((group-sum (key)
+                 (cl-reduce #'+
+                            (thread-last
+                              totals
+                              (seq-group-by #'car)
+                              (assq key)
+                              (cdr)
+                              (mapcar #'cdr))
+                            :initial-value 0)))
+            (insert (propertize (format "| %-14s | %19s | %5s | %5s | %5s |%5s | %5s |\n"
+                                        "Total"
+                                        ""
+                                        ""
+                                        ""
+                                        (org-memento--format-duration (group-sum 'focused))
+                                        (org-memento--format-duration (group-sum 'idle))
+                                        (org-memento--format-duration (group-sum 'untracked)))
+                                'face '(:overline t))))))
+      (insert ?\n))))
 
 (defun org-memento-timeline-progress-section (taxy)
   (require 'org-memento-policy)
-  (org-memento-policy-maybe-load)
-  (let ((rules (org-memento-policy-rules
-                :span org-memento-timeline-span
-                :start-date (car org-memento-timeline-date-range)
-                :end-date (cadr org-memento-timeline-date-range)))
-        (group-sums-for-span (org-memento-group-sums-1 taxy)))
-    (org-memento-timeline--section-1 progress
-      (magit-insert-heading "Progress")
-      (org-memento-timeline--weekly-progress
-       rules
-       (append group-sums-for-span org-memento-weekly-group-sums)))
-    (insert ?\n)))
+  (when (or (not org-memento-current-block)
+            (org-memento-timeline--show-planning-p))
+    (org-memento-policy-maybe-load)
+    (let ((rules (org-memento-policy-rules
+                  :span org-memento-timeline-span
+                  :start-date (car org-memento-timeline-date-range)
+                  :end-date (cadr org-memento-timeline-date-range)))
+          (group-sums-for-span (org-memento-group-sums-1 taxy)))
+      (org-memento-timeline--section-1 progress
+        (magit-insert-heading "Progress")
+        (org-memento-timeline--weekly-progress
+         rules
+         (append group-sums-for-span org-memento-weekly-group-sums)))
+      (insert ?\n))))
 
 (defun org-memento-timeline--weekly-progress (rules group-sums)
   (let* ((threshold (/ (org-memento--percentage-on-week) 100))
