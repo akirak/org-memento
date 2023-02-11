@@ -1,6 +1,5 @@
 * org-memento
-*Warning: This is currently alpha, and it is too unstable for use by people other than the author.* I am not sure if I want to submit this package to MELPA.
-
-Org Memento is an Org-based framework for time management.
-It is intended be an alternative to =timeclock.el= and supports time blocking.
-It is highly opinionated and may not suit your workflow.
+*This project is unlikely to be registered to MELPA*​.
+It is hosted as a public repository for a technical reason, but due to quality issues, I won't be able to make it stable enough.
+Still, it serves as a prototype for seeking ideas for time management inside Emacs with Org mode and I am using it daily.
+Maybe I will re-implement the backend in a statically typed language (e.g. Haskell, OCaml, etc.) in the future.
