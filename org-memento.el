@@ -1089,7 +1089,9 @@ At present, it runs `org-memento-timeline'."
           keyword)
      (run-hooks 'org-memento-block-before-exit-hook)
      (org-memento-with-current-block
-       (org-todo keyword)
+       (let ((org-use-effective-time nil)
+             (org-use-last-clock-out-time-as-effective-time nil))
+         (org-todo keyword))
        (org-memento-after-state-change keyword)
        (org-memento--save-buffer))
      (setq org-memento-current-block nil)
@@ -1208,7 +1210,10 @@ With a universal argument, you can specify the time of check out."
       (user-error "Aborted")))
   (org-memento-with-today-entry
    ;; If org-read-date is aborted, the entire checkout command will be aborted.
-   (let ((time (when arg (org-read-date t t))))
+   (let ((time (when arg (org-read-date t t)))
+         ;; Don't use effective time for setting the closed timestamp.
+         (org-use-effective-time nil)
+         (org-use-last-clock-out-time-as-effective-time nil))
      (org-todo 'done)
      (when arg
        (org-add-planning-info 'closed time)))
