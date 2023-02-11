@@ -2909,6 +2909,7 @@ marker to the time stamp, and the margin in seconds."
 (defconst org-memento-planning-drawer "planning")
 
 (defun org-memento-get-planning-items (block-or-marker)
+  "Return an alist of (id . description) linked from the block."
   (save-current-buffer
     (org-with-point-at (cl-etypecase block-or-marker
                          (org-memento-block
