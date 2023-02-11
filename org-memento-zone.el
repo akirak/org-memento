@@ -208,7 +208,8 @@
                  (org-memento-timeline-with-overlay
                   ((keymap . org-memento-timeline-planning-map))
                   (dolist (item items-without-time)
-                    (insert-planning-item level item)))))
+                    (insert-planning-item level item)))
+                 (insert ?\n)))
              (when items-and-blocks-with-time
                (magit-insert-section (items)
                  (insert-subheading level "Scheduled with timing")
