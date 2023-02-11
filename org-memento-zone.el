@@ -103,14 +103,30 @@
                          (propertize (org-memento--format-diff-days (- now latest))
                                      'face 'font-lock-comment-face))))))
          (insert-planning-item (level item)
-           (magit-insert-section (planning item)
-             (magit-insert-heading
-               (make-indent (1+ level))
-               (if (donep item)
-                   (concat org-memento-timeline-done-format " ")
-                 "  ")
-               (propertize (org-memento-planning-item-heading item)
-                           'face 'org-memento-timeline-agenda-item-face))))
+           (let ((filename (thread-last
+                             (org-memento-planning-item-hd-marker item)
+                             (marker-buffer)
+                             (org-base-buffer)
+                             (buffer-file-name)))
+                 (todo (org-with-point-at (org-memento-planning-item-hd-marker item)
+                         (org-get-todo-state)))
+                 (effort (org-memento-planning-item-effort item)))
+             (magit-insert-section (planning item)
+               (magit-insert-heading
+                 (make-indent (+ 2 level))
+                 ;; (if (donep item)
+                 ;;     (concat org-memento-timeline-done-format " ")
+                 ;;   "  ")
+                 (propertize (format "%s: " (file-name-base filename))
+                             'help-echo (abbreviate-file-name filename))
+                 (if todo
+                     (concat todo " ")
+                   "")
+                 (propertize (org-memento-planning-item-heading item)
+                             'face 'org-memento-timeline-agenda-item-face)
+                 (if effort
+                     (concat " " effort)
+                   "")))))
          (current-item-or-block-p (item)
            (cl-typecase item
              (org-memento-block
