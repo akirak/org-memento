@@ -1370,7 +1370,9 @@ The point must be after a \"CLOCK:\" string."
                 (or end
                     (when duration-secs
                       (time-add start duration-secs)))))
-       (unless had-ts (insert "\n"))))))
+       (unless (and had-ts
+                    (eolp))
+         (insert "\n"))))))
 
 ;;;; Timers and notifications
 
@@ -1443,7 +1445,9 @@ The point must be after a \"CLOCK:\" string."
               (replace-match ""))
             (unless (bolp) (insert "\n"))
             (insert (org-memento--format-timestamp start new-end-time))
-            (unless had-ts (insert "\n"))))
+            (unless (and had-ts
+                         (eolp))
+              (insert "\n"))))
         (org-memento--cancel-next-event-timer)
         (org-memento--status)
         (org-memento--setup-block-timers)
