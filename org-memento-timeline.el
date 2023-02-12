@@ -314,7 +314,7 @@ function selects the window."
   (interactive)
   (org-memento-timeline--revert))
 
-(cl-defun org-memento-timeline--revert (&key no-update-status)
+(cl-defun org-memento-timeline--revert (&key no-update-status log)
   (interactive)
   (let ((taxy (org-memento-timeline--activity-taxy)))
     (when (org-memento-timeline--within-range-p taxy)
@@ -372,7 +372,9 @@ function selects the window."
             (org-memento-timeline--search-section
              `(lambda (section)
                 (eq (oref section type) ',toplevel-type))))
-          (goto-char (point-min))))))
+          (goto-char (point-min)))
+      (when log
+        (org-memento-log-update)))))
 
 (defun org-memento-timeline--activity-taxy ()
   (apply #'org-memento-activity-taxy
@@ -735,10 +737,10 @@ triggered by an interval timer."
              (let ((title (org-memento-order-title value)))
                (when (yes-or-no-p (format "Dismiss \"%s\"?" title))
                  (push title org-memento-timeline-dismissed-items)))
-             (org-memento-timeline-revert))
+             (org-memento-timeline--revert :log t))
             (_
              (user-error "Nothing to do")))
-      (org-memento-timeline-revert))))
+      (org-memento-timeline--revert :log t))))
 
 (defun org-memento-timeline-edit-dwim (&optional arg)
   "Adjust the time slice(s) at point.
@@ -892,7 +894,7 @@ If ARG is non-nil, create an away event."
                      (add-event start end t arg)))
                   (_
                    (user-error "Don't know what to do for the section")))))
-        (org-memento-timeline-revert)))))
+        (org-memento-timeline--revert :log t)))))
 
 (cl-defun org-memento-timeline--reschedule-block (marker &key title duration)
   (declare (indent 1))
@@ -924,7 +926,7 @@ If ARG is non-nil, create an away event."
                              (read-from-minibuffer "Headline: " orig-headline
                                                    nil nil nil nil 'inherit))))
         (replace-match new-headline nil nil nil 4)))
-    (org-memento-timeline-revert)))
+    (org-memento-timeline--revert :log t)))
 
 (defun org-memento-timeline-carry-over ()
   "Carry over the block at point."
@@ -1566,15 +1568,15 @@ With ARG, interactivity is inverted."
                  (error "No timestamp at point"))
              (replace-match "")
              (insert (org-memento--format-timestamp (+ start diff-secs)
-                                                    (+ end diff-secs))))))
+                                                    (+ end diff-secs)))
+             (org-memento-timeline--revert :log t))))
       (if-let (sections (magit-region-sections))
           (if (seq-every-p #'futurep sections)
               (let ((diff-secs (read-margin (car sections) (car (last sections)))))
                 (dolist (section sections)
                   (pcase (oref section value)
                     (`(,start ,end ,_ ,marker . ,_)
-                     (shift-item marker start end diff-secs))))
-                (org-memento-timeline-revert))
+                     (shift-item marker start end diff-secs)))))
             (user-error "Not a future item"))
         (if-let (section (magit-current-section))
             (pcase (oref section value)
@@ -1584,8 +1586,7 @@ With ARG, interactivity is inverted."
                           start
                           (> start now))
                  (let ((diff-secs (read-margin section section)))
-                   (shift-item marker start end diff-secs)
-                   (org-memento-timeline-revert))))
+                   (shift-item marker start end diff-secs))))
               (_
                (user-error "Not adjustable item")))
           (user-error "No section at point"))))))
@@ -1887,7 +1888,7 @@ You should update the status before you call this function."
                (org-with-point-at (org-memento-planning-item-hd-marker value)
                  (org-set-effort)
                  t))))
-      (org-memento-timeline-revert))))
+      (org-memento-timeline--revert :log t))))
 
 (provide 'org-memento-timeline)
 ;;; org-memento-timeline.el ends here
