@@ -36,6 +36,9 @@
 (defun org-memento-zone--revert (&rest _)
   (let ((inhibit-read-only t))
     (erase-buffer)
+    (let ((today (org-memento--today-string (decode-time))))
+      (setq-local org-memento-timeline-span 'day
+                  org-memento-timeline-date-range (list today today)))
     (org-memento-zone--insert-content)
     (goto-char (point-min))))
 
