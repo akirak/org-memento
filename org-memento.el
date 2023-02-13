@@ -2090,7 +2090,8 @@ The point must be at the heading."
                     (cond
                      ((string< date today)
                       (unless donep
-                        (signal-error "Unclosed past date entry: %s" headline)))
+                        (signal-error "Unclosed past date entry: %s\n\
+Please run `org-memento-close-date'" headline)))
                      ((string= date today)
                       (when donep
                         (signal-error "Closed present date entry: %s" headline)))
@@ -2127,6 +2128,45 @@ The point must be at the heading."
 (define-error 'org-memento-validate-error "Error in org-memento journal"
               'org-memento-format-error)
 
+;;;; Commands to fix errors in the journal file
+
+(defun org-memento-close-date ()
+  "Close the date entry at point."
+  (interactive)
+  (unless (= 1 (org-outline-level))
+    (user-error "Please run this command on a date entry (at outline level 1)"))
+  (when (org-entry-is-done-p)
+    (user-error "Already closed"))
+  (when (time-less-p (org-memento--current-time)
+                     (thread-first
+                       (org-get-heading t t t t)
+                       (parse-time-string)
+                       (org-memento--start-of-day)
+                       (decoded-time-add (make-decoded-time :hour 23 :minute 59 :second 59))
+                       (encode-time)))
+    (user-error "This entry should not be closed"))
+  (let ((bound (save-excursion (org-end-of-subtree)))
+        final-activity)
+    (save-excursion
+      (while (re-search-forward org-ts-regexp-inactive bound t)
+        (let ((ts (org-timestamp-from-string (match-string 0))))
+          (when-let (time (cl-case (org-element-property :type ts)
+                            (inactive
+                             (org-timestamp-to-time ts))
+                            (inactive-range
+                             (org-timestamp-to-time ts t))))
+            (when (or (not final-activity)
+                      (time-less-p final-activity time))
+              (setq final-activity time))))))
+    (if final-activity
+        (let ((org-use-effective-time nil)
+              (org-use-last-clock-out-time-as-effective-time nil))
+          (org-todo 'done)
+          ;; The entry may be blocked by a child with a todo keyword, so you have
+          ;; to check the state
+          (when (org-entry-is-done-p)
+            (org-add-planning-info 'closed final-activity)))
+      (user-error "Can't final the final activity"))))
 
 ;;;; Workflow
 
