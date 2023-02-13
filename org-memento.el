@@ -2069,7 +2069,8 @@ The point must be at the heading."
                     (org-end-of-meta-data)
                     (when (search-forward ":PROPERTIES:" bound t)
                       (signal-error "Multiple property drawers"))
-                    (when (search-forward "*" bound t)
+                    (when (and (search-forward "*" bound t)
+                               (not (org-at-table-p)))
                       (signal-error "Possibly another heading")))))
              ;; TODO: Add more checks
              (while (re-search-forward org-complex-heading-regexp nil t)
