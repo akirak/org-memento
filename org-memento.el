@@ -2123,6 +2123,7 @@ Please run `org-memento-close-date'" headline)))
                  (check-entry-body)))))))
     (org-memento-format-error
      (org-goto-marker-or-bmk (cadr err))
+     (org-fold-show-entry)
      (message (apply #'format-message (cddr err))))))
 
 (define-error 'org-memento-validate-error "Error in org-memento journal"
