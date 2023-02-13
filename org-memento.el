@@ -2063,7 +2063,7 @@ The point must be at the heading."
                date)
            (cl-flet*
                ((signal-error (msg &rest args)
-                  (signal 'format-error (cons (point-marker) (cons msg args))))
+                  (signal 'org-memento-validate-error (cons (point-marker) (cons msg args))))
                 (check-entry-body ()
                   (let ((bound (org-entry-end-position)))
                     (org-end-of-meta-data)
@@ -2120,9 +2120,13 @@ The point must be at the heading."
                    ;; Ignored
                    (_))
                  (check-entry-body)))))))
-    (format-error
-     (org-goto-marker-or-bmk (car err))
-     (message (apply #'format-message (cdr err))))))
+    (org-memento-format-error
+     (org-goto-marker-or-bmk (cadr err))
+     (message (apply #'format-message (cddr err))))))
+
+(define-error 'org-memento-validate-error "Error in org-memento journal"
+              'org-memento-format-error)
+
 
 ;;;; Workflow
 
