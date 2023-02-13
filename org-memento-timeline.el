@@ -940,6 +940,11 @@ If ARG is non-nil, create an away event."
 
 ;;;; Utility functions
 
+(defun org-memento-timeline--default-range-p ()
+  (let ((today (org-memento--today-string)))
+    (equal org-memento-timeline-date-range
+           (list today today))))
+
 (defun org-memento-timeline--within-range-p (taxy)
   (let ((now (org-memento--current-time)))
     (and (time-less-p (car (taxy-name taxy))
@@ -1106,7 +1111,7 @@ section."
 
 (defun org-memento-timeline-overview-section (taxy)
   (when (or (not org-memento-current-block)
-            (org-memento-timeline--show-planning-p))
+            (not (org-memento-timeline--default-range-p)))
     (magit-insert-section (overview)
       (magit-insert-heading
         "Overview")
@@ -1229,7 +1234,7 @@ section."
 (defun org-memento-timeline-progress-section (taxy)
   (require 'org-memento-policy)
   (when (or (not org-memento-current-block)
-            (org-memento-timeline--show-planning-p))
+            (not (org-memento-timeline--default-range-p)))
     (org-memento-policy-maybe-load)
     (let ((rules (org-memento-policy-rules
                   :span org-memento-timeline-span
