@@ -1223,11 +1223,11 @@ section."
             (insert (propertize (format "| %-14s | %19s | %5s | %5s | %5s |%5s | %5s |\n"
                                         "Total"
                                         ""
-                                        ""
-                                        ""
                                         (org-memento--format-duration (group-sum 'focused))
+                                        ""
+                                        (org-memento--format-duration (group-sum 'untracked))
                                         (org-memento--format-duration (group-sum 'idle))
-                                        (org-memento--format-duration (group-sum 'untracked)))
+                                        "")
                                 'face '(:overline t))))))
       (insert ?\n))))
 
