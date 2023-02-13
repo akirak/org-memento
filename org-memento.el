@@ -2056,7 +2056,8 @@ The point must be at the heading."
   (interactive)
   (condition-case err
       (with-current-buffer (org-memento--buffer)
-        (org-memento-mode t)
+        (unless org-memento-mode
+          (org-memento-mode t))
         (org-with-wide-buffer
          (goto-char (point-min))
          (let ((today (org-memento--today-string))
