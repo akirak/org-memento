@@ -2076,7 +2076,7 @@ The point must be at the heading."
                (let* ((level (- (match-end 1) (match-beginning 1)))
                       (kw (match-string 2))
                       (donep (member kw org-done-keywords))
-                      (headline (match-string 4)))
+                      (headline (match-string-no-properties 4)))
                  (pcase level
                    ;; Date
                    (1
