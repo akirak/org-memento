@@ -3633,7 +3633,7 @@ denoting the type of the activity. ARGS is an optional list."
                                     ;; already passed the expected checkout
                                     ;; time, set it to the time right before
                                     ;; the start of the next day.
-                                    (or end (org-memento--end-of-day-from-float-time start))
+                                    (or end (+ start 86340))
                                     date-string marker 'date))
                          (subtree-end (save-excursion (org-end-of-subtree)))
                          blocks)
@@ -4104,14 +4104,6 @@ This respects `org-extend-today-until'."
                                 (or org-extend-today-until 0)
                                 0
                                 0))
-
-(defun org-memento--end-of-day-from-float-time (float-time)
-  (thread-first
-    (decode-time float-time)
-    (org-memento--start-of-day)
-    (decoded-time-add (make-decoded-time :hour 23 :minute 59))
-    (encode-time)
-    (float-time)))
 
 (defun org-memento--maybe-decrement-date (decoded-time)
   (if (and org-extend-today-until
