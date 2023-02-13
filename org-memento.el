@@ -1628,6 +1628,94 @@ daily entry."
         (org-memento--update-weekly-group-sums)
         (setq org-memento-init-done t)))))
 
+(cl-defun org-memento--parse-entry (include-future &optional away return-element)
+  "Parse a date/block entry in the journal file."
+  (cl-flet
+      ((only-future (float)
+         (when (and float (> float (float-time (org-memento--current-time))))
+           float)))
+    (if (or include-future away return-element)
+        (let* ((block (org-memento-block-entry))
+               (start (or (org-memento-started-time block)
+                          (if away
+                              (org-memento-starting-time block)
+                            (only-future (org-memento-starting-time block)))))
+               (end (or (org-memento-ended-time block)
+                        (if away
+                            (org-memento-ending-time block)
+                          (only-future (org-memento-ending-time block)))
+                        (when (equal (org-memento-title block)
+                                     org-memento-current-block)
+                          (float-time (org-memento--current-time))))))
+          (when start
+            (list start end
+                  (when return-element
+                    (list (org-memento-headline-element block))))))
+      ;; Faster version for past activities.
+      (let* ((entry-end (org-entry-end-position))
+             (end (when (re-search-forward org-closed-time-regexp entry-end t)
+                    (org-memento--parse-time-to-int (match-string 1))))
+             (start (when-let (string (org-entry-get nil "MEMENTO_CHECKIN_TIME"))
+                      (when (string-match org-ts-regexp-inactive string)
+                        (org-memento--parse-time-to-int (match-string 1 string))))))
+        (when start
+          (list start end))))))
+
+(defun org-memento--parse-idle-clocks ()
+  (let ((hd-marker (point-marker)))
+    (when (re-search-forward org-logbook-drawer-re (org-entry-end-position)
+                             t)
+      (goto-char (match-beginning 0))
+      (let ((drawer-end (match-end 0))
+            clocks)
+        (while (re-search-forward (rx bol (* space) "CLOCK:" (* blank))
+                                  drawer-end t)
+          (when (looking-at (concat org-ts-regexp-inactive
+                                    "--"
+                                    org-ts-regexp-inactive))
+            (push (list (org-memento--parse-time-to-int (match-string 1))
+                        (org-memento--parse-time-to-int (match-string 2))
+                        org-memento-idle-heading
+                        hd-marker
+                        'idle)
+                  clocks)))
+        clocks))))
+
+(defun org-memento--parse-idle-children ()
+  (let ((subtree-end (save-excursion (org-end-of-subtree)))
+        blocks)
+    ;; This is like in `org-memento--agenda-activities', but without future
+    ;; activities.
+    (while (re-search-forward org-complex-heading-regexp subtree-end t)
+      (let ((heading (match-string-no-properties 4))
+            (hd-marker (point-marker))
+            (bound (org-entry-end-position)))
+        (pcase (save-excursion (org-memento--parse-entry nil 'away))
+          (`(,start ,end . ,_)
+           (push (list start
+                       end
+                       heading
+                       hd-marker
+                       'away)
+                 blocks)))
+        (when (and (< (point) bound)
+                   (re-search-forward org-logbook-drawer-re bound t))
+          (let ((drawer-end (match-end 0)))
+            (goto-char (match-beginning 0))
+            (while (re-search-forward (rx bol (* space) "CLOCK:" (* blank))
+                                      drawer-end t)
+              (when (looking-at (rx (regexp org-ts-regexp-inactive)
+                                    (?  "--" (regexp org-ts-regexp-inactive))))
+                (let ((start (org-memento--parse-time-to-int (match-string 1)))
+                      (end (org-memento--parse-time-to-int (match-string 2))))
+                  (push (list start
+                              end
+                              heading
+                              hd-marker
+                              'away)
+                        blocks))))))))
+    blocks))
+
 ;;;;; Updating properties
 
 (defun org-memento-set-duration (duration)
@@ -3464,187 +3552,83 @@ denoting the type of the activity. ARGS is an optional list."
 (cl-defun org-memento--block-activities (start-date-string &optional end-date-string
                                                            &key annotate-groups
                                                            annotate-todos)
-  (cl-flet*
-      ((parse-date (string)
-         (encode-time (org-memento--set-time-of-day
-                       (parse-time-string string)
-                       0 0 0)))
-       (parse-date-at-point ()
-         (when (looking-at org-memento-date-regexp)
-           (parse-date (match-string 0))))
-       (parse-time (string)
-         (thread-last
-           (parse-time-string string)
-           (encode-time)
-           (float-time)
-           (floor)))
-       (only-future (float)
-         (when (and float
-                    (> float (float-time (org-memento--current-time))))
-           float))
-       (parse-entry (include-future &optional away return-element)
-         (if (or include-future away return-element)
-             (let* ((block (org-memento-block-entry))
-                    (start (or (org-memento-started-time block)
-                               (if away
-                                   (org-memento-starting-time block)
-                                 (only-future (org-memento-starting-time block)))))
-                    (end (or (org-memento-ended-time block)
-                             (if away
-                                 (org-memento-ending-time block)
-                               (only-future (org-memento-ending-time block)))
-                             (when (equal (org-memento-title block)
-                                          org-memento-current-block)
-                               (float-time (org-memento--current-time))))))
-               (when start
-                 (list start end
-                       (when return-element
-                         (list (org-memento-headline-element block))))))
-           ;; Faster version for past activities.
-           (let* ((entry-end (org-entry-end-position))
-                  (end (when (re-search-forward org-closed-time-regexp entry-end t)
-                         (parse-time (match-string 1))))
-                  (start (when-let (string (org-entry-get nil "MEMENTO_CHECKIN_TIME"))
-                           (when (string-match org-ts-regexp-inactive string)
-                             (parse-time (match-string 1 string))))))
-             (when start
-               (list start end)))))
-       (parse-idle-clocks ()
-         (let ((hd-marker (point-marker)))
-           (when (re-search-forward org-logbook-drawer-re (org-entry-end-position)
-                                    t)
-             (goto-char (match-beginning 0))
-             (let ((drawer-end (match-end 0))
-                   clocks)
-               (while (re-search-forward (rx bol (* space) "CLOCK:" (* blank))
-                                         drawer-end t)
-                 (when (looking-at (concat org-ts-regexp-inactive
-                                           "--"
-                                           org-ts-regexp-inactive))
-                   (push (list (parse-time (match-string 1))
-                               (parse-time (match-string 2))
-                               org-memento-idle-heading
-                               hd-marker
-                               'idle)
-                         clocks)))
-               clocks))))
-       (parse-idle-children ()
-         (let ((subtree-end (save-excursion (org-end-of-subtree)))
-               blocks)
-           ;; This is like in `org-memento--agenda-activities', but without future
-           ;; activities.
-           (while (re-search-forward org-complex-heading-regexp subtree-end t)
-             (let ((heading (match-string-no-properties 4))
-                   (hd-marker (point-marker))
-                   (bound (org-entry-end-position)))
-               (pcase (save-excursion (parse-entry nil 'away))
-                 (`(,start ,end . ,_)
-                  (push (list start
-                              end
-                              heading
-                              hd-marker
-                              'away)
-                        blocks)))
-               (when (and (< (point) bound)
-                          (re-search-forward org-logbook-drawer-re bound t))
-                 (let ((drawer-end (match-end 0)))
-                   (goto-char (match-beginning 0))
-                   (while (re-search-forward (rx bol (* space) "CLOCK:" (* blank))
-                                             drawer-end t)
-                     (when (looking-at (rx (regexp org-ts-regexp-inactive)
-                                           (?  "--" (regexp org-ts-regexp-inactive))))
-                       (let ((start (parse-time (match-string 1)))
-                             (end (parse-time (match-string 2))))
-                         (push (list start
-                                     end
-                                     heading
-                                     hd-marker
-                                     'away)
-                               blocks))))))))
-           blocks))
-       (end-of-day-float-time (float-time)
-         (thread-first
-           (decode-time float-time)
-           (org-memento--start-of-day)
-           (decoded-time-add (make-decoded-time :hour 23 :minute 59))
-           (encode-time)
-           (float-time))))
-    (with-current-buffer (org-memento--buffer)
-      (org-save-outline-visibility t
-        (widen)
-        (goto-char (point-min))
-        (outline-show-all)
-        (let (dates)
-          (while (re-search-forward (rx bol "*" blank) nil t)
-            (when-let (date-string (and (re-search-forward org-memento-date-regexp
-                                                           (pos-eol)
-                                                           t)
-                                        (match-string-no-properties 0)))
-              (when (or (member date-string (list start-date-string
-                                                  end-date-string))
-                        (and (or (not end-date-string)
-                                 (string-lessp date-string
-                                               end-date-string))
-                             (string-lessp start-date-string
-                                           date-string)))
-                (let ((marker (progn
-                                ;; This moves the point to the beginning of the entry.
-                                (beginning-of-line)
-                                (point-marker)))
-                      (include-future (not (string-lessp date-string
-                                                         (org-memento--today-string
-                                                          (decode-time
-                                                           (org-memento--current-time)))))))
-                  (pcase (parse-entry include-future)
-                    (`(,start ,end . ,_)
-                     (let ((day (list start
-                                      ;; If the end time is missing, e.g. it has
-                                      ;; already passed the expected checkout
-                                      ;; time, set it to the time right before
-                                      ;; the start of the next day.
-                                      (or end (end-of-day-float-time start))
-                                      date-string marker 'date))
-                           (subtree-end (save-excursion (org-end-of-subtree)))
-                           blocks)
-                       ;; Move the point to prevent from matching the date
-                       ;; heading twice.
-                       (end-of-line)
-                       (while (re-search-forward org-complex-heading-regexp subtree-end t)
-                         (beginning-of-line)
-                         (let* ((level (length (match-string 1)))
-                                (is-block (= level 2))
-                                (heading (match-string-no-properties 4))
-                                (hd-marker (point-marker)))
-                           (if (equal heading org-memento-idle-heading)
-                               (setq blocks (append blocks
-                                                    (parse-idle-clocks)
-                                                    (parse-idle-children)))
-                             (pcase (parse-entry include-future nil annotate-groups)
-                               (`(,start ,end . ,rest)
-                                (let* ((record (list start
-                                                     end
-                                                     heading
-                                                     hd-marker
-                                                     (if is-block
-                                                         'block
-                                                       'away)))
-                                       (element (caar rest)))
-                                  (when is-block
-                                    (nconc record
-                                           (when-let (keyword (and annotate-todos
-                                                                   (org-element-property
-                                                                    :todo-keyword
-                                                                    element)))
-                                             `(:todo-keyword ,keyword))
-                                           (when annotate-groups
-                                             `(:group
-                                               ,(save-excursion
-                                                  (goto-char hd-marker)
-                                                  (org-memento--get-group element))))))
-                                  (push record blocks))))))
-                         (end-of-line 1))
-                       (push (cons day blocks) dates))))))))
-          dates)))))
+  (with-current-buffer (org-memento--buffer)
+    (org-save-outline-visibility t
+      (widen)
+      (goto-char (point-min))
+      (outline-show-all)
+      (let (dates)
+        ;; Search the beginning of each date entry.
+        (while (re-search-forward (rx bol "*" blank) nil t)
+          (when-let (date-string (and (re-search-forward org-memento-date-regexp
+                                                         (pos-eol)
+                                                         t)
+                                      (match-string-no-properties 0)))
+            (when (or (member date-string (list start-date-string
+                                                end-date-string))
+                      (and (or (not end-date-string)
+                               (string-lessp date-string
+                                             end-date-string))
+                           (string-lessp start-date-string
+                                         date-string)))
+              (let ((marker (progn
+                              ;; This moves the point to the beginning of the entry.
+                              (beginning-of-line)
+                              (point-marker)))
+                    (include-future (not (string-lessp date-string
+                                                       (org-memento--today-string
+                                                        (decode-time
+                                                         (org-memento--current-time)))))))
+                (pcase (org-memento--parse-entry include-future)
+                  (`(,start ,end . ,_)
+                   (let ((day (list start
+                                    ;; If the end time is missing, e.g. it has
+                                    ;; already passed the expected checkout
+                                    ;; time, set it to the time right before
+                                    ;; the start of the next day.
+                                    (or end (org-memento--end-of-day-from-float-time start))
+                                    date-string marker 'date))
+                         (subtree-end (save-excursion (org-end-of-subtree)))
+                         blocks)
+                     ;; Move the point to prevent from matching the date
+                     ;; heading twice.
+                     (end-of-line)
+                     (while (re-search-forward org-complex-heading-regexp subtree-end t)
+                       (beginning-of-line)
+                       (let* ((level (length (match-string 1)))
+                              (is-block (= level 2))
+                              (heading (match-string-no-properties 4))
+                              (hd-marker (point-marker)))
+                         (if (equal heading org-memento-idle-heading)
+                             (setq blocks (append blocks
+                                                  (org-memento--parse-idle-clocks)
+                                                  (org-memento--parse-idle-children)))
+                           (pcase (org-memento--parse-entry include-future nil annotate-groups)
+                             (`(,start ,end . ,rest)
+                              (let* ((record (list start
+                                                   end
+                                                   heading
+                                                   hd-marker
+                                                   (if is-block
+                                                       'block
+                                                     'away)))
+                                     (element (caar rest)))
+                                (when is-block
+                                  (nconc record
+                                         (when-let (keyword (and annotate-todos
+                                                                 (org-element-property
+                                                                  :todo-keyword
+                                                                  element)))
+                                           `(:todo-keyword ,keyword))
+                                         (when annotate-groups
+                                           `(:group
+                                             ,(save-excursion
+                                                (goto-char hd-marker)
+                                                (org-memento--get-group element))))))
+                                (push record blocks))))))
+                       (end-of-line 1))
+                     (push (cons day blocks) dates))))))))
+        dates))))
 
 ;;;; Grouping
 
@@ -3977,6 +3961,13 @@ convenience, \\='nil items are ignored."
 
 ;;;; Utility functions for time representations and Org timestamps
 
+(defun org-memento--parse-time-to-int (string)
+  (thread-last
+    (parse-time-string string)
+    (encode-time)
+    (float-time)
+    (floor)))
+
 (cl-defun org-memento--entry-duration (marker &key start end)
   "Return the duration in minutes of an entry."
   (or (when end
@@ -4066,6 +4057,14 @@ This respects `org-extend-today-until'."
                                 (or org-extend-today-until 0)
                                 0
                                 0))
+
+(defun org-memento--end-of-day-from-float-time (float-time)
+  (thread-first
+    (decode-time float-time)
+    (org-memento--start-of-day)
+    (decoded-time-add (make-decoded-time :hour 23 :minute 59))
+    (encode-time)
+    (float-time)))
 
 (defun org-memento--maybe-decrement-date (decoded-time)
   (if (and org-extend-today-until
