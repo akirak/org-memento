@@ -238,13 +238,15 @@
          (done-duration (item)
            (cl-typecase item
              (org-memento-block
-              (when-let (ended (org-memento-ended-time item))
-                (/ (- ended (org-memento-started-time item))
+              (when-let* ((started (org-memento-started-time item))
+                          (ended (org-memento-ended-time item)))
+                (/ (- ended started)
                    60)))))
          (planned-duration (item)
            (cl-typecase item
              (org-memento-block
-              (unless (org-memento-ended-time item)
+              (unless (and (org-memento-started-time item)
+                           (org-memento-ended-time item))
                 (org-memento--block-duration item)))))
          (sum-duration (durations)
            (cl-reduce #'+ (delq nil durations) :initial-value 0))

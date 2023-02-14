@@ -1648,7 +1648,15 @@ daily entry."
                         (when (equal (org-memento-title block)
                                      org-memento-current-block)
                           (float-time (org-memento--current-time))))))
-          (when start
+          (when (and start
+                     ;; If the item has been closed without starting it, it is
+                     ;; considered a habit entry and ignored in the timeline.
+                     (not (and (not (org-memento-started-time block))
+                               (eq 'done
+                                   (thread-last
+                                     block
+                                     (org-memento-block-headline)
+                                     (org-element-property :todo-type))))))
             (list start end
                   (when return-element
                     (list (org-memento-headline-element block))))))
@@ -3946,6 +3954,7 @@ GROUP is a group path and FILE is an Org file."
                     (when-let (duration
                                (or (and (org-memento-block-p x)
                                         (org-memento-ended-time x)
+                                        (org-memento-started-time x)
                                         (/ (- (org-memento-ended-time x)
                                               (org-memento-started-time x))
                                            60))

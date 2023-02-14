@@ -1493,6 +1493,7 @@ With ARG, interactivity is inverted."
                (error "Creating a new block is not support right now"))))
          (late-or-unscheduled (block)
            (and (not (org-memento-started-time block))
+                (org-memento-block-not-closed-p block)
                 (or (not (org-memento-starting-time block))
                     (< (org-memento-starting-time block)
                        now))))
