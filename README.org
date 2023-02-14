@@ -2,4 +2,4 @@
 *This project is unlikely to be registered to MELPA*​.
 It is hosted as a public repository for a technical reason, but due to quality issues, I won't be able to make it stable enough.
 Still, it serves as a prototype for seeking ideas for time management inside Emacs with Org mode and I am using it daily.
-Maybe I will re-implement the backend in a statically typed language (e.g. Haskell, OCaml, etc.) in the future.
+Maybe I will implement a backend in a statically typed language (e.g. Haskell, OCaml, etc.) in the future to make it more reliable.
