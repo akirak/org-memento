@@ -1452,6 +1452,7 @@ The point must be after a \"CLOCK:\" string."
         (org-memento--status)
         (org-memento--setup-block-timers)
         (org-memento-log-update)))))
+
 (defun org-memento--cancel-block-timers ()
   (mapc #'cancel-timer org-memento-block-timers)
   (setq org-memento-block-timers nil))
