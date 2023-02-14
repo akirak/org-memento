@@ -1841,7 +1841,8 @@ You should update the status before you call this function."
                  (insert ?\n)))))
         (when-let (blocks (thread-last
                             (org-memento--blocks)
-                            (seq-filter #'block-not-started-p)))
+                            (seq-filter #'block-not-started-p)
+                            (seq-filter #'org-memento-block-not-closed-p)))
           (org-memento-timeline--section-1 feasibility
             (magit-insert-heading
               "Feasibility")
