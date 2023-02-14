@@ -644,6 +644,7 @@ triggered by an interval timer."
 (defvar org-memento-timeline-mode-map
   (let ((map (make-sparse-keymap)))
     (define-key map "a" #'org-memento-timeline-add)
+    (define-key map "d" #'org-memento-timeline-done)
     (define-key map "e" #'org-memento-timeline-edit-dwim)
     (define-key map "r" #'org-memento-timeline-rename)
     (define-key map "o" #'org-memento-timeline-open-entry)
@@ -1540,6 +1541,19 @@ With ARG, interactivity is inverted."
                                  (org-memento-group-path obj)))
                (select-suggestion group-path)
              (fallback))))))))
+
+(defun org-memento-timeline-done ()
+  "Mark the block at point as done."
+  (interactive)
+  (if-let (section (magit-current-section))
+      (let ((value (oref section value)))
+        (when (and (org-memento-block-p value)
+                   (org-memento-block-not-closed-p value)
+                   (not (org-memento-started-time value))
+                   (yes-or-no-p "Close the block without starting it?"))
+          (org-with-point-at (org-memento-marker value)
+            (org-todo 'done))))
+    (user-error "Not on an item")))
 
 (defun org-memento-timeline-shift ()
   "Shift the time of the event/block at point."
