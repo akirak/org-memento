@@ -2560,7 +2560,7 @@ into the candidates as well."
                                                 (format-time-string "%R" time)
                                                 (org-memento-minutes-from-now time))
                                         'face 'font-lock-warning-face))
-                          (when-let (duration (org-memento-duration block-or-event))
+                          (when-let (duration (org-memento--block-duration block-or-event))
                             (propertize (format " (%s)" (org-duration-from-minutes duration))
                                         'face 'font-lock-doc-face))
                           (when-let (time (org-memento-started-time block-or-event))
