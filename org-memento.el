@@ -529,7 +529,7 @@ block has an active timestamp range set at the beginning of the
 entry body. Otherwise, an effort property will be used, if any."
   (or (let ((ts (org-memento-block-active-ts x)))
         (when (and ts
-                   (eq 'active-range (org-element-type ts)))
+                   (eq 'active-range (org-element-property :type ts)))
           (/ (- (float-time (org-timestamp-to-time ts 'end))
                 (float-time (org-timestamp-to-time ts)))
              60)))
