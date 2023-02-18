@@ -125,7 +125,8 @@
                  (if todo
                      (concat todo " ")
                    "")
-                 (propertize (org-memento-planning-item-heading item)
+                 (propertize (org-link-display-format
+                              (org-memento-planning-item-heading item))
                              'face 'org-memento-timeline-agenda-item-face)
                  (if effort
                      (concat " " effort)
@@ -150,7 +151,7 @@
                   (concat org-memento-timeline-done-format " "))
                  (kwd
                   (concat kwd " ")))
-               (propertize (org-memento-title item)
+               (propertize (org-link-display-format (org-memento-title item))
                            'face 'org-memento-timeline-group-path-face)
                (when-let* ((start (org-memento-started-time item))
                            (end (org-memento-ended-time item)))
