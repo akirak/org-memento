@@ -381,7 +381,8 @@ function selects the window."
 
 (defun org-memento-timeline--activity-taxy ()
   (apply #'org-memento-activity-taxy
-         (append org-memento-timeline-date-range
+         (append (buffer-local-value 'org-memento-timeline-date-range
+                                     (get-buffer org-memento-timeline-buffer))
                  (list :groups t :todos t))))
 
 (defun org-memento-timeline--toplevel-section ()
