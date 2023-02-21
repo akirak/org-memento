@@ -1549,15 +1549,24 @@ With ARG, interactivity is inverted."
 (defun org-memento-timeline-done ()
   "Mark the block at point as done."
   (interactive)
-  (if-let (section (magit-current-section))
-      (let ((value (oref section value)))
-        (when (and (org-memento-block-p value)
-                   (org-memento-block-not-closed-p value)
-                   (not (org-memento-started-time value))
-                   (yes-or-no-p "Close the block without starting it?"))
-          (org-with-point-at (org-memento-marker value)
-            (org-todo 'done))))
-    (user-error "Not on an item")))
+  (if-let* ((section (magit-current-section))
+            (now (float-time (org-memento--current-time)))
+            (type (oref section type))
+            (value (oref section value))
+            (marker (pcase value
+                      (`(,_ ,_ ,_ ,marker block . ,_)
+                       (org-with-point-at marker
+                         (unless (or (org-entry-is-done-p)
+                                     (org-entry-get nil "MEMENTO_CHECKIN_TIME"))
+                           marker)))
+                      ((guard (and (org-memento-block-p value)
+                                   (org-memento-block-not-closed-p value)
+                                   (not (org-memento-started-time value))))
+                       (org-memento-marker value)))))
+      (when (yes-or-no-p "Close the block without starting it?")
+        (org-with-point-at marker
+          (org-todo 'done)))
+    (user-error "Not on an unclosed block")))
 
 (defun org-memento-timeline-shift ()
   "Shift the time of the event/block at point."
