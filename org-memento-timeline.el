@@ -1083,7 +1083,8 @@ section."
            (mapcar #'taxy-name)
            (sum-durations
             (lambda (record)
-              (eq (nth 4 record) 'anonymous)))))
+              (and (cadr record)
+                   (eq (nth 4 record) 'anonymous))))))
         (untracked
          (thread-last
            (taxy-taxys taxy)
@@ -1101,6 +1102,7 @@ section."
             (lambda (record)
               (and (block-record-p record)
                    (car record)
+                   (cadr record)
                    (> (cadr record) now))))))
         (available
          (thread-last
