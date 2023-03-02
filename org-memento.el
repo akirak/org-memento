@@ -2345,7 +2345,7 @@ This function creates a follow-up task according to the value of
                                                (org-memento--titles-in-category category)))
                                            nil
                                            select-existing-heading
-                                           nil nil default 'inherit-input-method)))
+                                           input nil default 'inherit-input-method)))
         (if (and (not select-existing-heading)
                  (member input existing-titles))
             (setq prompt (format "\"%s\" is a duplicate.\nTitle: " input))
