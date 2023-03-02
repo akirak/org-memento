@@ -2497,6 +2497,7 @@ This function creates a follow-up task according to the value of
                          (org-memento--next-agenda-event
                           nil nil
                           :now now
+                          :only-later-than-now t
                           :include-memento-file t)))
          (limit (when upnext-event
                   (- (/ (- (org-memento-starting-time upnext-event)
@@ -2945,13 +2946,16 @@ into the candidates as well."
       (org-memento--calculated-end-time block)))
 
 (cl-defun org-memento--next-agenda-event (&optional hd-marker bound-time
-                                                    &key include-memento-file now)
+                                                    &key include-memento-file now
+                                                    only-later-than-now)
   "Return an Org entry that has the earliest time stamp.
 
 If BOUND-TIME is an internal time, time stamps later than the
 time are skipped.
 
-NOW should be a float time which specifies the end of time.
+NOW should be a float time which specifies the end of time. If
+ONLY-LATER-THAN-NOW is non-nil, events later than NOW are
+ignored.
 
 This returns an internal time of the time stamp minus a margin, a
 marker to the time stamp, and the margin in seconds."
@@ -2985,6 +2989,8 @@ marker to the time stamp, and the margin in seconds."
                                  (float-time (org-timestamp-to-time ts)))))
                (when (and (or (not min-time)
                               (< time min-time))
+                          (or (not only-later-than-now)
+                              (>= time now))
                           (not (org-entry-is-done-p))
                           (not (org-memento--maybe-skip-by-tag)))
                  (let ((marker (save-excursion
