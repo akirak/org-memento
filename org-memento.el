@@ -4396,9 +4396,9 @@ range."
                             (org-memento-read-title nil
                               :date (when start
                                       (thread-last
-                                        (decode-time start)
-                                        (org-memento--start-of-day)
-                                        (format-time-string "%F")))))))
+                                        (time-convert start 'list)
+                                        (decode-time)
+                                        (org-memento--today-string)))))))
          (group (unless away
                   (or group
                       (org-memento-read-group nil :title title))))
