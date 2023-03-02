@@ -2348,7 +2348,7 @@ This function creates a follow-up task according to the value of
                                            nil nil default 'inherit-input-method)))
         (if (and (not select-existing-heading)
                  (member input existing-titles))
-            (setq prompt (format "Title (\"%s\" is a duplicate): " input))
+            (setq prompt (format "\"%s\" is a duplicate.\nTitle: " input))
           (throw 'input input))))))
 
 (defun org-memento-select-slot (prompt slots)
