@@ -2321,7 +2321,7 @@ This function creates a follow-up task according to the value of
          (prompt (or prompt
                      (cond
                       (default
-                       (format "Title [\"%s\"]: " default))
+                       (format-prompt "Title" default))
                       (group
                        (format "Title for group %s: " (org-memento--format-group group)))
                       (t
