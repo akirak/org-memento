@@ -4420,6 +4420,10 @@ range."
                      (or category
                          (cdr (assoc "MEMENTO_CATEGORY" (plist-get arguments :properties)))
                          (org-memento-read-category nil))))
+         (end (if (and start end (time-less-p end start))
+                  (float-time
+                   (org-read-date t t nil "End time must not be earlier than start time"))
+                end))
          (template (if away
                        (org-memento--away-event-template
                         :start start :end end :title title
