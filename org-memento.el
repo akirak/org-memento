@@ -2157,6 +2157,11 @@ Please run `org-memento-close-date'" headline)))
                        (decoded-time-add (make-decoded-time :hour 23 :minute 59 :second 59))
                        (encode-time)))
     (user-error "This entry should not be closed"))
+  (when (org-entry-blocked-p)
+    (if (yes-or-no-p "This date is blocked. Carry over unfinished items? ")
+        (save-excursion
+          (org-memento--carry-over-from-date))
+      (user-error "You cannot close this date as it is blocked")))
   (let ((bound (save-excursion (org-end-of-subtree)))
         final-activity)
     (save-excursion
@@ -2179,6 +2184,23 @@ Please run `org-memento-close-date'" headline)))
           (when (org-entry-is-done-p)
             (org-add-planning-info 'closed final-activity)))
       (user-error "Can't final the final activity"))))
+
+(defun org-memento--carry-over-from-date ()
+  "Carry over unfinished blocks in the date entry at point."
+  (let ((bound (save-excursion
+                 (org-end-of-subtree)))
+        (date (org-memento--today-string)))
+    (while (re-search-forward org-complex-heading-regexp bound t)
+      (when (and (= 2 (- (match-end 1) (match-beginning 1)))
+                 (not (equal (match-string-no-properties 4)
+                             org-memento-idle-heading))
+                 (not (member (match-string-no-properties 2)
+                              org-done-keywords)))
+        (let ((size (- (save-excursion
+                         (org-end-of-subtree))
+                       (pos-bol))))
+          (org-memento-carry-over-item date)
+          (cl-decf bound size))))))
 
 ;;;; Workflow
 
