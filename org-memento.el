@@ -2246,7 +2246,12 @@ This function creates a follow-up task according to the value of
               (properties (if duration
                               (cons (cons "Effort" duration)
                                     properties)
-                            properties)))
+                            properties))
+              ;; org-element-use-cache can produce an unexpected result. For
+              ;; example, it can bring text from the original node to the target
+              ;; node. Thus it is safe to disable it when you perform raw-text
+              ;; based manipulation in org buffers.
+              (org-element-use-cache nil))
          (with-current-buffer (org-memento--buffer)
            (org-with-wide-buffer
             (org-memento--goto-date date)
