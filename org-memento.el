@@ -1142,13 +1142,13 @@ At present, it runs `org-memento-timeline'."
            (org-memento--find-today)
            (org-narrow-to-subtree)
            (pop-to-buffer (current-buffer))
-           (org-fold-show-entry)
            (with-demoted-errors "The heading for the current block does not exist. \
 Possibly renamed? %s"
              (re-search-forward (format org-complex-heading-regexp-format title)))
            (org-back-to-heading)
            (when narrow
              (org-narrow-to-subtree))
+           (org-fold-show-entry)
            (run-hooks 'org-memento-open-journal-hook))))
     (cond
      (org-memento-current-block
