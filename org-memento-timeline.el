@@ -1860,6 +1860,7 @@ You should update the status before you call this function."
                    (propertize (org-memento-title block)
                                'face 'magit-section-heading))
                  (dolist (item items)
+                   (delq item planning-items)
                    (magit-insert-section (planning-item item)
                      (magit-insert-heading
                        (make-string 2 ?\s)
@@ -1871,44 +1872,81 @@ You should update the status before you call this function."
                        (propertize (org-memento-planning-item-heading item)
                                    'face 'default))))
                  (insert ?\n)))))
-        (when-let (blocks (thread-last
-                            (org-memento--blocks)
-                            (seq-filter #'block-not-started-p)
-                            (seq-filter #'org-memento-block-not-closed-p)))
-          (org-memento-timeline--section-1 feasibility
-            (magit-insert-heading
-              "Feasibility")
-            (let (overlaps)
-              (dolist (date-taxy (taxy-taxys taxy))
-                (let (last-end)
-                  (when (< (car (taxy-name date-taxy)) now)
-                    (dolist (block-taxy (taxy-taxys date-taxy))
-                      (let* ((record (taxy-name block-taxy))
-                             (start (car record))
-                             (end (cadr record)))
-                        (when (and end (> end now))
-                          (when (and last-end
-                                     (< start last-end))
-                            (push (cons record last-end) overlaps))
-                          (setq last-end end)))))))
-              (when overlaps
-                (pcase-dolist (`(,record . ,last-end) overlaps)
-                  (magit-insert-section (block record t)
-                    (magit-insert-heading
-                      (make-string 2 ?\s)
-                      (propertize (nth 2 record) 'face 'magit-section-heading)
-                      (format-spec
-                       " starts at %s before its previous event ends at %e (overlap)."
-                       `((?s . ,(format-time-string "%R" (car record)))
-                         (?e . ,(format-time-string "%R" last-end)))))))
-                (insert ?\n)))
-            (org-memento-timeline-with-overlay
-             ((keymap . org-memento-timeline-feasibility-map))
-             (dolist (block (seq-sort-by #'org-memento-starting-time
-                                         #'compare-maybe-number
-                                         blocks))
-               (insert-block block))))
-          (insert ?\n))))))
+        (let ((blocks (thread-last
+                        (org-memento--blocks)
+                        (seq-filter #'block-not-started-p)
+                        (seq-filter #'org-memento-block-not-closed-p))))
+          (when blocks
+            (org-memento-timeline--section-1 feasibility
+              (magit-insert-heading
+                "Feasibility")
+              (let (overlaps)
+                (dolist (date-taxy (taxy-taxys taxy))
+                  (let (last-end)
+                    (when (< (car (taxy-name date-taxy)) now)
+                      (dolist (block-taxy (taxy-taxys date-taxy))
+                        (let* ((record (taxy-name block-taxy))
+                               (start (car record))
+                               (end (cadr record)))
+                          (when (and end (> end now))
+                            (when (and last-end
+                                       (< start last-end))
+                              (push (cons record last-end) overlaps))
+                            (setq last-end end)))))))
+                (when overlaps
+                  (pcase-dolist (`(,record . ,last-end) overlaps)
+                    (magit-insert-section (block record t)
+                      (magit-insert-heading
+                        (make-string 2 ?\s)
+                        (propertize (nth 2 record) 'face 'magit-section-heading)
+                        (format-spec
+                         " starts at %s before its previous event ends at %e (overlap)."
+                         `((?s . ,(format-time-string "%R" (car record)))
+                           (?e . ,(format-time-string "%R" last-end)))))))
+                  (insert ?\n)))
+              (org-memento-timeline-with-overlay
+               ((keymap . org-memento-timeline-feasibility-map))
+               (dolist (block (seq-sort-by #'org-memento-starting-time
+                                           #'compare-maybe-number
+                                           blocks))
+                 (insert-block block))))
+            (insert ?\n))
+          (when planning-items
+            (org-memento-timeline--insert-planning-items planning-items)
+            (insert ?\n)))))))
+
+(defcustom org-memento-timeline-planning-items-taxy
+  (make-taxy
+   :name "Planning items from org-agenda-files")
+  ""
+  :type '(sexp :tag "Taxy"))
+
+(defun org-memento-timeline--insert-planning-items (planning-items)
+  (cl-labels
+      ((insert-taxy (level taxy)
+         (magit-insert-section (planning-items (taxy-name taxy))
+           (magit-insert-heading
+             (make-string (* 2 level) ?\s)
+             (taxy-name taxy))
+           (dolist (item (taxy-items taxy))
+             (magit-insert-section (planning item)
+               (magit-insert-heading
+                 (make-string (* 2 (1+ level)) ?\s)
+                 (propertize (org-link-display-format
+                              (org-memento-planning-item-heading item))
+                             'face 'org-memento-timeline-agenda-item-face)
+                 (if-let (effort (org-memento-planning-item-effort item))
+                     (concat " " effort)
+                   ""))))
+           (dolist (subtaxy (taxy-taxys taxy))
+             (insert-taxy (1+ level) subtaxy)))))
+    (org-memento-timeline-with-overlay
+     ((keymap . org-memento-timeline-planning-map))
+     (thread-last
+       org-memento-timeline-planning-items-taxy
+       (taxy-emptied)
+       (taxy-fill planning-items)
+       (insert-taxy 0)))))
 
 (defun org-memento-timeline-edit-feasibility ()
   (interactive)
