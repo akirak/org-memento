@@ -1802,7 +1802,10 @@ The function returns non-nil if the check-in is done."
                             (cdr)
                             (seq-filter #'org-memento-block-not-closed-p))))
               (widen)
-              (org-memento--carry-over blocks today))))))
+              (when blocks
+                (org-memento--carry-over blocks today)
+                (message "Carried over %d items from the previous day"
+                         (length blocks))))))))
     (save-excursion
       (run-hooks 'org-memento-checkin-hook))
     (org-memento-status)
