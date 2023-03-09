@@ -1248,17 +1248,15 @@ With a universal argument, you can specify the time of check out."
   (let* ((date (or date (org-memento--next-date)))
          (rfloc (org-memento--rfloc-on-date date)))
     (dolist (title (mapcar #'org-memento-title blocks))
-      (org-memento-with-today-entry
-       (let ((bound (save-excursion
-                      (org-end-of-subtree))))
-         (catch 'refiled
-           (save-excursion
-             (while (re-search-forward (format org-complex-heading-regexp-format title)
-                                       bound t)
-               (when (= (- (match-end 1) (match-beginning 1)) 2)
-                 (org-memento--carry-over-to-rfloc rfloc)
-                 (throw 'refiled t)))
-             (error "Heading \"%s\" was not found" title))))))))
+      (let ((bound (save-excursion (org-end-of-subtree))))
+        (catch 'refiled
+          (save-excursion
+            (while (re-search-forward (format org-complex-heading-regexp-format title)
+                                      bound t)
+              (when (= (- (match-end 1) (match-beginning 1)) 2)
+                (org-memento--carry-over-to-rfloc rfloc)
+                (throw 'refiled t)))
+            (error "Heading \"%s\" was not found" title)))))))
 
 (defun org-memento--carry-over-to-rfloc (rfloc)
   "Carry over the current entry to RFLOC."
@@ -1796,10 +1794,12 @@ The function returns non-nil if the check-in is done."
     (when org-memento-carry-over-on-checkin
       (let ((today (org-memento--today-string)))
         (save-excursion
-          (when (re-search-forward (rx bol "*" blank) nil t)
+          (when (and (re-search-forward (rx bol "*" blank) nil t)
+                     (not (org-entry-is-done-p)))
             (org-narrow-to-subtree)
             (let ((blocks (thread-last
                             (org-memento--collect-blocks)
+                            (cdr)
                             (seq-filter #'org-memento-block-not-closed-p))))
               (widen)
               (org-memento--carry-over blocks today))))))
