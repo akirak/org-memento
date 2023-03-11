@@ -4513,6 +4513,7 @@ range."
                    :default "0:25")))
     ;; TODO: Parse time
     (org-memento-add-event :title title
+                           :interactive t
                            :duration (unless (string-empty-p duration)
                                        (org-duration-to-minutes duration)))))
 
