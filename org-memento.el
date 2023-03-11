@@ -1206,7 +1206,8 @@ With a universal argument, you can specify the time of check out."
                       (org-memento--blocks)
                       (seq-filter #'org-memento-block-not-closed-p)))
     (if (yes-or-no-p "Carry-over blocks to the next day?")
-        (org-memento--carry-over blocks)
+        (org-memento-with-today-entry
+         (org-memento--carry-over blocks))
       (user-error "Aborted")))
   (org-memento-with-today-entry
    ;; If org-read-date is aborted, the entire checkout command will be aborted.
