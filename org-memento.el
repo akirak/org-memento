@@ -3084,7 +3084,10 @@ marker to the time stamp, and the margin in seconds."
         ((inc-day (decoded-time)
            (decoded-time-add decoded-time (make-decoded-time :day 1)))
          (go (decoded-time)
-           (if (memq (decoded-time-weekday decoded-time) dows)
+           (if (memq (org-day-of-week (decoded-time-day decoded-time)
+                                      (decoded-time-month decoded-time)
+                                      (decoded-time-year decoded-time))
+                     dows)
                decoded-time
              (go (inc-day decoded-time)))))
       (format-time-string "%F" (encode-time (go (thread-first
