@@ -3459,6 +3459,24 @@ This function must be called at the beginning of the entry."
          (cl-reduce #'block-taxy-reducer block-taxys
                     :initial-value nil
                     :from-end t))
+       (block-taxy-reducer-2 (block-taxy acc)
+         (let ((this (taxy-name block-taxy))
+               (that (when acc
+                       (taxy-name (car acc)))))
+           ;; If `that' is an idle event and its start time is earlier than the
+           ;; end time of `this', then the start time should be adjusted to the
+           ;; end time of the previous event.
+           (when (and that
+                      (eq 'idle (nth 4 that))
+                      (cadr this)
+                      (car that)
+                      (> (cadr this) (car that)))
+             (setf (car that) (cadr this)))
+           (cons block-taxy acc)))
+       (resolve-overlaps (block-taxys)
+         (cl-reduce #'block-taxy-reducer-2 block-taxys
+                    :initial-value nil
+                    :from-end t))
        ;; When compiled, setf inside cl-labels seems to cause an error.
        ;; For now, I will define this function to set the particular field.
        (set-taxy-taxys (taxy new-value)
@@ -3469,6 +3487,7 @@ This function must be called at the beginning of the entry."
                            (thread-last
                              (taxy-taxys date-taxy)
                              (postprocess-block-taxys)
+                             (resolve-overlaps)
                              (fill-voids (car (taxy-name date-taxy))
                                          (cadr (taxy-name date-taxy))
                                          #'taxy-name #'make-gap-block-taxy))))
