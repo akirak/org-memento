@@ -1192,7 +1192,8 @@ section."
                                                       (> checkin-time now))
                                     "")
                                   (if checkout-time
-                                      (format-seconds (- checkout-time midnight)
+                                      (format-seconds (mod (- checkout-time midnight)
+                                                           (* 24 3600))
                                                       (> checkout-time now))
                                     "")
                                   (if duration-seconds
