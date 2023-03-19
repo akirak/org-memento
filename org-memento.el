@@ -1766,6 +1766,13 @@ The function returns non-nil if the check-in is done."
                                                  now nil 'inactive))
       (when adjust
         (org-memento--move-active-ts now)))
+    (when ask
+      (save-excursion
+        (when (and (re-search-forward (rx bol "*" blank) nil t)
+                   (not (org-entry-is-done-p))
+                   (yes-or-no-p "You haven't checked out from the previous day yet. \
+Close the date entry?"))
+          (org-memento-close-date))))
     t))
 
 (defun org-memento--move-active-ts (start-time)
