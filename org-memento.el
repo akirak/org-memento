@@ -359,11 +359,11 @@ an action from them."
 (defcustom org-memento-final-activity-sources 'all
   "Sources of truth for determining the final activity of a date.
 
-If the value is 'journal, it considers activities in the journal.
+If the value is \='journal, it considers activities in the journal.
 All blocks on the date are scanned and the time of latest
 inactive timestamp is used.
 
-If the value is 'all, it considers activities in the journal as
+If the value is \='all, it considers activities in the journal as
 well as all inactive timestamps in `org-agenda-files'."
   :type '(choice (const :tag "All (journal and agenda files)" all)
                  (const :tag "Journal" journal)))
