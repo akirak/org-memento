@@ -2187,7 +2187,7 @@ Please run `org-memento-close-date'" headline)))
           ;; to check the state
           (when (org-entry-is-done-p)
             (org-add-planning-info 'closed final-activity)))
-      (user-error "Can't final the final activity"))))
+      (user-error "Can't determine the final activity"))))
 
 (defun org-memento--carry-over-from-date ()
   "Carry over unfinished blocks in the date entry at point."
