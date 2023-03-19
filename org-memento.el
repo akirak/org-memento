@@ -2166,6 +2166,20 @@ Please run `org-memento-close-date'" headline)))
         (save-excursion
           (org-memento--carry-over-from-date))
       (user-error "You cannot close this date as it is blocked")))
+  (if-let (final-activity (org-memento--final-activity-1))
+      (let ((org-use-effective-time nil)
+            (org-use-last-clock-out-time-as-effective-time nil))
+        (org-todo 'done)
+        ;; The entry may be blocked by a child with a todo keyword, so you have
+        ;; to check the state
+        (when (org-entry-is-done-p)
+          (org-add-planning-info 'closed final-activity)))
+    (user-error "Can't determine the final activity")))
+
+(defun org-memento--final-activity-1 ()
+  "Return the time of the final activity on the date in the subtree.
+
+The point must be on the entry of the date."
   (let ((bound (save-excursion (org-end-of-subtree)))
         final-activity)
     (save-excursion
@@ -2179,15 +2193,7 @@ Please run `org-memento-close-date'" headline)))
             (when (or (not final-activity)
                       (time-less-p final-activity time))
               (setq final-activity time))))))
-    (if final-activity
-        (let ((org-use-effective-time nil)
-              (org-use-last-clock-out-time-as-effective-time nil))
-          (org-todo 'done)
-          ;; The entry may be blocked by a child with a todo keyword, so you have
-          ;; to check the state
-          (when (org-entry-is-done-p)
-            (org-add-planning-info 'closed final-activity)))
-      (user-error "Can't determine the final activity"))))
+    final-activity))
 
 (defun org-memento--carry-over-from-date ()
   "Carry over unfinished blocks in the date entry at point."
