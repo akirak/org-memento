@@ -2183,16 +2183,21 @@ The point must be on the entry of the date."
   (let ((bound (save-excursion (org-end-of-subtree)))
         final-activity)
     (save-excursion
-      (while (re-search-forward org-ts-regexp-inactive bound t)
-        (let ((ts (org-timestamp-from-string (match-string 0))))
-          (when-let (time (cl-case (org-element-property :type ts)
-                            (inactive
-                             (org-timestamp-to-time ts))
-                            (inactive-range
-                             (org-timestamp-to-time ts t))))
-            (when (or (not final-activity)
-                      (time-less-p final-activity time))
-              (setq final-activity time))))))
+      (while (re-search-forward org-complex-heading-regexp bound t)
+        (when (eq 2 (- (match-end 1) (match-beginning 1)))
+          (if (equal (match-string 4) org-memento-idle-heading)
+              (org-end-of-subtree)
+            (let ((entry-end (org-entry-end-position)))
+              (while (re-search-forward org-ts-regexp-inactive entry-end t)
+                (let ((ts (org-timestamp-from-string (match-string 0))))
+                  (when-let (time (cl-case (org-element-property :type ts)
+                                    (inactive
+                                     (org-timestamp-to-time ts))
+                                    (inactive-range
+                                     (org-timestamp-to-time ts t))))
+                    (when (or (not final-activity)
+                              (time-less-p final-activity time))
+                      (setq final-activity time))))))))))
     final-activity))
 
 (defun org-memento--carry-over-from-date ()
