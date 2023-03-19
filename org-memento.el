@@ -356,6 +356,18 @@ yields suggestions for the time span and allows the user to pick
 an action from them."
   :type 'boolean)
 
+(defcustom org-memento-final-activity-sources 'all
+  "Sources of truth for determining the final activity of a date.
+
+If the value is 'journal, it considers activities in the journal.
+All blocks on the date are scanned and the time of latest
+inactive timestamp is used.
+
+If the value is 'all, it considers activities in the journal as
+well as all inactive timestamps in `org-agenda-files'."
+  :type '(choice (const :tag "All (journal and agenda files)" all)
+                 (const :tag "Journal" journal)))
+
 ;;;; Variables
 
 (defvar org-memento-init-done nil)
@@ -2153,28 +2165,37 @@ Please run `org-memento-close-date'" headline)))
     (user-error "Please run this command on a date entry (at outline level 1)"))
   (when (org-entry-is-done-p)
     (user-error "Already closed"))
-  (when (time-less-p (org-memento--current-time)
-                     (thread-first
+  (let* ((date-start (thread-first
                        (org-get-heading t t t t)
                        (parse-time-string)
-                       (org-memento--start-of-day)
-                       (decoded-time-add (make-decoded-time :hour 23 :minute 59 :second 59))
-                       (encode-time)))
-    (user-error "This entry should not be closed"))
-  (when (org-entry-blocked-p)
-    (if (yes-or-no-p "This date is blocked. Carry over unfinished items? ")
-        (save-excursion
-          (org-memento--carry-over-from-date))
-      (user-error "You cannot close this date as it is blocked")))
-  (if-let (final-activity (org-memento--final-activity-1))
-      (let ((org-use-effective-time nil)
-            (org-use-last-clock-out-time-as-effective-time nil))
-        (org-todo 'done)
-        ;; The entry may be blocked by a child with a todo keyword, so you have
-        ;; to check the state
-        (when (org-entry-is-done-p)
-          (org-add-planning-info 'closed final-activity)))
-    (user-error "Can't determine the final activity")))
+                       (org-memento--start-of-day)))
+         (date-end (thread-first
+                     date-start
+                     (decoded-time-add (make-decoded-time :hour 23 :minute 59 :second 59)))))
+    (when (time-less-p (org-memento--current-time) (encode-time date-end))
+      (user-error "This entry should not be closed"))
+    (when (org-entry-blocked-p)
+      (if (yes-or-no-p "This date is blocked. Carry over unfinished items? ")
+          (save-excursion
+            (org-memento--carry-over-from-date))
+        (user-error "You cannot close this date as it is blocked")))
+    (if-let (final-activity (cl-case org-memento-final-activity-sources
+                              (all (org-memento--time-max
+                                    (org-memento--final-activity-1)
+                                    (org-memento--final-activity-time
+                                        (encode-time date-start)
+                                        (encode-time date-end)
+                                      (cl-remove org-memento-file (org-agenda-files)
+                                                 :test #'file-equal-p))))
+                              (journal (org-memento--final-activity-1))))
+        (let ((org-use-effective-time nil)
+              (org-use-last-clock-out-time-as-effective-time nil))
+          (org-todo 'done)
+          ;; The entry may be blocked by a child with a todo keyword, so you have
+          ;; to check the state
+          (when (org-entry-is-done-p)
+            (org-add-planning-info 'closed final-activity)))
+      (user-error "Can't determine the final activity"))))
 
 (defun org-memento--final-activity-1 ()
   "Return the time of the final activity on the date in the subtree.
@@ -3755,6 +3776,33 @@ denoting the type of the activity. ARGS is an optional list."
                        (end-of-line 1))
                      (push (cons day blocks) dates))))))))
         dates))))
+
+(cl-defun org-memento--final-activity-time (start-bound end-bound files)
+  "Return the time of the final activity during a certain period."
+  (declare (indent 2))
+  (let (result
+        (ts-regexp (rx-to-string `(and "["
+                                       (regexp ,(org-memento--date-range-regexp
+                                                 (format-time-string "%F" start-bound)
+                                                 (format-time-string "%F" end-bound)))
+                                       (= 10 (not (any "]\n")))
+                                       "]"))))
+    (dolist (file files)
+      (with-current-buffer (or (find-buffer-visiting file)
+                               (find-file-noselect file))
+        (org-with-wide-buffer
+         (goto-char (point-min))
+         (while (re-search-forward ts-regexp nil t)
+           (let ((time (thread-last
+                         (match-string 0)
+                         (org-timestamp-from-string)
+                         (org-timestamp-to-time))))
+             (when (and (time-less-p start-bound time)
+                        (time-less-p time end-bound)
+                        (or (not result)
+                            (time-less-p result time)))
+               (setq result time)))))))
+    result))
 
 ;;;; Grouping
 
