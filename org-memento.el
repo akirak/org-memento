@@ -804,7 +804,7 @@ The function takes two arguments: the date string and an
 ;;;###autoload
 (define-minor-mode org-memento-mode
   "Global mode that handle idles."
-  :lighter " OrgMemento"
+  :lighter " Memento"
   :global t
   (when org-memento-idle-timer
     (cancel-timer org-memento-idle-timer)
