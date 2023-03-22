@@ -2180,7 +2180,7 @@ Please run `org-memento-close-date'" headline)))
                      date-start
                      (decoded-time-add (make-decoded-time :hour 23 :minute 59 :second 59)))))
     (when (time-less-p (org-memento--current-time) (encode-time date-end))
-      (user-error "This entry should not be closed"))
+      (user-error "This entry cannot be closed"))
     (when (org-entry-blocked-p)
       (if (yes-or-no-p "This date is blocked. Carry over unfinished items? ")
           (save-excursion
