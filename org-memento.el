@@ -2388,6 +2388,10 @@ This function creates a follow-up task according to the value of
                           (org-memento--current-time)
                           (decode-time)
                           (org-memento--today-string))))
+         (default (or default
+                      (when-let (ent (and group
+                                          (gethash group org-memento-group-cache)))
+                        (list (cadr ent)))))
          (prompt (or prompt
                      (cond
                       (default
@@ -2396,16 +2400,8 @@ This function creates a follow-up task according to the value of
                        (format "Title for group %s: " (org-memento--format-group group)))
                       (t
                        "Title: "))))
-         existing-titles
+         (existing-titles (org-memento--existing-block-names date))
          input)
-    (org-memento-maybe-with-date-entry date
-      (let ((bound (save-excursion
-                     (org-end-of-subtree))))
-        (while (and (< (point) bound)
-                    (re-search-forward org-complex-heading-regexp bound t))
-          (when (= 2 (length (match-string 1)))
-            (push (match-string-no-properties 4)
-                  existing-titles)))))
     (catch 'input
       (while (setq input (string-trim
                           (completing-read prompt
@@ -2420,6 +2416,18 @@ This function creates a follow-up task according to the value of
                  (member input existing-titles))
             (setq prompt (format "\"%s\" is a duplicate.\nTitle: " input))
           (throw 'input input))))))
+
+(defun org-memento--existing-block-names (date)
+  (org-memento-maybe-with-date-entry date
+    (let ((bound (save-excursion
+                   (org-end-of-subtree)))
+          result)
+      (while (and (< (point) bound)
+                  (re-search-forward org-complex-heading-regexp bound t))
+        (when (= 2 (length (match-string 1)))
+          (push (match-string-no-properties 4)
+                result)))
+      result)))
 
 (defun org-memento-select-slot (prompt slots)
   (let* ((alist (mapcar (lambda (slot)
@@ -4510,14 +4518,24 @@ range."
                      (org-memento--goto-date ,date)
                      (when ,(and away t)
                        (org-memento--find-or-create-idle-heading))))
-         (title (or title (if away
-                              (org-memento-read-away-title)
-                            (org-memento-read-title nil
-                              :date (when start
-                                      (thread-last
-                                        (time-convert start 'list)
-                                        (decode-time)
-                                        (org-memento--today-string)))))))
+         (group (unless away
+                  (or group
+                      (org-memento-read-group))))
+         (title (or title
+                    (when (stringp group)
+                      (prog1 (if (member group (org-memento--existing-block-names date))
+                                 (org-memento-read-title nil :default group)
+                               group)
+                        (setq group nil)))
+                    (if away
+                        (org-memento-read-away-title)
+                      (org-memento-read-title nil
+                        :group group
+                        :date (when start
+                                (thread-last
+                                  (time-convert start 'list)
+                                  (decode-time)
+                                  (org-memento--today-string)))))))
          (group (unless away
                   (or group
                       (org-memento-read-group nil :title title))))
