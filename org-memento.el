@@ -2172,15 +2172,18 @@ Please run `org-memento-close-date'" headline)))
     (user-error "Please run this command on a date entry (at outline level 1)"))
   (when (org-entry-is-done-p)
     (user-error "Already closed"))
-  (let* ((date-start (thread-first
-                       (org-get-heading t t t t)
+  (let* ((date (org-get-heading t t t t))
+         (date-start (thread-first
+                       date
                        (parse-time-string)
                        (org-memento--start-of-day)))
          (date-end (thread-first
                      date-start
                      (decoded-time-add (make-decoded-time :hour 23 :minute 59 :second 59)))))
     (when (time-less-p (org-memento--current-time) (encode-time date-end))
-      (user-error "This entry cannot be closed"))
+      (user-error "Date entry on %s cannot be closed: Today is %s"
+                  date
+                  (format-time-string "%F" (org-memento--current-time))))
     (when (org-entry-blocked-p)
       (if (yes-or-no-p "This date is blocked. Carry over unfinished items? ")
           (save-excursion
