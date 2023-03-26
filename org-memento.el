@@ -1768,6 +1768,7 @@ The function returns non-nil if the check-in is done."
         (org-memento--move-active-ts now)))
     (when ask
       (save-excursion
+        (goto-char (pos-eol))
         (when (and (re-search-forward (rx bol "*" blank) nil t)
                    (not (org-entry-is-done-p))
                    (yes-or-no-p "You haven't checked out from the previous day yet. \
