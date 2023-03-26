@@ -703,8 +703,23 @@ triggered by an interval timer."
 
 (defun org-memento-timeline-schedule (&optional arg)
   (interactive "P")
-  (org-memento-timeline-with-marker-point
-   (org-schedule arg)))
+  (when-let (markers (org-memento-timeline--selected-org-markers))
+    (if arg
+        (dolist (marker markers)
+          (org-with-point-at marker
+            (org-schedule arg)))
+      (let* ((initial (org-entry-get (car markers) "SCHEDULED"))
+             (time (org-read-date nil nil nil
+                                  "Schedule"
+                                  (when initial
+                                    (thread-first
+                                      (org-timestamp-from-string initial)
+                                      (org-timestamp-to-time)
+                                      (time-add (* org-extend-today-until
+                                                   3600)))))))
+        (dolist (marker markers)
+          (org-with-point-at marker
+            (org-schedule nil time)))))))
 
 (defun org-memento-timeline-todo ()
   (interactive)
@@ -956,6 +971,15 @@ If ARG is non-nil, create an away event."
                       now)
          (time-less-p now
                       (cadr (taxy-name taxy))))))
+
+(defun org-memento-timeline--selected-org-markers ()
+  (if-let (sections (magit-region-sections))
+      (thread-last
+        (mapcar #'org-memento-timeline--org-marker sections)
+        (delq nil))
+    (when-let* ((section (magit-current-section))
+                (marker (org-memento-timeline--org-marker section)))
+      (list marker))))
 
 (defun org-memento-timeline--org-marker (section)
   "Return an Org marker associated with a section."
