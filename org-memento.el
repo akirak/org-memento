@@ -3194,9 +3194,10 @@ marker to the time stamp, and the margin in seconds."
             (forward-line))
           (org-insert-drawer nil "planning"))
         (insert (mapconcat (lambda (item)
-                             (org-link-make-string
-                              (concat "id:" (org-memento-planning-item-id item))
-                              (org-memento-planning-item-heading item)))
+                             (concat "- [ ] "
+                                     (org-link-make-string
+                                      (concat "id:" (org-memento-planning-item-id item))
+                                      (org-memento-planning-item-heading item))))
                            items
                            "\n"))))))
 
