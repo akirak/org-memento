@@ -4827,48 +4827,6 @@ This should be used at loading time."
                  (plist-get plist2 :properties))
          :test #'equal :key #'car)))
 
-;;;; Exporting
-
-;;;###autoload
-(defun org-memento-export-groups-to-csv (file &optional append
-                                              start-date end-date)
-  "Export the data to CSV."
-  (let ((data (org-memento--collect-groups-1 start-date end-date)))
-    (cl-flet*
-        ((escape-quote (text)
-           (replace-regexp-in-string "\"" "\\\"" text))
-         (escape-backslash (text)
-           (replace-regexp-in-string "\\\\" "\\\\" text))
-         (wrap-quote (text)
-           (if (string-match-p "," text)
-               (format "\"%s\"" text)
-             text))
-         (escape-cell (text)
-           (thread-last
-             text
-             escape-backslash
-             escape-quote
-             wrap-quote))
-         (write-record (cells)
-           (insert (mapconcat #'escape-cell cells ",") "\n")))
-      (with-temp-buffer
-        (unless append
-          (write-record (append (mapcar (lambda (i)
-                                          (format "Group %d" i))
-                                        (number-sequence
-                                         1 (length org-memento-group-taxonomy)))
-                                (list "Date")
-                                (list "Title")
-                                (list "Start")
-                                (list "End"))))
-        (dolist (record data)
-          (write-record (append (org-memento--format-group-entries (car record))
-                                (list (nth 2 (cdr record))
-                                      (nth 3 (cdr record))
-                                      (format-time-string "%FT%R" (nth 0 (cdr record)))
-                                      (format-time-string "%FT%R" (nth 1 (cdr record)))))))
-        (write-region (point-min) (point-max) file append)))))
-
 ;;;; org-link integration
 
 (org-link-set-parameters "org-memento"
