@@ -1,0 +1,353 @@
+{
+  "type": "object",
+  "properties": {
+    "version": {
+      "type": "string",
+      "const": "0.1"
+    },
+    "meta": {
+      "type": "object",
+      "properties": {
+        "exportedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "identity": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "exportedAt",
+        "identity"
+      ],
+      "additionalProperties": false
+    },
+    "body": {
+      "type": "array",
+      "items": {
+        "anyOf": [
+          {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "const": "day"
+              },
+              "date": {
+                "type": "string",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+              },
+              "start": {
+                "$ref": "6/meta/properties/exportedAt"
+              },
+              "end": {
+                "$ref": "6/meta/properties/exportedAt"
+              },
+              "timeline": {
+                "type": "array",
+                "items": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "type": "string",
+                          "const": "block"
+                        },
+                        "start": {
+                          "$ref": "11/meta/properties/exportedAt"
+                        },
+                        "end": {
+                          "$ref": "11/meta/properties/exportedAt"
+                        },
+                        "activities": {
+                          "anyOf": [
+                            {
+                              "type": "array",
+                              "items": {
+                                "anyOf": [
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "type": {
+                                        "type": "string",
+                                        "const": "clock"
+                                      },
+                                      "start": {
+                                        "$ref": "18/meta/properties/exportedAt"
+                                      },
+                                      "end": {
+                                        "$ref": "18/meta/properties/exportedAt"
+                                      },
+                                      "title": {
+                                        "type": "string"
+                                      },
+                                      "link": {
+                                        "anyOf": [
+                                          {
+                                            "type": "string",
+                                            "format": "uri"
+                                          },
+                                          {
+                                            "type": "null"
+                                          }
+                                        ]
+                                      },
+                                      "rawTitle": {
+                                        "type": "string"
+                                      },
+                                      "orgFile": {
+                                        "type": "string"
+                                      },
+                                      "orgId": {
+                                        "type": [
+                                          "string",
+                                          "null"
+                                        ]
+                                      },
+                                      "orgTags": {
+                                        "type": "array",
+                                        "items": {
+                                          "type": "string"
+                                        }
+                                      }
+                                    },
+                                    "required": [
+                                      "type",
+                                      "start",
+                                      "end",
+                                      "title",
+                                      "link",
+                                      "rawTitle",
+                                      "orgFile",
+                                      "orgId",
+                                      "orgTags"
+                                    ],
+                                    "additionalProperties": false
+                                  },
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "type": {
+                                        "type": "string",
+                                        "const": "gap"
+                                      },
+                                      "start": {
+                                        "$ref": "18/meta/properties/exportedAt"
+                                      },
+                                      "end": {
+                                        "$ref": "18/meta/properties/exportedAt"
+                                      }
+                                    },
+                                    "required": [
+                                      "type",
+                                      "start",
+                                      "end"
+                                    ],
+                                    "additionalProperties": false
+                                  }
+                                ]
+                              }
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "title": {
+                          "type": "string"
+                        },
+                        "state": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "group": {
+                          "anyOf": [
+                            {
+                              "type": "array",
+                              "items": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              }
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "orgProperties": {
+                          "type": "object",
+                          "additionalProperties": {
+                            "type": "string"
+                          }
+                        },
+                        "orgTags": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "orgText": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "type",
+                        "start",
+                        "end",
+                        "activities",
+                        "title",
+                        "state",
+                        "group",
+                        "orgProperties",
+                        "orgTags",
+                        "orgText"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "type": "string",
+                          "const": "anonymous"
+                        },
+                        "start": {
+                          "$ref": "11/meta/properties/exportedAt"
+                        },
+                        "end": {
+                          "$ref": "11/meta/properties/exportedAt"
+                        },
+                        "activities": {
+                          "$ref": "3/0/properties/activities/anyOf/0"
+                        }
+                      },
+                      "required": [
+                        "type",
+                        "start",
+                        "end",
+                        "activities"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "type": "string",
+                          "const": "gap"
+                        },
+                        "start": {
+                          "$ref": "11/meta/properties/exportedAt"
+                        },
+                        "end": {
+                          "$ref": "11/meta/properties/exportedAt"
+                        }
+                      },
+                      "required": [
+                        "type",
+                        "start",
+                        "end"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "type": "string",
+                          "const": "away"
+                        },
+                        "start": {
+                          "$ref": "11/meta/properties/exportedAt"
+                        },
+                        "end": {
+                          "$ref": "11/meta/properties/exportedAt"
+                        }
+                      },
+                      "required": [
+                        "type",
+                        "start",
+                        "end"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "type": "string",
+                          "const": "idle"
+                        },
+                        "start": {
+                          "$ref": "11/meta/properties/exportedAt"
+                        },
+                        "end": {
+                          "$ref": "11/meta/properties/exportedAt"
+                        }
+                      },
+                      "required": [
+                        "type",
+                        "start",
+                        "end"
+                      ],
+                      "additionalProperties": false
+                    }
+                  ]
+                }
+              }
+            },
+            "required": [
+              "type",
+              "date",
+              "start",
+              "end",
+              "timeline"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "const": "gap"
+              },
+              "start": {
+                "$ref": "6/meta/properties/exportedAt"
+              },
+              "end": {
+                "$ref": "6/meta/properties/exportedAt"
+              },
+              "timeline": {
+                "$ref": "3/0/properties/timeline"
+              }
+            },
+            "required": [
+              "type",
+              "start",
+              "end",
+              "timeline"
+            ],
+            "additionalProperties": false
+          }
+        ]
+      }
+    }
+  },
+  "required": [
+    "version",
+    "meta",
+    "body"
+  ],
+  "additionalProperties": false,
+  "description": "Document exported using `org-memento-export-to-json` command.",
+  "$schema": "http://json-schema.org/draft-07/schema#"
+}
