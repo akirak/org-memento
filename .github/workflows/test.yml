@@ -19,5 +19,12 @@ jobs:
 
     - name: Lint
       run: nix run .#nomake -- org-memento
+
     # - name: Test
     #   run: nix run .#test
+
+    - run: nix develop .#pnpm -c pnpm install --prod
+      working-directory: ./node
+
+    - name: Test exporting
+      run: nix run .#test-export

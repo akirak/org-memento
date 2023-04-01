@@ -22,5 +22,13 @@
           pkgs.nodePackages.typescript-language-server
         ];
       };
+
+      # A subset of the default devshell that only installs pnpm which is
+      # intended for use on CI.
+      devShells.pnpm = pkgs.mkShell {
+        buildInputs = [
+          pkgs.nodePackages.pnpm
+        ];
+      };
     });
 }
