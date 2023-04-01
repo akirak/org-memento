@@ -72,7 +72,14 @@
                           "$ref": "11/meta/properties/exportedAt"
                         },
                         "end": {
-                          "$ref": "11/meta/properties/exportedAt"
+                          "anyOf": [
+                            {
+                              "$ref": "13/meta/properties/exportedAt"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
                         },
                         "activities": {
                           "anyOf": [

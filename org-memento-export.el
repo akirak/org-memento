@@ -83,7 +83,8 @@
   (cl-flet*
       ((activity-to-object (record)
          (pcase-exhaustive record
-           (`(,start ,end ,title ,marker clock)
+           ((and `(,start ,end ,title ,marker ,type)
+                 (guard type '(clock clock-unfinished)))
             (let* ((has-link (string-match org-link-bracket-re title))
                    (link (if has-link
                              (match-string 1 title)
@@ -97,7 +98,9 @@
                 (map-insert "link" link)
                 (map-insert "rawTitle" title)
                 (map-insert "start" (org-memento-export--format-datetime start))
-                (map-insert "end" (org-memento-export--format-datetime end))
+                (map-insert "end" (if (eq type 'clock)
+                                      (org-memento-export--format-datetime end)
+                                    :null))
                 (map-insert "orgFile" (thread-last
                                         (marker-buffer marker)
                                         (buffer-file-name)

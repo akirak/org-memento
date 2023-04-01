@@ -27,7 +27,7 @@ var timeline = zod_1.z.array(zod_1.z.discriminatedUnion("type", [
     zod_1.z.object({
         type: zod_1.z.literal("block"),
         start: datetime,
-        end: datetime,
+        end: zod_1.z.nullable(datetime),
         activities: zod_1.z.nullable(activities),
         title: zod_1.z.string(),
         state: zod_1.z.nullable(zod_1.z.string()),

@@ -31,7 +31,7 @@ const timeline = z.array(
     z.object({
       type: z.literal("block"),
       start: datetime,
-      end: datetime,
+      end: z.nullable(datetime),
       activities: z.nullable(activities),
       title: z.string(),
       state: z.nullable(z.string()),
