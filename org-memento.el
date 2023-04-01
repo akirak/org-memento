@@ -3370,6 +3370,7 @@ This function must be called at the beginning of the entry."
 ;;;###autoload
 (cl-defun org-memento-activity-taxy (start-day end-day &key groups todos)
   (require 'taxy)
+  (require 'org-clock)
   (cl-labels
       ((date-string-to-time (string)
          (thread-last
