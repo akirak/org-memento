@@ -49,6 +49,7 @@
 ;;;###autoload
 (defun org-memento-export-to-json (start-date end-date filename)
   "Export activity data to a JSON file."
+  (declare (indent 2))
   (interactive (let ((start (org-read-date nil nil nil "Start"))
                      (end (org-read-date nil nil nil "End"))
                      (file (read-file-name "Enter a JSON file to export the activities to: ")))
