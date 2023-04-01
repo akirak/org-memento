@@ -1,0 +1,35 @@
+name: "Generate JSON Schema"
+
+on:
+  workflow_dispatch:
+  push:
+    branches-ignore:
+    - 'master'
+    paths:
+    - 'node/index.ts'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+
+    - uses: actions/setup-node@v3
+      with:
+        node-version: 18
+        cache: 'pnpm'
+        cache-dependency-path: 'node/pnpm-lock.yaml'
+
+    - name: 'Regenerate schema'
+      run: |
+        pnpm install
+        pnpm build
+        pnpm schema
+      working-directory: './node'
+
+    - name: 'Push to repository'
+      run: |
+        git config --add user.name 'github-actions[bot]'
+        git config --add user.email '6270544+github-actions[bot]@users.noreply.github.com'
+        git commit -am 'chore: Update schema'
+        git push origin HEAD
