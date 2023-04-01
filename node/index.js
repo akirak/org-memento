@@ -69,8 +69,8 @@ var document = zod_1.z
         zod_1.z.object({
             type: zod_1.z.literal("day"),
             date: zod_1.z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-            start: datetime,
-            end: datetime,
+            start: zod_1.z.nullable(datetime),
+            end: zod_1.z.nullable(datetime),
             timeline: timeline,
         }),
         zod_1.z.object({

@@ -38,10 +38,24 @@
                 "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
               },
               "start": {
-                "$ref": "6/meta/properties/exportedAt"
+                "anyOf": [
+                  {
+                    "$ref": "8/meta/properties/exportedAt"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
               },
               "end": {
-                "$ref": "6/meta/properties/exportedAt"
+                "anyOf": [
+                  {
+                    "$ref": "8/meta/properties/exportedAt"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
               },
               "timeline": {
                 "type": "array",
