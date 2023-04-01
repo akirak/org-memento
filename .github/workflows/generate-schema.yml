@@ -29,5 +29,8 @@ jobs:
       run: |
         git config --add user.name 'github-actions[bot]'
         git config --add user.email '6270544+github-actions[bot]@users.noreply.github.com'
-        git commit -am 'chore: Update schema'
-        git push origin HEAD
+        if ! git diff-files --quiet
+        then
+          git commit -am 'chore: Update schema'
+          git push origin HEAD
+        fi
