@@ -252,9 +252,10 @@ are contained in `org-agenda-files' and have planning timestamps."
 (defcustom org-memento-group-taxonomy
   '((:read
      (lambda (element)
-       (list (org-element-property :MEMENTO_CATEGORY element)))
+       (org-element-property :MEMENTO_CATEGORY element))
      :format
-     identity
+     (lambda (x)
+       (or x "(no category)"))
      :template
      (lambda (category)
        (when category
