@@ -4272,11 +4272,18 @@ This respects `org-extend-today-until'."
 FROM and TO must be internal time representations. The regexp
 matches long active timestamps. It is intended for fast timestamp
 scanning, and it can produce false positives. You should perform
-further checks against your desired time range.
+further checks against your desired time range. If
+`org-extend-today-until' is non-zero, the date range will include
+the next day of TO.
 
 ACTIVE and INACTIVE specify types of timestamp to match against."
   (let ((date-strs (thread-last
-                     (number-sequence (float-time from) (float-time to) (* 3600 24))
+                     (number-sequence (float-time from)
+                                      (+ (float-time to)
+                                         (if (> org-extend-today-until 0)
+                                             (* 3600 24)
+                                           0))
+                                      (* 3600 24))
                      (mapcar (lambda (float)
                                (format-time-string "%F" float))))))
     (rx-to-string `(and (any ,(thread-last
