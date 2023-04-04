@@ -3750,11 +3750,20 @@ denoting the type of the activity. ARGS is an optional list."
                 (pcase (org-memento--parse-entry include-future)
                   (`(,start ,end . ,_)
                    (let ((day (list start
-                                    ;; If the end time is missing, e.g. it has
-                                    ;; already passed the expected checkout
-                                    ;; time, set it to the time right before
-                                    ;; the start of the next day.
-                                    (or end (+ start 86340))
+                                    (or end
+                                        ;; If the end time is missing, e.g. it has
+                                        ;; already passed the expected checkout
+                                        ;; time, set it to the time right before
+                                        ;; the start of the next day.
+                                        (thread-first
+                                          (time-convert start 'list)
+                                          (decode-time)
+                                          (org-memento--set-time-of-day
+                                           org-extend-today-until 0 0)
+                                          (decoded-time-add
+                                           (make-decoded-time :hour 23 :minute 59))
+                                          (encode-time)
+                                          (float-time)))
                                     date-string marker 'date))
                          (subtree-end (save-excursion (org-end-of-subtree)))
                          blocks)
