@@ -3577,7 +3577,7 @@ This function must be called at the beginning of the entry."
                                  (org-timestamp-to-time))))
                            (thread-first
                              (parse-time-string start-day)
-                             (org-memento--set-time-of-day (or org-extend-today-until) 0 0)
+                             (org-memento--set-time-of-day org-extend-today-until 0 0)
                              (encode-time))))
            (end-time (or (org-memento-maybe-with-date-entry end-day
                            (let ((block (save-excursion
@@ -3589,8 +3589,7 @@ This function must be called at the beginning of the entry."
                                    (time-convert ending 'list))))))
                          (thread-first
                            (parse-time-string end-day)
-                           (org-memento--set-time-of-day
-                            (or org-extend-today-until) 0 0)
+                           (org-memento--set-time-of-day org-extend-today-until 0 0)
                            (decoded-time-add (make-decoded-time :hour 23 :minute 59))
                            (encode-time)))))
       (condition-case err
