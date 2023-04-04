@@ -2145,9 +2145,6 @@ Please run `org-memento-close-date'" headline)))
                           (signal-error (if donep
                                             "A done entry must have a closed property"
                                           "Set CLOSED property in a wrong context")))
-                        (when (and donep
-                                   (not checkin))
-                          (signal-error "A done entry must have a checkin time"))
                         (when (and checkin
                                    (not (equal headline org-memento-current-block))
                                    (not donep))
