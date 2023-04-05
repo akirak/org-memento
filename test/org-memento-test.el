@@ -394,4 +394,14 @@
                         "Gym workout"
                         "Rest"))))
 
+(describe "org-memento--parse-quick-event"
+  (it "default"
+    (expect (org-memento--parse-quick-event "Go to hell")
+            :to-equal (list "Go to hell")))
+  (it "parses duration"
+    (expect (org-memento--parse-quick-event "Walk for 15 min")
+            :to-equal (list "Walk" :duration 15))
+    (expect (org-memento--parse-quick-event "Implement new features for 1:30")
+            :to-equal (list "Implement new features" :duration 90))))
+
 (provide 'org-memento-test)

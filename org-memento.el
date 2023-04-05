@@ -369,6 +369,16 @@ well as all inactive timestamps in `org-agenda-files'."
   :type '(choice (const :tag "All (journal and agenda files)" all)
                  (const :tag "Journal" journal)))
 
+(defcustom org-memento-quick-duration-format
+  (rx "for" (+ space)
+      (group (or (and (+ digit) ":" (+ digit))
+                 (and (+ digit) (+ space) (or "min" "minutes")))))
+  "Regular expression for matching a duration in quick events.
+
+The first group is parsed as the duration. Groups that matches
+either H:MM or MM are parsed as the duration."
+  :type 'regexp)
+
 ;;;; Variables
 
 (defvar org-memento-init-done nil)
@@ -4598,7 +4608,7 @@ range."
                               :after-finalize org-memento-log-update)))
     (org-capture)))
 
-(cl-defun org-memento--add-immediate-block (title &key start)
+(cl-defun org-memento--add-immediate-block (title &key start duration)
   "Add a block that has just started."
   (declare (indent 1))
   (when org-memento-current-block
@@ -4607,28 +4617,63 @@ range."
          (start (or start
                     now))
          (group (org-memento-read-group nil :title title))
-         (duration (org-memento--read-duration
-                    "Duration in minutes: "
-                    :check-next-event t
-                    :default "0:25"
-                    :now now)))
+         (duration (or duration
+                       (org-memento--read-duration
+                        "Duration in minutes: "
+                        :check-next-event t
+                        :default "0:25"
+                        :now now))))
     (org-memento-add-event :title title
                            :group group
                            :interactive nil
                            :start start
-                           :duration (unless (string-empty-p duration)
-                                       (org-duration-to-minutes duration)))))
+                           :duration (cl-typecase duration
+                                       (string
+                                        (unless (string-empty-p duration)
+                                          (org-duration-to-minutes duration)))
+                                       (number
+                                        duration)))))
 
 ;;;###autoload
 (defun org-memento-quick-start-event (text)
-  (let ((title (string-trim text)))
-    (org-memento--add-immediate-block title
-      :start (when (org-clocking-p)
-               (thread-last
-                 (org-memento--clock-start-ts)
-                 (org-timestamp-to-time)
-                 (float-time))))
-    (org-memento-start-block title)))
+  "Create a new block and start it right now."
+  (interactive (let* ((now (float-time (org-memento--current-time)))
+                      (event (org-memento--next-agenda-event
+                              nil nil
+                              :now now
+                              :only-later-than-now t
+                              :include-memento-file t))
+                      (limit (when event
+                               (/ (- (org-memento-starting-time event)
+                                     now)
+                                  60))))
+                 (list (propertize (read-from-minibuffer
+                                    (concat "Quick start a block"
+                                            (if limit
+                                                (format " (next event starting in %s: \"%s\")"
+                                                        (org-memento--format-duration limit)
+                                                        (org-memento-title event))
+                                              "")
+                                            ": "))
+                                   ;; Pass to text for prevent duplicate scanning
+                                   'next-event event))))
+  (let ((next-event (get-char-property 0 'next-event text)))
+    (pcase-exhaustive (org-memento--parse-quick-event text)
+      (`(,title . ,plist)
+       (org-memento--add-immediate-block title
+         :start (when (org-clocking-p)
+                  (thread-last
+                    (org-memento--clock-start-ts)
+                    (org-timestamp-to-time)
+                    (float-time)))
+         :duration (or (plist-get plist :duration)
+                       (and next-event
+                            (org-memento-starting-time next-event)
+                            (- (/ (- (org-memento-starting-time next-event)
+                                     (float-time (org-memento--current-time)))
+                                  60)
+                               org-memento-margin-minutes))))
+       (org-memento-start-block title)))))
 
 (define-obsolete-function-alias 'org-memento-start-quick-event
   #'org-memento-quick-start-event "0.2")
@@ -4648,6 +4693,28 @@ range."
 
 (define-obsolete-function-alias 'org-memento-add-quick-event
   #'org-memento-quick-add-event "0.2")
+
+(defun org-memento--parse-quick-event (text)
+  (let (duration)
+    (cl-flet
+        ((remove-match (s)
+           (let ((beg (match-beginning 0))
+                 (end (match-end 0)))
+             (concat (substring-no-properties s 0 (1- beg))
+                     (substring-no-properties s end)))))
+      (when (string-match org-memento-quick-duration-format text)
+        (let ((s (match-string 1 text)))
+          (setq duration (save-match-data
+                           (pcase-exhaustive s
+                             ((rx (group (+ digit)) ":"
+                                  (group (+ digit)))
+                              (+ (* 60 (string-to-number (match-string 1 s)))
+                                 (string-to-number (match-string 2 s))))
+                             ((rx (group (+ digit)))
+                              (string-to-number (match-string 1 s)))))
+                text (remove-match text)))))
+    (list text
+          :duration duration)))
 
 (cl-defun org-memento-schedule-block (start end-bound
                                             &key confirmed-time
