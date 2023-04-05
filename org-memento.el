@@ -3,7 +3,7 @@
 ;; Copyright (C) 2022 Akira Komamura
 
 ;; Author: Akira Komamura <akira.komamura@gmail.com>
-;; Version: 0.1
+;; Version: 0.2
 ;; Package-Requires: ((emacs "28.1") (org "9.6") (taxy "0.10") (magit-section "3.3") (dash "2.19"))
 ;; Keywords: calendar
 ;; URL: https://github.com/akirak/org-memento
@@ -4620,7 +4620,7 @@ range."
                                        (org-duration-to-minutes duration)))))
 
 ;;;###autoload
-(defun org-memento-start-quick-event (text)
+(defun org-memento-quick-start-event (text)
   (let ((title (string-trim text)))
     (org-memento--add-immediate-block title
       :start (when (org-clocking-p)
@@ -4630,8 +4630,11 @@ range."
                  (float-time))))
     (org-memento-start-block title)))
 
+(define-obsolete-function-alias 'org-memento-start-quick-event
+  #'org-memento-quick-start-event "0.2")
+
 ;;;###autoload
-(defun org-memento-add-quick-event (text)
+(defun org-memento-quick-add-event (text)
   (let ((title (string-trim text))
         (duration (org-memento--read-duration
                    "Duration in minutes: "
@@ -4642,6 +4645,9 @@ range."
                            :interactive t
                            :duration (unless (string-empty-p duration)
                                        (org-duration-to-minutes duration)))))
+
+(define-obsolete-function-alias 'org-memento-add-quick-event
+  #'org-memento-quick-add-event "0.2")
 
 (cl-defun org-memento-schedule-block (start end-bound
                                             &key confirmed-time
