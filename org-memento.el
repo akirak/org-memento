@@ -1234,24 +1234,33 @@ With a universal argument, you can specify the time of check out."
       (user-error "Aborted")))
   (org-memento-with-today-entry
    ;; If org-read-date is aborted, the entire checkout command will be aborted.
-   (let ((time (when arg (org-read-date t t)))
-         ;; Don't use effective time for setting the closed timestamp.
-         (org-use-effective-time nil)
-         (org-use-last-clock-out-time-as-effective-time nil))
-     (org-todo 'done)
-     (when arg
-       (org-add-planning-info 'closed time)))
-   (org-memento--save-buffer)
-   (setq org-memento-block-idle-logging t)
-   (let ((check-in (org-entry-get nil "MEMENTO_CHECKIN_TIME"))
-         (check-out (org-entry-get nil "CLOSED")))
-     (message "Check out after %s of activities"
-              (org-duration-from-minutes
-               (/ (time-subtract
-                   (org-timestamp-to-time (org-timestamp-from-string check-out))
-                   (org-timestamp-to-time (org-timestamp-from-string check-in)))
-                  60))))
-   (run-hooks 'org-memento-checkout-hook)))
+   (let ((time (when arg (org-read-date t t))))
+     (org-memento--check-out time 'save))))
+
+(defun org-memento--check-out (&optional time save)
+  "Check out from the date at point.
+
+If TIME is non-nil, it is used as the time of checking out.
+
+If SAVE is non-nil, save the buffer."
+  ;; Don't use effective time for setting the closed timestamp.
+  (let ((org-use-effective-time nil)
+        (org-use-last-clock-out-time-as-effective-time nil))
+    (org-todo 'done)
+    (when time
+      (org-add-planning-info 'closed time)))
+  (when save
+    (org-memento--save-buffer))
+  (setq org-memento-block-idle-logging t)
+  (let ((check-in (org-entry-get nil "MEMENTO_CHECKIN_TIME"))
+        (check-out (org-entry-get nil "CLOSED")))
+    (message "Check out after %s of activities"
+             (org-duration-from-minutes
+              (/ (time-subtract
+                  (org-timestamp-to-time (org-timestamp-from-string check-out))
+                  (org-timestamp-to-time (org-timestamp-from-string check-in)))
+                 60))))
+  (run-hooks 'org-memento-checkout-hook))
 
 (defun org-memento-carry-over-item (date)
   "Carry over the memento entry at point."
