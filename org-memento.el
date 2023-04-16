@@ -2216,13 +2216,7 @@ Please run `org-memento-close-date'" headline)))
                                       (cl-remove org-memento-file (org-agenda-files)
                                                  :test #'file-equal-p))))
                               (journal (org-memento--final-activity-1))))
-        (let ((org-use-effective-time nil)
-              (org-use-last-clock-out-time-as-effective-time nil))
-          (org-todo 'done)
-          ;; The entry may be blocked by a child with a todo keyword, so you have
-          ;; to check the state
-          (when (org-entry-is-done-p)
-            (org-add-planning-info 'closed final-activity)))
+        (org-memento--check-out final-activity)
       (user-error "Can't determine the final activity"))))
 
 (defun org-memento--final-activity-1 ()
