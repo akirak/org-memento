@@ -3705,21 +3705,23 @@ denoting the type of the activity. ARGS is an optional list."
                              (save-excursion
                                (goto-char (pos-bol))
                                (looking-at org-planning-line-re)))
-                     (let ((ts (org-timestamp-from-string (match-string 0))))
-                       (when (org-timestamp-has-time-p ts)
-                         (let ((event (make-org-memento-org-event :marker hd-marker
-                                                                  :active-ts ts)))
-                           (when-let* ((starting-time (org-memento-starting-time event))
-                                       (ending-time (org-memento-ending-time event)))
-                             (when (and (> starting-time now-float)
-                                        (> ending-time now-float))
-                               (push (list starting-time
-                                           ending-time
-                                           heading
-                                           hd-marker
-                                           'active-ts)
-                                     result)
-                               (throw 'active-ts t))))))))))))
+                     (when-let* ((ts (org-timestamp-from-string (match-string 0)))
+                                 (event (and (org-timestamp-has-time-p ts)
+                                             (make-org-memento-org-event
+                                              :marker hd-marker
+                                              :active-ts ts)))
+                                 (starting-time (org-memento-starting-time
+                                                 event))
+                                 (ending-time (org-memento-ending-time event)))
+                       (when (and (> starting-time now-float)
+                                  (> ending-time now-float))
+                         (push (list starting-time
+                                     ending-time
+                                     heading
+                                     hd-marker
+                                     'active-ts)
+                               result)
+                         (throw 'active-ts t)))))))))
          (skip ()
            (let ((bound (org-entry-end-position)))
              (unless (save-excursion (re-search-forward regexp bound t))
