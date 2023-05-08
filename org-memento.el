@@ -125,6 +125,14 @@ than `org-clock-idle-time'."
   ""
   :type 'string)
 
+(defcustom org-memento-extra-activity-sources nil
+  "List of functions that produces extra activity sources.
+
+Each function is called with two arguments: the start time and
+the end time of the period. It should return a list of activity
+records, which are lists."
+  :type 'hook)
+
 (define-widget 'org-memento-days-of-week-type 'lazy
   ""
   :tag "Days of week"
@@ -3578,7 +3586,13 @@ This function must be called at the beginning of the entry."
          (set-taxy-taxys taxy (cl-reduce #'date-filler (taxy-taxys taxy)
                                          :initial-value nil
                                          :from-end t))
-         taxy))
+         taxy)
+       (add-taxy-items-from-source (start-time end-time taxy fn)
+         (taxy-fill (funcall fn start-time end-time) taxy))
+       (add-extra-activities (start-time end-time taxy)
+         (cl-reduce (apply-partially #'add-taxy-items-from-source start-time end-time)
+                    org-memento-extra-activity-sources
+                    :initial-value taxy)))
     (let* ((now (float-time (org-memento--current-time)))
            (start-time (or (org-memento-maybe-with-date-entry start-day
                              (when-let (string (org-entry-get nil "MEMENTO_CHECKIN_TIME"))
@@ -3626,6 +3640,7 @@ This function must be called at the beginning of the entry."
                         (cl-remove (expand-file-name org-memento-file)
                                    (org-agenda-files)
                                    :test #'equal)))
+            (add-extra-activities start-time end-time)
             (taxy-sort-items #'< #'car)
             (postprocess-root-taxy)
             (fill-date-gaps))
