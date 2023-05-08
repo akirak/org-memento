@@ -111,6 +111,17 @@
                 (map-insert "orgTags" (seq-into (ignore-errors
                                                   (org-get-tags marker))
                                                 'vector)))))
+           (`(,start ,end ,title ,marker event)
+            (thread-first
+              (make-hash-table :size 7)
+              (map-insert "type" "event")
+              (map-insert "title" title)
+              (map-insert "start" (org-memento-export--format-datetime start))
+              (map-insert "end" (org-memento-export--format-datetime end))
+              (map-insert "orgTags" (when marker
+                                      (seq-into (ignore-errors
+                                                  (org-get-tags marker))
+                                                'vector)))))
            (`(,start ,end nil)
             (thread-first
               (make-hash-table :size 7)

@@ -19,9 +19,16 @@ const activities = z.array(
       orgTags: z.array(z.string()),
     }),
     z.object({
-      type: z.literal("gap"),
+      type: z.literal("event"),
       start: datetime,
       end: datetime,
+    }),
+    z.object({
+      type: z.literal("gap"),
+      title: z.string(),
+      start: datetime,
+      end: datetime,
+      orgTags: z.nullable(z.array(z.string())),
     }),
   ])
 );
