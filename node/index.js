@@ -18,9 +18,16 @@ var activities = zod_1.z.array(zod_1.z.discriminatedUnion("type", [
         orgTags: zod_1.z.array(zod_1.z.string()),
     }),
     zod_1.z.object({
-        type: zod_1.z.literal("gap"),
+        type: zod_1.z.literal("event"),
         start: datetime,
         end: datetime,
+    }),
+    zod_1.z.object({
+        type: zod_1.z.literal("gap"),
+        title: zod_1.z.string(),
+        start: datetime,
+        end: datetime,
+        orgTags: zod_1.z.nullable(zod_1.z.array(zod_1.z.string())),
     }),
 ]));
 var timeline = zod_1.z.array(zod_1.z.discriminatedUnion("type", [

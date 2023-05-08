@@ -151,7 +151,7 @@
                                     "properties": {
                                       "type": {
                                         "type": "string",
-                                        "const": "gap"
+                                        "const": "event"
                                       },
                                       "start": {
                                         "$ref": "18/meta/properties/exportedAt"
@@ -164,6 +164,45 @@
                                       "type",
                                       "start",
                                       "end"
+                                    ],
+                                    "additionalProperties": false
+                                  },
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "type": {
+                                        "type": "string",
+                                        "const": "gap"
+                                      },
+                                      "title": {
+                                        "type": "string"
+                                      },
+                                      "start": {
+                                        "$ref": "18/meta/properties/exportedAt"
+                                      },
+                                      "end": {
+                                        "$ref": "18/meta/properties/exportedAt"
+                                      },
+                                      "orgTags": {
+                                        "anyOf": [
+                                          {
+                                            "type": "array",
+                                            "items": {
+                                              "type": "string"
+                                            }
+                                          },
+                                          {
+                                            "type": "null"
+                                          }
+                                        ]
+                                      }
+                                    },
+                                    "required": [
+                                      "type",
+                                      "title",
+                                      "start",
+                                      "end",
+                                      "orgTags"
                                     ],
                                     "additionalProperties": false
                                   }
