@@ -387,6 +387,13 @@ The first group is parsed as the duration. Groups that matches
 either H:MM or MM are parsed as the duration."
   :type 'regexp)
 
+(defcustom org-memento-order-group #'ignore
+  "Function used to group items in order completion.
+
+This is a function that takes an object of `org-memento-order'
+type and returns the group in string."
+  :type 'function)
+
 ;;;; Variables
 
 (defvar org-memento-init-done nil)
@@ -2480,10 +2487,16 @@ This function creates a follow-up task according to the value of
     (cl-labels
         ((annotator (candidate)
            (org-memento--order-annotator (cdr (assoc candidate alist))))
+         (group-function (candidate transform)
+           (if transform
+               candidate
+             (when-let (x (cdr (assoc candidate alist)))
+               (funcall org-memento-order-group x))))
          (completions (string pred action)
            (if (eq action 'metadata)
                (cons 'metadata
                      (list (cons 'category 'org-memento-order)
+                           (cons 'group-function #'group-function)
                            (cons 'annotation-function #'annotator)))
              (complete-with-action action alist string pred))))
       (cdr (assoc (completing-read prompt #'completions nil t)
