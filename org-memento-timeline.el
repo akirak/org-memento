@@ -1280,6 +1280,7 @@ section."
 (defun org-memento-timeline-progress-section (taxy)
   (require 'org-memento-policy)
   (when (or (not org-memento-current-block)
+            (org-memento-timeline--show-planning-p)
             (not (org-memento-timeline--default-range-p)))
     (org-memento-policy-maybe-load)
     (let ((rules (org-memento-policy-rules
