@@ -2217,7 +2217,7 @@ Please run `org-memento-close-date'" headline)))
       (user-error "Date entry on %s cannot be closed: Today is %s"
                   date
                   (format-time-string "%F" (org-memento--current-time))))
-    (when (org-entry-blocked-p)
+    (when (org-memento--date-unfinished-p)
       (if (yes-or-no-p "This date is blocked. Carry over unfinished items? ")
           (save-excursion
             (org-memento--carry-over-from-date))
@@ -2258,17 +2258,32 @@ The point must be on the entry of the date."
                       (setq final-activity time))))))))))
     final-activity))
 
+(defun org-memento--date-unfinished-p ()
+  "Return non-nil if there is an unfinished block on the date at point."
+  (catch 'unfinished
+    (let ((bound (save-excursion
+                   (org-end-of-subtree))))
+      (save-excursion
+        (while (re-search-forward org-complex-heading-regexp bound t)
+          (when (org-memento--unfinished-block-p)
+            (throw 'unfinished t)))))))
+
+(defun org-memento--unfinished-block-p (&optional match-data)
+  (when match-data
+    (set-match-data match-data))
+  (and (= 2 (- (match-end 1) (match-beginning 1)))
+       (not (equal (match-string-no-properties 4)
+                   org-memento-idle-heading))
+       (not (member (match-string-no-properties 2)
+                    org-done-keywords))))
+
 (defun org-memento--carry-over-from-date ()
   "Carry over unfinished blocks in the date entry at point."
   (let ((bound (save-excursion
                  (org-end-of-subtree)))
         (date (org-memento--today-string)))
     (while (re-search-forward org-complex-heading-regexp bound t)
-      (when (and (= 2 (- (match-end 1) (match-beginning 1)))
-                 (not (equal (match-string-no-properties 4)
-                             org-memento-idle-heading))
-                 (not (member (match-string-no-properties 2)
-                              org-done-keywords)))
+      (when (org-memento--unfinished-block-p)
         (let ((size (- (save-excursion
                          (org-end-of-subtree))
                        (pos-bol))))
