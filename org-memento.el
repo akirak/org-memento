@@ -1132,22 +1132,25 @@ At present, it runs `org-memento-timeline'."
          (org-todo keyword))
        (org-memento-after-state-change keyword)
        (org-memento--save-buffer))
-     (setq org-memento-current-block nil)
-     (org-memento--status)
-     (org-memento--cancel-block-timers)
-     (org-memento--add-next-event-timer)
-     (run-hooks 'org-memento-block-exit-hook)
-     (when (memq 'after-exit org-memento-display-timeline)
-       (setq org-memento-requesting-timeline t)
-       (add-hook 'org-memento-update-hook #'org-memento--oneshot-timeline))
-     (org-memento-log-update))))
+     (org-memento--set-blank-state))))
+
+(defun org-memento--set-blank-state ()
+  (setq org-memento-current-block nil)
+  (org-memento--status)
+  (org-memento--cancel-block-timers)
+  (org-memento--add-next-event-timer)
+  (run-hooks 'org-memento-block-exit-hook)
+  (when (memq 'after-exit org-memento-display-timeline)
+    (setq org-memento-requesting-timeline t)
+    (add-hook 'org-memento-update-hook #'org-memento--oneshot-timeline))
+  (org-memento-log-update))
 
 (defun org-memento-cancel-block ()
   "Revert the state of the current block."
   (interactive)
   (org-memento-with-current-block
     (org-entry-delete nil "MEMENTO_CHECKIN_TIME"))
-  (org-memento-status))
+  (org-memento--set-blank-state))
 
 (defun org-memento-rename-current-block (new-title)
   "Rename the currently running block."
@@ -1421,6 +1424,8 @@ The point must be after a \"CLOCK:\" string."
          (insert "\n"))))))
 
 ;;;; Timers and notifications
+
+
 
 (defun org-memento--setup-block-timers ()
   "Start timers for running notifications."
