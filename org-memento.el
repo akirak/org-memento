@@ -820,6 +820,20 @@ The function takes two arguments: the date string and an
        (goto-char (point-min))
        ,@body)))
 
+(defun org-memento--map-entries (func files skip)
+  (dolist (file files)
+    (with-current-buffer (or (org-find-base-buffer-visiting file)
+                             (find-file-noselect file))
+      (org-with-wide-buffer
+       (goto-char (point-min))
+       (while (re-search-forward org-heading-regexp nil t)
+         (goto-char (match-beginning 0))
+         (let ((end (match-end 0)))
+           (if-let (pos (funcall skip))
+               (goto-char pos)
+             (funcall func)
+             (goto-char end))))))))
+
 ;;;; Predicates on blocks
 
 (defsubst org-memento-block-not-closed-p (block)
@@ -3774,7 +3788,7 @@ denoting the type of the activity. ARGS is an optional list."
            (let ((bound (org-entry-end-position)))
              (unless (save-excursion (re-search-forward regexp bound t))
                bound))))
-      (org-map-entries #'scan nil files #'skip))
+      (org-memento--map-entries #'scan files #'skip))
     (nreverse result)))
 
 (cl-defun org-memento--block-activities (start-date-string &optional end-date-string
