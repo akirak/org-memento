@@ -1312,16 +1312,24 @@ If SAVE is non-nil, save the buffer."
   "Carry over BLOCKS to a future DATE."
   (let* ((date (or date (org-memento--next-date)))
          (rfloc (org-memento--rfloc-on-date date))
-         (bound (save-excursion (org-end-of-subtree))))
-    (dolist (title (mapcar #'org-memento-title blocks))
-      (catch 'refiled
-        (save-excursion
+         (start-date (if (= 1 (org-outline-level))
+                         (org-entry-get nil "ITEM")
+                       (error "This function must be called from the containing date entry")))
+         (first-entry t))
+    (dolist (block blocks)
+      (unless first-entry
+        (org-memento--goto-date start-date))
+      (let ((bound (save-excursion
+                     (org-end-of-subtree)))
+            (title (org-memento-title block)))
+        (catch 'refiled
           (while (re-search-forward (format org-complex-heading-regexp-format title)
                                     bound t)
             (when (= (- (match-end 1) (match-beginning 1)) 2)
               (org-memento--carry-over-to-rfloc rfloc)
               (throw 'refiled t)))
-          (error "Heading \"%s\" was not found" title))))))
+          (error "Heading \"%s\" was not found" title)))
+      (setq first-entry nil))))
 
 (defun org-memento--carry-over-to-rfloc (rfloc)
   "Carry over the current entry to RFLOC."
