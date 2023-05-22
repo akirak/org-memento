@@ -2361,35 +2361,37 @@ This function creates a follow-up task according to the value of
               (properties (if duration
                               (cons (cons "Effort" duration)
                                     properties)
-                            properties))
-              ;; org-element-use-cache can produce an unexpected result. For
-              ;; example, it can bring text from the original node to the target
-              ;; node. Thus it is safe to disable it when you perform raw-text
-              ;; based manipulation in org buffers.
-              (org-element-use-cache nil))
+                            properties)))
          (with-current-buffer (org-memento--buffer)
            (org-with-wide-buffer
             (org-memento--goto-date date)
-            (org-end-of-subtree)
-            (unless (bolp)
-              (newline))
-            (insert "** " (if todo (concat todo " ") "") heading
-                    (if tags
-                        (concat " " (org-make-tag-string tags))
-                      "")
-                    "\n"
-                    (if properties
-                        (concat ":PROPERTIES:\n"
-                                (mapconcat (lambda (cell)
-                                             (format ":%s: %s" (car cell) (cdr cell)))
-                                           properties
-                                           "\n")
-                                "\n:END:\n")
-                      "")
-                    body)
-            (unless (or (bolp)
-                        (eolp))
-              (newline)))))))))
+            (save-excursion
+              (org-end-of-subtree)
+              (unless (bolp)
+                (newline))
+              (insert "** " (if todo (concat todo " ") "") heading
+                      (if tags
+                          (concat " " (org-make-tag-string tags))
+                        "")
+                      "\n"
+                      (if properties
+                          (concat ":PROPERTIES:\n"
+                                  (mapconcat (lambda (cell)
+                                               (format ":%s: %s" (car cell) (cdr cell)))
+                                             properties
+                                             "\n")
+                                  "\n:END:\n")
+                        "")
+                      body)
+              (unless (or (bolp)
+                          (eolp))
+                (newline))
+              (org-back-to-heading)
+              ;; Refresh cache of the created entry (not sure if this is
+              ;; necessary).
+              (org-element-cache-refresh (point)))
+            ;; Refresh cache of the date entry. (not sure if this is necessary).
+            (org-element-cache-refresh (point)))))))))
 
 (defun org-memento-new-block-title-1 (old-heading _keyword)
   (pcase old-heading
