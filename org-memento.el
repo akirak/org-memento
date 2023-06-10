@@ -1798,6 +1798,23 @@ daily entry."
                         blocks))))))))
     blocks))
 
+(defun org-memento-current-block-p ()
+  "Return non-nil if the entry at point is the current block."
+  (and org-memento-current-block
+       (stringp org-memento-file)
+       (file-equal-p (buffer-file-name (org-base-buffer (current-buffer)))
+                     org-memento-file)
+       (org-with-wide-buffer
+        (and (or (looking-at (rx bol "** "))
+                 (re-search-backward (rx bol "** ") nil t))
+             (org-match-line org-complex-heading-regexp)
+             (equal (match-string 4)
+                    org-memento-current-block)
+             (re-search-backward (rx bol "* ") nil t)
+             (org-match-line org-complex-heading-regexp)
+             (equal (match-string 4)
+                    (org-memento--today-string))))))
+
 ;;;;; Updating properties
 
 (defun org-memento-set-duration (duration)
