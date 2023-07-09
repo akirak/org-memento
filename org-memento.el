@@ -1362,7 +1362,9 @@ If SAVE is non-nil, save the buffer."
                       (org-element-property :end orig-ts)))
      (insert (org-memento--format-timestamp
               (org-memento-started-time block)
-              (encode-time (parse-time-string string)))))))
+              (encode-time (parse-time-string string))))
+     (unless (eolp)
+       (newline)))))
 
 (cl-defun org-memento-adjust-time (&key allow-edit-clock new-start)
   "Adjust the active timestamp of the entry."
