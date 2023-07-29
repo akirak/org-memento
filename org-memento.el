@@ -1346,6 +1346,42 @@ If SAVE is non-nil, save the buffer."
      (org-memento--goto-date date)
      (list date (buffer-file-name) nil (point)))))
 
+(defun org-memento-adjust-checkin-time ()
+  "Adjust the checkin time of the day to the initial activity."
+  (interactive)
+  (org-memento-with-today-entry
+   (let* ((current-raw-value (org-entry-get nil "MEMENTO_CHECKIN_TIME"))
+          (current (when current-raw-value
+                     (thread-last
+                       current-raw-value
+                       (org-timestamp-from-string)
+                       (org-timestamp-to-time))))
+          (expected (thread-last
+                      (org-memento--agenda-activities
+                       (thread-last
+                         (decode-time current)
+                         (org-memento--start-of-day)
+                         (encode-time))
+                       (current-time)
+                       (thread-last
+                         (append (mapcar #'expand-file-name (org-agenda-files))
+                                 (thread-last
+                                   org-clock-history
+                                   (mapcar #'marker-buffer)
+                                   (seq-filter #'buffer-live-p)
+                                   (mapcar #'buffer-file-name)))
+                         (cl-remove-duplicates)))
+                      (mapcar #'car)
+                      (seq-sort #'time-less-p)
+                      (car))))
+     (if (and expected (or (not current)
+                           (time-less-p expected current)))
+         (let ((new-value (org-memento--format-timestamp expected nil 'inactive)))
+           (org-entry-put nil "MEMENTO_CHECKIN_TIME" new-value)
+           (message "Updated the check-in time from %s to %s"
+                    current-raw-value new-value))
+       (message "The check-in time was not changed")))))
+
 (defun org-memento-set-checkout-time ()
   "Extend the checkout time of the day."
   (interactive)
