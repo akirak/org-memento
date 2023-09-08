@@ -8,3 +8,32 @@ Maybe I will implement a backend in a statically typed language (e.g. Haskell, O
 
 Therefore this project is not recommendable to general users, but you can use the code for reference.
 See also [[file:LICENSE][license]].
+** What it does and how it works
+As this project is not in a usable state yet (and it is probably not going to be), it can only serve as a proof of concept. I will share the gist of this project.
+
+~org-memento~ integrates seamless /time blocking/​ into Emacs.
+~org-mode~ already has time tracking with ~org-clock.el~ and also supports timers and notifications, but ~org-memento~ adds a separate layer for time blocking to Emacs.
+Rather than you clock into individual tasks, you first define /blocks/ which are actually a set of buckets for tasks and track time spent on them.
+Those buckets are defined in a single journal file, which is an ~org-mode~ file with date headings in reverse chronological order.
+The core functionality of ~org-memento~ is to display a timeline of time blocks inside Emacs.
+
+It is unlikely that you consistently define all budgets beforehand.
+There are urgent tasks in real life, and you start working on them as soon as you get notified on those tasks.
+~org-memento~ lets you handle that kind of situation.
+The timeline interface also displays activities in ~org-mode~ files.
+You can select a continous sequence of activities and group them with a time block.
+You first get it done, and then describe the sequence of activities.
+
+A typical workflow with ~org-memento~ is as follows:
+
+1. In the morning, check in to the journal of ~org-memento~.
+2. Work on tasks.
+3. When you finish the day, check out from the journal.
+** Limitations with the system and a possible solution
+Even though the above workflow works seamlessly, I have come to wonder what would be a good way to control time budgets.
+It also has an issue of synchronization with external systems, e.g. online calendars.
+
+I am thinking of developing a backend server for better planning of budgets.
+The server language can be Elixir, OCaml, or even something else.
+Until I implement the backend, I am not going to submit this Emacs Lisp package.
+Life is short, so there is a chance I won't finish the project within my lifetime.
