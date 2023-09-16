@@ -30,7 +30,7 @@ A typical workflow with ~org-memento~ is as follows:
 2. Work on tasks.
 3. When you finish the day, check out from the journal.
 ** Limitations with the system and a possible solution
-Even though the above workflow works seamlessly, I have come to wonder what would be a good way to control time budgets.
+Even though the above workflow works seamlessly for *tracking*​ time, I have come to wonder what would be a good way to *control*​ time budgets.
 It also has an issue of synchronization with external systems, e.g. online calendars.
 
 I am thinking of developing a backend server for better planning of budgets.
