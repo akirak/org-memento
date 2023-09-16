@@ -19,7 +19,9 @@ While Org is useful because each entry contains information needed to carry out 
 The core functionality of ~org-memento~ is to display a timeline of time blocks inside Emacs.
 
 It is unlikely that you consistently define all budgets beforehand.
-There are urgent tasks in real life, and you start working on them as soon as you get notified on those tasks.
+In real life, you have urgent tasks and other spontaneous activities.
+You usually don’t properly schedule them, but it distracts you and consumes some amount of time.
+Normal people can’t avoid it.
 ~org-memento~ lets you handle that kind of situation.
 The timeline interface also displays activities in ~org-mode~ files.
 You can select a continous sequence of activities and group them with a time block.
