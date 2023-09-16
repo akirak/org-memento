@@ -15,6 +15,7 @@ As this project is not in a usable state yet (and it is probably not going to be
 ~org-mode~ already has time tracking with ~org-clock.el~ and also supports timers and notifications, but ~org-memento~ adds a separate layer for time blocking to Emacs.
 Rather than you clock into individual tasks, you first define /blocks/ which are actually a set of buckets for tasks and track time spent on them.
 Those buckets are defined in a single journal file, which is an ~org-mode~ file with date headings in reverse chronological order.
+While Org is useful because each entry contains information needed to carry out the task, buckets don’t contain any information but timing. They are cheap, so you can delete them without worries.
 The core functionality of ~org-memento~ is to display a timeline of time blocks inside Emacs.
 
 It is unlikely that you consistently define all budgets beforehand.
