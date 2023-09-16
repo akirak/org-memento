@@ -3,7 +3,7 @@
 It is hosted as a public repository for a technical reason, but it's not meant for attracting users.
 The code base is not well-tested, and it is difficult to develop new features without regression.
 
-Still, it serves as a prototype for seeking ideas for time management inside Emacs with Org mode and I am using it on weekends (not at work, unfortunately).
+Still, it serves as a prototype for seeking ideas for time management inside Emacs with Org mode, and I am using it on weekends (not at work, unfortunately).
 Maybe I will implement a backend in a statically typed language (e.g. Haskell, OCaml, etc.) in the future to make it more reliable.
 
 Therefore this project is not recommendable to general users, but you can use the code for reference.
