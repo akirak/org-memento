@@ -4553,9 +4553,17 @@ range."
               (org-memento--format-army-time start-time midnight)))))
 
 (defun org-memento--format-active-range (start-time end-time)
+  (when (time-less-p end-time start-time)
+    (error "start-time (%s) is later than end-time (%s)"
+           (format-time-string "%R" start-time)
+           (format-time-string "%R" end-time)))
   (org-memento--format-timestamp start-time end-time))
 
 (defun org-memento--format-army-time-range (start end &optional midnight)
+  (when (time-less-p end start)
+    (error "start (%s) is later than end (%s)"
+           (format-time-string "%R" start)
+           (format-time-string "%R" end)))
   (let* ((start (cl-etypecase start
                   (number (time-convert start 'list))
                   (list start)))
