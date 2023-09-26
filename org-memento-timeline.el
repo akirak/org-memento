@@ -813,21 +813,31 @@ If ARG is non-nil, create an away event."
            :title title
            :duration (org-memento--entry-duration marker :start start :end end)))
        (schedule-new-block (start end-bound)
-         (pcase-exhaustive (org-memento--read-time-span
-                            (org-memento--format-active-range
-                             (if (and start (< start (float-time)))
-                                 (+ (float-time) (* 60 org-memento-margin-minutes))
-                               start)
-                             end-bound)
-                            start)
-           (`(,modified-start ,end)
-            (org-memento-schedule-block (float-time modified-start)
-                                        (if end
-                                            (float-time end)
-                                          end-bound)
-                                        :confirmed-time t
-                                        :suggestions
-                                        (org-memento-timeline-suggestions)))))
+         (if (> start end-bound)
+             (error "Invalid end-bound: start (%s) is later than end-bound (%s)"
+                    (format-time-string "%R" start)
+                    (format-time-string "%R" end-bound))
+           (let ((default-start (if (and start (< start (float-time)))
+                                    (+ (float-time) (* 60 org-memento-margin-minutes))
+                                  start)))
+             (pcase-exhaustive (org-memento--read-time-span
+                                (org-memento--format-active-range
+                                 (if (> default-start end-bound)
+                                     (if (yes-or-no-p (format "Are you sure you want to \
+schedule an activity in the range for %d minutes?" (floor (/ (- end-bound start) 60))))
+                                         start
+                                       (user-error "Aborted"))
+                                   default-start)
+                                 end-bound)
+                                start)
+               (`(,modified-start ,end)
+                (org-memento-schedule-block (float-time modified-start)
+                                            (if end
+                                                (float-time end)
+                                              end-bound)
+                                            :confirmed-time t
+                                            :suggestions
+                                            (org-memento-timeline-suggestions)))))))
        (add-event (start end &optional moderate-time away)
          (pcase-exhaustive (if moderate-time
                                (org-memento--read-time-span
