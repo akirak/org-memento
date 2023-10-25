@@ -1545,8 +1545,10 @@ With ARG, interactivity is inverted."
            (let ((title (org-memento-read-block "Select a block to add: " blocks)))
              (if-let (block (seq-find (apply-partially #'has-title title)
                                       blocks))
-                 (org-memento-timeline--update-event-time block
-                   (+ slot-start (* 60 org-memento-margin-minutes)))
+                 (progn
+                   (org-memento-timeline--update-event-time block
+                     (+ slot-start (* 60 org-memento-margin-minutes)))
+                   (org-memento-timeline--revert :log t))
                (error "Creating a new block is not support right now"))))
          (late-or-unscheduled (block)
            (and (not (org-memento-started-time block))
