@@ -731,7 +731,7 @@ triggered by an interval timer."
   (when-let* ((section (magit-current-section))
               (value (oref section value)))
     (when (pcase value
-            ((and `(,start ,_end ,_ ,marker ,type . ,_)
+            ((and `(,start ,end ,_ ,marker ,type . ,_)
                   (guard marker))
              (cond
               ((or (not start)
@@ -747,6 +747,9 @@ triggered by an interval timer."
                    (org-end-of-meta-data t)
                    (if (looking-at (concat org-ts-regexp "\n"))
                        (when (yes-or-no-p "Remove the timestamp from the entry?")
+                         (when (and start end)
+                           (org-entry-put nil "Effort"
+                                          (org-duration-from-minutes (/ (- end start) 60))))
                          (delete-region (point) (1+ (pos-eol)))
                          (message "Removed an active timestamp")
                          t)
