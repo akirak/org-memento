@@ -4,10 +4,10 @@
     "schema": "node index.js schema | jq > ../schema/document.json"
   },
   "devDependencies": {
-    "@types/node": "^18.15.11",
-    "@types/yargs": "^17.0.24",
-    "prettier": "^2.8.7",
-    "typescript": "^5.0.3"
+    "@types/node": "18.15.11",
+    "@types/yargs": "17.0.24",
+    "prettier": "2.8.7",
+    "typescript": "5.0.3"
   },
   "dependencies": {
     "yargs": "^17.7.1",
