@@ -18,7 +18,7 @@ devDependencies:
   '@types/node': 18.15.11
   '@types/yargs': 17.0.24
   prettier: 2.8.7
-  typescript: 5.0.3
+  typescript: 5.6.3
 
 packages:
 
@@ -114,9 +114,9 @@ packages:
       ansi-regex: 5.0.1
     dev: false
 
-  /typescript/5.0.3:
-    resolution: {integrity: sha512-xv8mOEDnigb/tN9PSMTwSEqAnUvkoXMQlicOb0IUVDBSQCgBSaAAROUZYy2IcUy5qU6XajK5jjjO7TMWqBTKZA==}
-    engines: {node: '>=12.20'}
+  /typescript/5.6.3:
+    resolution: {integrity: sha512-hjcS1mhfuyi4WW8IWtjP7brDrG2cuDZukyrYrSauoXGNgx0S7zceP07adYkJycEr56BOUTNPzbInooiN3fn1qw==}
+    engines: {node: '>=14.17'}
     hasBin: true
     dev: true
 
