@@ -4,7 +4,7 @@
     "schema": "node index.js schema | jq > ../schema/document.json"
   },
   "devDependencies": {
-    "@types/node": "^18.15.11",
+    "@types/node": "^20.0.0",
     "@types/yargs": "^17.0.24",
     "prettier": "^2.8.7",
     "typescript": "^5.0.3"
