@@ -11,19 +11,19 @@ specifiers:
 
 dependencies:
   yargs: 17.7.2
-  zod: 3.24.1
-  zod-to-json-schema: 3.23.3_zod@3.24.1
+  zod: 3.24.2
+  zod-to-json-schema: 3.23.3_zod@3.24.2
 
 devDependencies:
-  '@types/node': 20.17.16
+  '@types/node': 20.17.18
   '@types/yargs': 17.0.33
-  prettier: 3.4.2
+  prettier: 3.5.0
   typescript: 5.7.3
 
 packages:
 
-  /@types/node/20.17.16:
-    resolution: {integrity: sha512-vOTpLduLkZXePLxHiHsBLp98mHGnl8RptV4YAO3HfKO5UHjDvySGbxKtpYfy8Sx5+WKcgc45qNreJJRVM3L6mw==}
+  /@types/node/20.17.18:
+    resolution: {integrity: sha512-9kS0opXVV3dJ+C7HPhXfDlOdMu4cjJSZhlSxlDK39IxVRxBbuiYjCkLYSO9d5UYqTd4DApxRK9T1xJiTAkfA0w==}
     dependencies:
       undici-types: 6.19.8
     dev: true
@@ -89,8 +89,8 @@ packages:
     engines: {node: '>=8'}
     dev: false
 
-  /prettier/3.4.2:
-    resolution: {integrity: sha512-e9MewbtFo+Fevyuxn/4rrcDAaq0IYxPGLvObpQjiZBMAzB9IGmzlnG9RZy3FFas+eBMu2vA0CszMeduow5dIuQ==}
+  /prettier/3.5.0:
+    resolution: {integrity: sha512-quyMrVt6svPS7CjQ9gKb3GLEX/rl3BCL2oa/QkNcXv4YNVBC9olt3s+H7ukto06q7B1Qz46PbrKLO34PR6vXcA==}
     engines: {node: '>=14'}
     hasBin: true
     dev: true
@@ -158,14 +158,14 @@ packages:
       yargs-parser: 21.1.1
     dev: false
 
-  /zod-to-json-schema/3.23.3_zod@3.24.1:
+  /zod-to-json-schema/3.23.3_zod@3.24.2:
     resolution: {integrity: sha512-TYWChTxKQbRJp5ST22o/Irt9KC5nj7CdBKYB/AosCRdj/wxEMvv4NNaj9XVUHDOIp53ZxArGhnw5HMZziPFjog==}
     peerDependencies:
       zod: ^3.23.3
     dependencies:
-      zod: 3.24.1
+      zod: 3.24.2
     dev: false
 
-  /zod/3.24.1:
-    resolution: {integrity: sha512-muH7gBL9sI1nciMZV67X5fTKKBLtwpZ5VBp1vsOQzj1MhrBZ4wlVCm3gedKZWLp0Oyel8sIGfeiz54Su+OVT+A==}
+  /zod/3.24.2:
+    resolution: {integrity: sha512-lY7CDW43ECgW9u1TcT3IoXHflywfVqDYze4waEz812jR/bZ8FHDsl7pFQoSZTz5N+2NqRXs8GBwnAwo3ZNxqhQ==}
     dev: false
