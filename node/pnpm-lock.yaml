@@ -1,7 +1,7 @@
 lockfileVersion: 5.4
 
 specifiers:
-  '@types/node': ^20.0.0
+  '@types/node': ^22.0.0
   '@types/yargs': ^17.0.24
   prettier: ^3.0.0
   typescript: ^5.0.3
@@ -15,17 +15,17 @@ dependencies:
   zod-to-json-schema: 3.23.3_zod@3.24.2
 
 devDependencies:
-  '@types/node': 20.17.18
+  '@types/node': 22.13.2
   '@types/yargs': 17.0.33
   prettier: 3.5.0
   typescript: 5.7.3
 
 packages:
 
-  /@types/node/20.17.18:
-    resolution: {integrity: sha512-9kS0opXVV3dJ+C7HPhXfDlOdMu4cjJSZhlSxlDK39IxVRxBbuiYjCkLYSO9d5UYqTd4DApxRK9T1xJiTAkfA0w==}
+  /@types/node/22.13.2:
+    resolution: {integrity: sha512-Z+r8y3XL9ZpI2EY52YYygAFmo2/oWfNSj4BCpAXE2McAexDk8VcnBMGC9Djn9gTKt4d2T/hhXqmPzo4hfIXtTg==}
     dependencies:
-      undici-types: 6.19.8
+      undici-types: 6.20.0
     dev: true
 
   /@types/yargs-parser/21.0.3:
@@ -122,8 +122,8 @@ packages:
     hasBin: true
     dev: true
 
-  /undici-types/6.19.8:
-    resolution: {integrity: sha512-ve2KP6f/JnbPBFyobGHuerC9g1FYGn/F8n1LWTwNxCEzd6IfqTwUQcNXgEtmmQ6DlRrC1hrSrBnCZPokRrDHjw==}
+  /undici-types/6.20.0:
+    resolution: {integrity: sha512-Ny6QZ2Nju20vw1SRHe3d9jVu6gJ+4e3+MMpqu7pqE5HT6WsTSlce++GQmK5UXS8mzV8DSYHrQH+Xrf2jVcuKNg==}
     dev: true
 
   /wrap-ansi/7.0.0:
